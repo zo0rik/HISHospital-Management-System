@@ -16,4 +16,7 @@ void changePassword(void);
 void editPersonalInfo(void);
 void personalMenu(void);
 
+// 新增：向 main.c 暴露的管理端总入口
+void adminMenu(void);
+
 #endif
