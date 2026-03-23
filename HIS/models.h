@@ -11,7 +11,7 @@
 // 1. 系统统一登录账号节点 (融合基础认证信息)
 // ==========================================
 typedef struct User {
-    char id[20];            // 账号/工号
+    char account[20];            // 账号/工号
     char password[50];      // 密码
     char role[20];          // 角色: admin/doctor/nurse/patient
     char name[100];         // 姓名
