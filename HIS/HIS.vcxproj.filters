@@ -30,6 +30,24 @@
     <ClCompile Include="admin.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="decision.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="doctor.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="drug.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="schedule.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="transaction.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="time.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="utils.h">
@@ -45,6 +63,24 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="patient.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="decision.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="doctor.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="drug.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="schedule.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="transaction.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="time.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

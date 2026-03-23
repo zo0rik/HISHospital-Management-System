@@ -20,16 +20,28 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="admin.c" />
+    <ClCompile Include="decision.c" />
+    <ClCompile Include="doctor.c" />
+    <ClCompile Include="drug.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="patient.c" />
+    <ClCompile Include="schedule.c" />
     <ClCompile Include="staff.c" />
+    <ClCompile Include="time.c" />
+    <ClCompile Include="transaction.c" />
     <ClCompile Include="utils.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="admin.h" />
+    <ClInclude Include="decision.h" />
+    <ClInclude Include="doctor.h" />
+    <ClInclude Include="drug.h" />
     <ClInclude Include="models.h" />
     <ClInclude Include="patient.h" />
+    <ClInclude Include="schedule.h" />
     <ClInclude Include="staff.h" />
+    <ClInclude Include="time.h" />
+    <ClInclude Include="transaction.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
