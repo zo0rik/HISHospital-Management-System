@@ -45,7 +45,7 @@
     <ClCompile Include="transaction.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="time.c">
+    <ClCompile Include="time_t.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -80,7 +80,7 @@
     <ClInclude Include="transaction.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="time.h">
+    <ClInclude Include="time_t.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

@@ -33,3 +33,4 @@ void saveDrugHistory(void);
 void drugMenu(void);
 
 #endif
+#pragma once

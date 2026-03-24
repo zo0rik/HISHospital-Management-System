@@ -27,7 +27,7 @@
     <ClCompile Include="patient.c" />
     <ClCompile Include="schedule.c" />
     <ClCompile Include="staff.c" />
-    <ClCompile Include="time.c" />
+    <ClCompile Include="time_t.c" />
     <ClCompile Include="transaction.c" />
     <ClCompile Include="utils.c" />
   </ItemGroup>
@@ -40,7 +40,7 @@
     <ClInclude Include="patient.h" />
     <ClInclude Include="schedule.h" />
     <ClInclude Include="staff.h" />
-    <ClInclude Include="time.h" />
+    <ClInclude Include="time_t.h" />
     <ClInclude Include="transaction.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>

@@ -1,6 +1,8 @@
+#pragma once
 #ifndef ADMIN_H
 #define ADMIN_H
 
+// 队友设计的 admin 结构体
 typedef struct Admin {
     char username[20];
     char password[20];
@@ -10,13 +12,14 @@ typedef struct Admin {
 
 extern Admin admin;
 
+// 数据管理及个人设置接口
 void loadAdminData(void);
 void saveAdminData(void);
 void changePassword(void);
 void editPersonalInfo(void);
 void personalMenu(void);
 
-// 新增：向 main.c 暴露的管理端总入口
+// 向 main 暴露的管理端大屏入口
 void adminMenu(void);
 
-#endif
+#endif#pragma once
