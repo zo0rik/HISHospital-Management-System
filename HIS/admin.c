@@ -40,7 +40,17 @@ void saveAdminData(void) {
     fprintf(fp, "%s,%s,%s,%s\n", admin.username, admin.password, admin.phone, admin.email);
     fclose(fp);
 }
-
+// ---------------------------------------------------------
+// 修改用户名模块
+// ---------------------------------------------------------
+void changename(void) {
+    char newName[20] = { '\0' };
+    printf("请输入新用户名: "); scanf("%19s", newName);
+    if (strlen(newName) == 0) { printf("用户名不能为空！\n"); return; }
+    strcpy(admin.username, newName);
+    printf("用户名修改成功！\n");
+    saveAdminData();
+}
 // ---------------------------------------------------------
 // 修改密码模块
 // ---------------------------------------------------------
@@ -53,6 +63,7 @@ void changePassword(void) {
     if (strcmp(new1, new2) != 0) { printf("两次输入不一致！\n"); return; }
     strcpy(admin.password, new1);
     printf("密码修改成功！\n");
+	saveAdminData();
 }
 
 // ---------------------------------------------------------
