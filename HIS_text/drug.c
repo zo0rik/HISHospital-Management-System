@@ -26,19 +26,19 @@ void loadDrugs() {
         char* token = strtok(line, ",");
         if (token) d.id = atoi(token); else d.id = 0;
         token = strtok(NULL, ",");
-        if (token) strcpy(d.name, token); else d.name[0] = '\0';
+        if (token) strcpy(d.name, token); else d.name[0] = '\0';//名称
         token = strtok(NULL, ",");
-        if (token) d.stock = atoi(token); else d.stock = 0;
+		if (token) d.stock = atoi(token); else d.stock = 0;//库存
         token = strtok(NULL, ",");
-        if (token) d.price = atof(token); else d.price = 0.0;
+		if (token) d.price = atof(token); else d.price = 0.0;//价格
         token = strtok(NULL, ",");
-        if (token) strcpy(d.batch, token); else d.batch[0] = '\0';
+		if (token) strcpy(d.batch, token); else d.batch[0] = '\0';//批号
         token = strtok(NULL, ",");
-        if (token) strcpy(d.expiry, token); else d.expiry[0] = '\0';
+		if (token) strcpy(d.expiry, token); else d.expiry[0] = '\0';//有效期
         token = strtok(NULL, ",");
-        if (token) strcpy(d.last_in, token); else d.last_in[0] = '\0';
+		if (token) strcpy(d.last_in, token); else d.last_in[0] = '\0';//最近入库时间
         token = strtok(NULL, ",");
-        if (token) strcpy(d.last_out, token); else d.last_out[0] = '\0';
+		if (token) strcpy(d.last_out, token); else d.last_out[0] = '\0';//最近出库时间
 
         // 尾插法构建药品链表
         Drug* node = (Drug*)malloc(sizeof(Drug));
@@ -139,11 +139,18 @@ static void drugStockQuery() {
 
     // 按精确ID检索
     if (choice == 1) {
-        int id; printf("请输入药品ID: "); scanf("%d", &id);
+        char id[15];
+        for(int i=0;i<15;i++)   
+			id[i]= '\0'; // 确保字符串结尾]
+        printf("请输入药品ID: "); scanf("%s", id);
+        if (id[14] != '\0') {
+            printf("未找到该药品。\n");
+            return ;
+        }
         Drug* p = drugList;
         while (p) {
-            if (p->id == id) {
-                printf("ID:%d 名称:%s 库存:%d 价格:%.2f 批号:%s 有效期:%s\n",
+            if (strcmp(p->id,id)==0){
+                printf("ID:%s 名称:%s 库存:%d 价格:%.2f 批号:%s 有效期:%s\n",
                     p->id, p->name, p->stock, p->price, p->batch, p->expiry);
                 return;
             }
@@ -179,9 +186,9 @@ static void viewStockRecords() {
     printf("\n--- 库存变动记录 ---\n");
     DrugHistory* h = drugHistoryList;
     if (!h) { printf("暂无记录。\n"); return; }
-    printf("%-8s %-6s %-8s %-20s\n", "药品ID", "类型", "数量", "时间");
+    printf("%-15s %-6s %-8s %-20s\n", "药品ID", "类型", "数量", "时间");
     while (h) {
-        printf("%-8d %-6s %-8d %-20s\n", h->drug_id,
+        printf("%-15s %-6s %-8d %-20s\n", h->drug_id,
             (h->type == 1) ? "入库" : "出库", h->quantity, h->time);
         h = h->next;
     }
@@ -191,12 +198,18 @@ static void viewStockRecords() {
 // 业务三：药品入库管理 (增加库存并记录流水)
 // ---------------------------------------------------------
 static void drugIn() {
-    int id, quantity;
+    int  quantity;
+    char id[15];
     printf("请输入药品ID: ");
-    scanf("%d", &id);
+    id[14] = '\0'; // 确保字符串结尾
+    scanf("%s", id);
+    if (id[14]!='\0'){
+		printf("未找到该药品。\n");
+        return;
+    }
     Drug* p = drugList;
     while (p) {
-        if (p->id == id) {
+        if (strcmp(p->id,id)==0) {
             printf("当前库存: %d\n", p->stock);
             printf("请输入入库数量: ");
             scanf("%d", &quantity);
@@ -207,8 +220,8 @@ static void drugIn() {
 
             // 采用头插法将变动记录插入历史流水链表
             DrugHistory* h = (DrugHistory*)malloc(sizeof(DrugHistory));
-            h->drug_id = id;
-            h->type = 1; // 1代表入库
+            strcpy(h->drug_id,id);
+            h->type = 1;
             h->quantity = quantity;
             getCurrentTime(h->time, 30);
             h->next = drugHistoryList;
@@ -225,12 +238,18 @@ static void drugIn() {
 // 业务四：药品人工出库管理
 // ---------------------------------------------------------
 static void drugOut() {
-    int id, quantity;
+    int  quantity;
+    char id[15];
     printf("请输入药品ID: ");
-    scanf("%d", &id);
+    id[14] = '\0'; // 确保字符串结尾
+    scanf("%s", id);
+    if (id[14] != '\0') {
+        printf("未找到该药品。\n");
+        return;
+	}//防止输入过长导致内存越界
     Drug* p = drugList;
     while (p) {
-        if (p->id == id) {
+        if (strcmp(p->id,id)==0) {
             printf("当前库存: %d\n", p->stock);
             printf("请输入出库数量: ");
             scanf("%d", &quantity);
