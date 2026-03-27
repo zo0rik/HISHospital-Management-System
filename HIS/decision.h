@@ -1,8 +1,0 @@
-#pragma once
-#ifndef DECISION_H
-#define DECISION_H
-
-void decisionMenu(void);
-
-#endif
-
