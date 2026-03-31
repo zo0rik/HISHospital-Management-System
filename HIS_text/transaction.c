@@ -107,29 +107,36 @@ static void showPersonnelReport() {
 static void showBusinessReport() {
     char start[30], end[30];
     int type;
-    printf("请输入查询起始日期 (YYYY-MM-DD): "); scanf("%s", start);
-    printf("请输入查询结束日期 (YYYY-MM-DD): "); scanf("%s", end);
-    printf("请选择业务类型:\n1-门诊流水\n2-住院流水\n3-药品流水\n4-全部\n选择: ");
+    
+    printf("请选择业务类型:\n1-门诊流水\n2-住院流水\n3-药品流水\n4-全部\n0-退出\n选择: ");
     scanf("%d", &type);
-
-    printf("\n========== 诊疗明细流水 (%s 至 %s) ==========\n", start, end);
-    Transaction* t = transactionList;
-    int found = 0;
-    while (t) {
-        // 范围检索
-        if (strcmp(t->time, start) >= 0 && strcmp(t->time, end) <= 0) {
-            // 分类检索 (类型4代表无视类型直接输出全部)
-            if (type == 4 || t->type == type) {
-                printf("%-20s %-12s %-10.2f %s\n", t->time,
-                    (t->type == 1) ? "门诊" : (t->type == 2) ? "住院" : "药品",
-                    t->amount, t->description);
-                found = 1;
-            }
+    while (type != 0) {
+		if (type < 0 || type > 4) {
+            printf("无效选项，请重新选择: ");
+            scanf("%d", &type);
+            continue;
         }
-        t = t->next;
+        printf("请输入查询起始日期 (YYYY-MM-DD): "); scanf("%s", start);
+        printf("请输入查询结束日期 (YYYY-MM-DD): "); scanf("%s", end);
+        printf("\n========== 诊疗明细流水 (%s 至 %s) ==========\n", start, end);
+        Transaction* t = transactionList;
+        int found = 0;
+        while (t) {
+            // 范围检索
+            if (strcmp(t->time, start) >= 0 && strcmp(t->time, end) <= 0) {
+                // 分类检索 (类型4代表无视类型直接输出全部)
+                if (type == 4 || t->type == type) {
+                    printf("%-20s %-12s %-10.2f %s\n", t->time,
+                        (t->type == 1) ? "门诊" : (t->type == 2) ? "住院" : "药品",
+                        t->amount, t->description);
+                    found = 1;
+                }
+            }
+            t = t->next;
+        }
+        if (!found) printf("检索范围内无相关记录。\n");
+        scanf("%d", &type);
     }
-    if (!found) printf("检索范围内无相关记录。\n");
-    printf("\n（可导出流水明细表，此处仅为大屏预览）\n");
 }
 
 // ---------------------------------------------------------
