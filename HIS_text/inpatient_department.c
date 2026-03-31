@@ -507,17 +507,20 @@ void dischargePatient() {
 
         if (r5) {
             char outTime[30]; getCurrentTimeStr(outTime, 30);
-            // 更新记录，补全实际天数和总费用等信息
-            sprintf(r5->description, "病房:%s_床位:%s_入院日期:%s_实际天数:%d_押金:%.0f_出院日期:%s_总费用:%.2f",
-                targetBed->wardType, targetBed->bedId, r5->createTime, actualDays, r5->cost, outTime, totalHospitalCost);
+            double original_deposit = r5->cost; // 记住患者最初交的押金（比如 2000）
+
+            // 【核心修复】：将最初的押金单，完美转化为真正的“出院消费结算单”
+            // 这样患者在财务报表中就能清晰看到床位费和药费的扣款了！
+            r5->cost = totalHospitalCost; // 真实的消费总金额（比如床位费 400）
             r5->isPaid = 2; // 闭环
+            sprintf(r5->description, "出院结算_实际住院:%d天_床位费:%.2f_药费:%.2f", actualDays, totalBedFee, totalDrugFee);
 
             // 【情况 A】: 押金有结余，退还差额
-            if (r5->cost > totalHospitalCost) {
-                double refund = r5->cost - totalHospitalCost;
+            if (original_deposit > totalHospitalCost) {
+                double refund = original_deposit - totalHospitalCost;
                 Patient* pt = patientHead->next;
                 while (pt) { if (strcmp(pt->id, pId) == 0) { pt->balance += refund; break; } pt = pt->next; }
-                printf("\n【退款通知】经系统清算，押金结余 %.2f 元。已实时原路退回至患者账户余额！\n", refund);
+                printf("\n【退款通知】经系统清算，原押金 %.0f 元，结余 %.2f 元。已实时退回至患者账户！\n", original_deposit, refund);
 
                 // --- 业务联动：生成 Type 8 个人退款流水 ---
                 Record* r8 = (Record*)malloc(sizeof(Record));
@@ -529,7 +532,7 @@ void dischargePatient() {
                 getCurrentTimeStr(r8->createTime, 30);
                 r8->next = recordHead->next; recordHead->next = r8;
 
-                // --- 【核心新增】业务联动：生成 Transaction 退款流水 (队友的报表) ---
+                // --- 【核心联动】同步退款至队友的 Transaction 报表冲账 ---
                 Transaction* newTrans = (Transaction*)malloc(sizeof(Transaction));
                 int maxId = 0; Transaction* curr = transactionList;
                 while (curr) { if (curr->id > maxId) maxId = curr->id; curr = curr->next; }
@@ -545,8 +548,8 @@ void dischargePatient() {
 
             }
             // 【情况 B】: 押金不足，提醒患者补缴
-            else if (r5->cost < totalHospitalCost) {
-                double arrears = totalHospitalCost - r5->cost;
+            else if (original_deposit < totalHospitalCost) {
+                double arrears = totalHospitalCost - original_deposit;
                 printf("\n【补缴通知】经系统清算，押金透支 %.2f 元。请通知患者前往财务中心补缴差额！\n", arrears);
 
                 // 生成一笔特殊的待缴费记录 (Type 5，因为算是住院补缴)
@@ -558,13 +561,11 @@ void dischargePatient() {
                 sprintf(r_arrears->description, "出院清算_补缴欠费差额");
                 getCurrentTimeStr(r_arrears->createTime, 30);
                 r_arrears->next = recordHead->next; recordHead->next = r_arrears;
-                // 这笔欠款只有等患者在 financeCenter 缴清了，才会生成正向的 Transaction 记入财报
             }
             else {
                 printf("\n【结算通知】押金刚好抵扣所有消费，无需退补。\n");
             }
         }
-
         // 释放床位
         targetBed->isOccupied = 0; strcpy(targetBed->patientId, "");
         printf("\n========== 出院结算单 ==========\n患者: %s | 床位总费: %.2f | 期间药费: %.2f | 总费用: %.2f\n病床 %s 已释放空闲。\n", pId, totalBedFee, totalDrugFee, totalHospitalCost, targetBed->bedId);

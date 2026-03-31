@@ -7,7 +7,7 @@
 #include "schedule.h"
 #include "doctor.h"
 #include "outpatient_department.h"
-
+#include "drug.h"
 char currentCallingPatientId[20] = "";
 
 void generateRecordID(char* buffer) {
