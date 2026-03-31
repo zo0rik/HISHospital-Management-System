@@ -9,9 +9,22 @@
 #include "doctor.h"
 #include "schedule.h"
 #include "transaction.h"
+#include "drug.h"
 void generatePatientID(char* idBuffer) {
-    static int counter = 1000;
-    sprintf(idBuffer, "P2025%04d", counter++);
+    int maxId = 999; // 基础值
+    Patient* p = patientHead->next;
+    while (p != NULL) {
+        int currentIdNum;
+        // 尝试从类似 P20251000 中提取出 1000 这个数字
+        if (sscanf(p->id, "P2025%04d", &currentIdNum) == 1) {
+            if (currentIdNum > maxId) {
+                maxId = currentIdNum;
+            }
+        }
+        p = p->next;
+    }
+    // 取当前最大值 + 1
+    sprintf(idBuffer, "P2025%04d", maxId + 1);
 }
 
 Patient* findPatientById(const char* pid) {
@@ -227,7 +240,16 @@ void bookAppointment(const char* currentPatientId) {
         double regFee = strstr(targetDoc->title, "主任") != NULL ? 50.0 : 15.0;
 
         Record* newRecord = (Record*)malloc(sizeof(Record));
-        static int regCount = 5000; sprintf(newRecord->recordId, "REG2025%04d", regCount++);
+        int maxRegId = 4999;
+        Record* r_temp = recordHead->next;
+        while (r_temp) {
+            int curReg;
+            if (sscanf(r_temp->recordId, "REG2025%04d", &curReg) == 1) {
+                if (curReg > maxRegId) maxRegId = curReg;
+            }
+            r_temp = r_temp->next;
+        }
+        sprintf(newRecord->recordId, "REG2025%04d", maxRegId + 1);
         newRecord->type = 1;
         strcpy(newRecord->patientId, currentPatientId); strcpy(newRecord->staffId, staffIdStr);
         newRecord->cost = regFee;

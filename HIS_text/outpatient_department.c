@@ -11,8 +11,18 @@
 char currentCallingPatientId[20] = "";
 
 void generateRecordID(char* buffer) {
-    static int recCount = 2000;
-    sprintf(buffer, "R2025%04d", recCount++);
+    int maxId = 1999; // 基础值
+    Record* r = recordHead->next;
+    while (r != NULL) {
+        int currentIdNum;
+        if (sscanf(r->recordId, "R2025%04d", &currentIdNum) == 1) {
+            if (currentIdNum > maxId) {
+                maxId = currentIdNum;
+            }
+        }
+        r = r->next;
+    }
+    sprintf(buffer, "R2025%04d", maxId + 1);
 }
 
 void callPatient(const char* docId) {
@@ -134,6 +144,8 @@ void diagnoseAndTest(const char* docId) {
     }
 }
 
+// 注意：在 outpatient_department.c 顶部需要加上 #include "drug.h"
+
 void prescribeMedicine(const char* docId) {
     char pId[20];
     if (strlen(currentCallingPatientId) > 0) {
@@ -150,19 +162,20 @@ void prescribeMedicine(const char* docId) {
         printf("\n搜索药品名称或编号关键字 (输入0结束开药): "); safeGetString(key, 50);
         if (strcmp(key, "0") == 0) break;
 
-        Medicine* m = medicineHead->next;
-        Medicine* matched[100] = { NULL }; int mCount = 0;
+        // 【核心修改：接入队友的 Drug 链表】
+        Drug* d = drugList;
+        Drug* matched[100] = { NULL }; int mCount = 0;
 
         printf("\n--- 匹配到的药品库 ---\n");
-        while (m) {
-            if (strstr(m->name, key) || strstr(m->id, key)) {
+        while (d) {
+            if (strstr(d->name, key) || strstr(d->id, key)) {
                 if (mCount < 100) {
-                    matched[mCount] = m;
-                    printf("[%d] 编号:%s | 名称:%-15s | 单价:%.2f | 库存:%d\n", mCount + 1, m->id, m->name, m->price, m->stock);
+                    matched[mCount] = d;
+                    printf("[%d] 编号:%s | 名称:%-15s | 单价:%.2f | 库存:%d\n", mCount + 1, d->id, d->name, d->price, d->stock);
                     mCount++;
                 }
             }
-            m = m->next;
+            d = d->next;
         }
 
         if (mCount == 0) { printf("未找到包含该关键字的药品，请重新输入。\n"); continue; }
@@ -172,7 +185,7 @@ void prescribeMedicine(const char* docId) {
         safeGetString(mChoiceStr, 50);
         if (strcmp(mChoiceStr, "0") == 0) continue;
 
-        Medicine* selectedMed = NULL; int isNum = 1;
+        Drug* selectedMed = NULL; int isNum = 1;
         for (int i = 0; i < strlen(mChoiceStr); i++) { if (mChoiceStr[i] < '0' || mChoiceStr[i] > '9') { isNum = 0; break; } }
         if (isNum) {
             int idx = atoi(mChoiceStr);
@@ -198,7 +211,7 @@ void prescribeMedicine(const char* docId) {
             }
         }
 
-        // 【核心修复：医护端开药时，药房库存立刻真实时扣减！】
+        // 【药房实时同步】：直接扣减队友的 Drug 库存！
         selectedMed->stock -= qty;
         printf("【药房实时同步】已扣减 %s 库存 %d 盒，当前余量: %d\n", selectedMed->name, qty, selectedMed->stock);
 

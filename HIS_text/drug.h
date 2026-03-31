@@ -4,7 +4,7 @@
 #include "utils.h"
 
 typedef struct Drug {
-    int id;
+    char id[15];
     char name[50];
     int stock;
     float price;
@@ -16,7 +16,7 @@ typedef struct Drug {
 } Drug;
 
 typedef struct DrugHistory {
-    int drug_id;
+    char drug_id[15];
     int type;           // 1=Èë¿â, 2=³ö¿â
     int quantity;
     char time[30];
