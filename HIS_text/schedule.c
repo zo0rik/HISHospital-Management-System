@@ -65,8 +65,10 @@ static int checkConflict(int doctor_id, char* date) {
 //-----------------------------------------------------------------
 static void viewSchedule() {
     char start[11], end[11];
-    printf("请输入起始日期 (YYYY-MM-DD): "); scanf("%s", start);
-    printf("请输入结束日期 (YYYY-MM-DD): "); scanf("%s", end);
+    printf("请输入起始日期 (YYYY-MM-DD): "); 
+	judgetime(start);// 验证日期格式);
+    printf("请输入结束日期 (YYYY-MM-DD): ");
+	judgetime(end);// 验证日期格式);
     printf("\n--- 排班表 (%s 至 %s) ---\n", start, end);
     printf("%-8s %-12s %-15s %-12s %-10s\n", "排班ID", "日期", "医生姓名", "科室", "班次");
     Schedule* s = scheduleList;
@@ -89,12 +91,16 @@ static void viewSchedule() {
 //-------------------------------------------------------------------------------
 static void addSchedule() {
     int doc_id; char date[11], shift[10];
-    printf("请输入医生ID: "); scanf("%d", &doc_id);
+    printf("请输入医生ID: "); 
+    while (scanf("%d", &doc_id) != 1) {
+		while (getchar() != '\n');// 清除输入缓冲区
+		printf("输入的不是数字，请重新输入: ");
+    }
     Doctor* d = doctorList; int exists = 0;
     while (d) { if (d->id == doc_id) { exists = 1; break; } d = d->next; }
     if (!exists) { printf("医生ID不存在！\n"); return; }
-
-    printf("请输入日期 (YYYY-MM-DD): "); scanf("%s", date);
+    printf("请输入日期 (YYYY-MM-DD): ");
+	judgetime(date);// 验证日期格式
     if (checkConflict(doc_id, date)) { printf("该医生当天已有排班，不能重复添加。\n"); return; }
     printf("请输入班次 (早班/晚班/休息): "); scanf("%s", shift);
     if (strcmp(shift, "早班") != 0 && strcmp(shift, "晚班") != 0 && strcmp(shift, "休息") != 0) {
@@ -121,7 +127,11 @@ static void addSchedule() {
 //-------------------------------------------------------------------------------
 static void deleteSchedule() {
     int sid;
-    printf("请输入要删除的排班ID: "); scanf("%d", &sid); // 改用精准的排班ID删除
+    printf("请输入要删除的排班ID: ");
+    while (scanf("%d", &sid) != 1) {
+		while (getchar() != '\n');
+		printf("输入的不是数字，请重新输入: ");
+    }// 改用精准的排班ID删除
     Schedule* prev = NULL, * curr = scheduleList;
     while (curr) {
         if (curr->schedule_id == sid) {
@@ -140,7 +150,11 @@ static void deleteSchedule() {
 //-------------------------------------------------------------------------------
 static void modifySchedule() {
     int sid;
-    printf("请输入要修改的排班ID: "); scanf("%d", &sid); // 改用精准的排班ID修改
+    printf("请输入要修改的排班ID: "); 
+    while (scanf("%d", &sid) != 1) {
+        while (getcahr() != '\n');
+		printf("输入的不是数字，请重新输入: ");
+    }// 改用精准的排班ID修改
     Schedule* p = scheduleList;
     while (p) {
         if (p->schedule_id == sid) {
@@ -169,7 +183,9 @@ void scheduleMenu() {
         printf("4. 修改排班\n");
         printf("0. 返回主菜单\n");
         printf("请选择: ");
-        scanf("%d", &choice);
+        if (scanf("%d", &choice) != 1) {
+            choice = -1;
+        }
         switch (choice) {
         case 1: viewSchedule(); break;
         case 2: addSchedule(); break;

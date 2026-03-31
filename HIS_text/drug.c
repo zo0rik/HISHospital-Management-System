@@ -135,7 +135,9 @@ static void displayAllDrugs() {
 static void drugStockQuery() {
     int choice;
     printf("\n药品库存查询:\n1-按ID查询\n2-按名称模糊查询\n3-查看所有药品\n请选择: ");
-    scanf("%d", &choice);
+    if(scanf("%d", &choice) != 1) {
+        choice = -1;
+    }
 
     // 按精确ID检索
     if (choice == 1) {
@@ -287,15 +289,25 @@ void addDrug() {
         return;
     }
     printf("请输入药品名称: ");
-    scanf("%s", d.name);
+    scanf("%20s", d.name);
     printf("请输入初始库存数量: ");
-    scanf("%d", &d.stock);
+    while (1) {
+        if (scanf("%d", &d.stock) == 1)
+            break;
+        while (getchar() != '\n');
+           printf("输入的不是数字，请重新输入: ");
+    }
     printf("请输入药品价格: ");
-    scanf("%f", &d.price);
+    while (1) {
+        if (scanf("%f", &d.price));
+            break;
+        while (getchar() != '\n');
+        printf("输入的不是数字，请重新输入: ");
+    }
     printf("请输入批号: ");
     scanf("%s", d.batch);
-    printf("请输入有效期 (如2025-12-31): ");
-    scanf("%s", d.expiry);
+    printf("请输入有效期 (如XXXX-YY-ZZ): ");
+	judgetime(d.expiry);// 验证日期格式
     getCurrentTime(d.last_in, 30); // 初始入库时间为空
     strcpy(d.last_out, ""); // 初始出库时间为空
     // 将新药品添加到链表末尾
@@ -326,7 +338,8 @@ void drugMenu() {
 		printf("5.增加药品信息\n");
         printf("0. 返回主菜单\n");
         printf("请选择: ");
-        scanf("%d", &choice);
+        if (scanf("%d", &choice) != 1)
+            choice = -1;
         switch (choice) {
         case 1: drugStockQuery(); break;
         case 2: drugIn(); break;

@@ -57,10 +57,11 @@ void changename(void) {
 void changePassword(void) {
     char old[20] = { '\0' }, new1[20] = { '\0' }, new2[20] = { '\0' };
     printf("请输入旧密码: "); scanf("%19s", old);
-    if (strcmp(old, admin.password) != 0) { printf("旧密码错误！\n"); return; }
+    if (old[19]!='\0'||strcmp(old, admin.password) != 0) { printf("旧密码错误！\n"); return; }
     printf("请输入新密码: "); scanf("%19s", new1);
+	if (new1[19] != '\0' || strlen(new1) == 0) { printf("新密码格式错误！\n"); return; }
     printf("请确认新密码: "); scanf("%19s", new2);
-    if (strcmp(new1, new2) != 0) { printf("两次输入不一致！\n"); return; }
+    if (new2[19]!='\0'||strcmp(new1, new2) != 0) { printf("两次输入不一致！\n"); return; }
     strcpy(admin.password, new1);
     printf("密码修改成功！\n");
 	saveAdminData();
@@ -72,10 +73,24 @@ void changePassword(void) {
 void editPersonalInfo(void) {
     printf("当前信息：\n用户名: %s\n手机号: %s\n邮箱: %s\n", admin.username, admin.phone, admin.email);
     printf("请输入新手机号（直接回车保留原值）: ");
-    getchar(); char newPhone[15]; fgets(newPhone, 15, stdin);
+    getchar(); char newPhone[12];
+    while (1) {
+        scanf("%11s", newPhone);
+        if (newPhone[11] != '\0')
+            printf("输入格式错误！请重新输入");
+        else
+            break;
+    }
     if (newPhone[0] != '\n') { newPhone[strcspn(newPhone, "\n")] = 0; strcpy(admin.phone, newPhone); }
     printf("请输入新邮箱（直接回车保留原值）: ");
-    char newEmail[30]; fgets(newEmail, 30, stdin);
+    char newEmail[30];
+    while (1) {
+        scanf("%30s", newEmail);
+        if (newEmail[29] != '\0')
+            printf("输入格式错误！请重新输入");
+        else
+            break;
+    }
     if (newEmail[0] != '\n') { newEmail[strcspn(newEmail, "\n")] = 0; strcpy(admin.email, newEmail); }
     printf("个人信息更新成功！\n");
 }
@@ -132,6 +147,10 @@ void adminMenu(void) {
             if (scanf("%d", &sub) == 1) {
                 if (sub == 1) doctorMenu();
                 else if (sub == 2) scheduleMenu();
+            }
+            else {
+				while (getchar() != '\n');
+				printf("无效选择。\n");
             }
             break;
         case 4: reportMenu(); break;

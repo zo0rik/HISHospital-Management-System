@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "models.h"
 
 // 独立维护的全局业务流水与财务链表指针
 Transaction* transactionList = NULL;
@@ -61,12 +62,13 @@ void saveTransactions() {
 // 业务一：输出财务统计报表 (按时间范围累加分类收入)
 // ---------------------------------------------------------
 static void showFinancialReport() {
-    char start[30], end[30];
+    char start[11], end[11];
     float total_outpatient = 0, total_inpatient = 0, total_drug = 0;
 
-    printf("请输入统计起始日期 (YYYY-MM-DD): "); scanf("%s", start);
-    printf("请输入统计结束日期 (YYYY-MM-DD): "); scanf("%s", end);
-
+    printf("请输入统计起始日期 (YYYY-MM-DD): "); 
+	judgetime(start);// 验证日期格式);
+    printf("请输入统计结束日期 (YYYY-MM-DD): "); 
+	judgetime(end);// 验证日期格式);
     Transaction* t = transactionList;
     while (t) {
         // 利用字典序比较时间字符串，筛选在时间区间内的记录
@@ -90,14 +92,14 @@ static void showFinancialReport() {
 // 业务二：人事接诊/开单报表展示 (占位模拟)
 // ---------------------------------------------------------
 static void showPersonnelReport() {
-    char start[30], end[30];
-    printf("请输入统计起始日期 (YYYY-MM-DD): "); scanf("%s", start);
-    printf("请输入统计结束日期 (YYYY-MM-DD): "); scanf("%s", end);
+    char start[11], end[11];
+    printf("请输入统计起始日期 (YYYY-MM-DD): ");
+	judgetime(start);// 验证日期格式
+    printf("请输入统计结束日期 (YYYY-MM-DD): ");
+	judgetime(end);// 验证日期格式;
     printf("\n========== 人事报表 (%s 至 %s) ==========\n", start, end);
-    printf("%-15s %-12s %-12s %-10s\n", "医生姓名", "科室", "接诊量", "开单量");
-
-    // 提示：此处仅为功能演示占位，可根据实际需求扩展
-    printf("（此处为演示，实际应根据交易记录联动医生工号进行归类统计）\n");
+    printf("%-15s %-12s %-10s\n", "医生姓名", "科室", "开单量");
+    
     printf("\n（可导出报表，此处仅为大屏预览）\n");
 }
 
@@ -105,19 +107,27 @@ static void showPersonnelReport() {
 // 业务三：业务流水明细查询
 // ---------------------------------------------------------
 static void showBusinessReport() {
-    char start[30], end[30];
+    char start[11], end[11];
     int type;
     
     printf("请选择业务类型:\n1-门诊流水\n2-住院流水\n3-药品流水\n4-全部\n0-退出\n选择: ");
-    scanf("%d", &type);
+    if (scanf("%d", &type) != 1) {
+		while (getchar() != '\n');
+        type = -1;
+    }
     while (type != 0) {
 		if (type < 0 || type > 4) {
             printf("无效选项，请重新选择: ");
-            scanf("%d", &type);
+            if (scanf("%d", &type) != 1) {
+                while (getchar() != '\n');
+                type = -1;
+            }
             continue;
         }
-        printf("请输入查询起始日期 (YYYY-MM-DD): "); scanf("%s", start);
-        printf("请输入查询结束日期 (YYYY-MM-DD): "); scanf("%s", end);
+        printf("请输入查询起始日期 (YYYY-MM-DD): ");
+		judgetime(start);// 验证日期格式
+        printf("请输入查询结束日期 (YYYY-MM-DD): ");
+		judgetime(end);// 验证日期格式
         printf("\n========== 诊疗明细流水 (%s 至 %s) ==========\n", start, end);
         Transaction* t = transactionList;
         int found = 0;
@@ -151,7 +161,10 @@ void reportMenu() {
         printf("3. 业务报表 (明细流水)\n");
         printf("0. 返回主菜单\n");
         printf("请选择: ");
-        scanf("%d", &choice);
+        if (scanf("%d", &choice) != 1) {
+            while (getchar() != '\n');
+            choice = -1;
+        }
         switch (choice) {
         case 1: showFinancialReport(); break;
         case 2: showPersonnelReport(); break;

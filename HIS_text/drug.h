@@ -9,7 +9,7 @@ typedef struct Drug {
     int stock;
     float price;
     char batch[30];
-    char expiry[30];
+    char expiry[10];
     char last_in[30];
     char last_out[30];
     struct Drug* next;

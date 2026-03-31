@@ -6,7 +6,7 @@
 typedef struct Admin {
     char username[20];
     char password[20];
-    char phone[11];
+	char phone[12];
     char email[30];
 } Admin;
 
