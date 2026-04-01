@@ -27,7 +27,8 @@ void loadDoctors() {
         if (token) strcpy(d.department, token); else d.department[0] = '\0';
         token = strtok(NULL, ",");
         if (token) strcpy(d.title, token); else d.title[0] = '\0';
-
+        token = strtok(NULL, ",");
+        if (token) strcpy(d.sex, token); else d.sex[0] = '\0';
         Doctor* node = (Doctor*)malloc(sizeof(Doctor));
         *node = d;
         node->next = NULL;
@@ -45,7 +46,7 @@ void saveDoctors() {
     if (!fp) return;
     Doctor* p = doctorList;
     while (p) {
-        fprintf(fp, "%d,%s,%s,%s\n", p->id, p->name, p->department, p->title);
+        fprintf(fp, "%d,%s,%s,%s,%s\n", p->id, p->name, p->department, p->title,p->sex);
         p = p->next;
     }
     fclose(fp);
@@ -55,12 +56,12 @@ void saveDoctors() {
 // 内部工具：格式化打印全部医生名单
 // ---------------------------------------------------------
 static void displayAllDoctors() {
-    if (!doctorList) { printf("医生列表为空。\n"); return; }
-    printf("\n--- 医生列表 ---\n");
-    printf("%-5s %-15s %-15s %-15s\n", "ID", "姓名", "科室", "职称");
+    if (!doctorList) { printf("ҽ���б�Ϊ�ա�\n"); return; }
+    printf("\n--- ҽ���б� ---\n");
+    printf("%-5s %-15s %-15s %-15s %-10s\n", "ID", "����", "����", "ְ��","�Ա�");
     Doctor* p = doctorList;
     while (p) {
-        printf("%-5d %-15s %-15s %-15s\n", p->id, p->name, p->department, p->title);
+        printf("%-5d %-15s %-15s %-15s %-10s\n", p->id, p->name, p->department, p->title,p->sex);
         p = p->next;
     }
 }
@@ -70,16 +71,28 @@ static void displayAllDoctors() {
 // ---------------------------------------------------------
 static void addDoctor() {
     Doctor d;
-    printf("请输入医生ID: "); scanf("%d", &d.id);
-
-    // 查重校验：防止工号冲突
+    printf("������ҽ��ID: "); 
+    while(scanf("%d", &d.id) != 1) {
+        while (getchar() != '\n'); 
+        printf("����Ĳ������֣�����������: ");
+    }
+    // ����У�飺��ֹ���ų�ͻ
     Doctor* p = doctorList;
     while (p) { if (p->id == d.id) { printf("ID已存在！\n"); return; } p = p->next; }
 
-    printf("请输入姓名: "); scanf("%s", d.name);
-    printf("请输入科室: "); scanf("%s", d.department);
-    printf("请输入职称: "); scanf("%s", d.title);
+    printf("����������: "); scanf("%s", d.name);
+    printf("���������: "); scanf("%s", d.department);
+    printf("������ְ��: "); scanf("%s", d.title);
+    printf("�������Ա�: "); 
+    while (1) {
+        scanf("%s", d.sex);
+        if (strcmp(d.sex, "����") != 0 && strcmp(d.sex, "Ů��")!= 0){
+            printf("��Ч���룬������ '����' �� 'Ů��': ");
 
+        } 
+        else
+            break;
+    }
     Doctor* node = (Doctor*)malloc(sizeof(Doctor));
     *node = d;
     node->next = doctorList; // 使用头插法接入链表
@@ -112,29 +125,56 @@ static void deleteDoctor() {
 // 业务三：修改医生信息 (支持多字段批量修改)
 // ---------------------------------------------------------
 static void updateDoctor() {
-    int id; printf("请输入要修改的医生ID: "); scanf("%d", &id);
+    int id; printf("������Ҫ�޸ĵ�ҽ��ID: ");
+    while(1){
+        if (scanf("%d", &id) == 1)
+            break;
+        while (getchar() != '\n');
+		printf("����Ĳ������֣�����������: ");
+	}
     Doctor* p = doctorList;
     while (p) {
         if (p->id == id) {
-            printf("当前医生信息：\n");
-            printf("1. 姓名: %s\n2. 科室: %s\n3. 职称: %s\n", p->name, p->department, p->title);
-            printf("请选择要修改的字段（输入编号，多个用空格分隔，输入0取消）: ");
+            printf("��ǰҽ����Ϣ��\n");
+            printf("1. ����: %s\n2. ����: %s\n3. ְ��: %s\n4.�Ա�\n", p->name, p->department, p->title,p->sex);
+            printf("��ѡ��Ҫ�޸ĵ��ֶΣ������ţ�����ÿո�ָ�������0ȡ����: ");
 
-            // 允许用户输入诸如 "1 3 0" 进行批量字段更新
-            int choices[10], cnt = 0, ch;
+            // �����û��������� "1 3 0" ���������ֶθ���
+            int choices[100], cnt = 0, ch;
             do {
-                scanf("%d", &ch);
+
+                while (1) {
+                    if (scanf("%d", &ch) == 1)
+                        break;
+                    else {
+						getchar(); // �������������
+                    }
+                }
                 if (ch == 0) break;
+                else if (ch > 3||ch<0) {
+                    printf("��Ч����\n");
+                    return;
+                }
                 choices[cnt++] = ch;
             } while (getchar() != '\n' && cnt < 10);
 
             if (cnt == 0) { printf("修改取消。\n"); return; }
             for (int i = 0; i < cnt; i++) {
                 switch (choices[i]) {
-                case 1: printf("输入新姓名: "); scanf("%s", p->name); break;
-                case 2: printf("输入新科室: "); scanf("%s", p->department); break;
-                case 3: printf("输入新职称: "); scanf("%s", p->title); break;
-                default: printf("无效选项 %d，跳过。\n", choices[i]);
+                case 1: printf("����������: "); scanf("%s", p->name); break;
+                case 2: printf("�����¿���: "); scanf("%s", p->department); break;
+                case 3: printf("������ְ��: "); scanf("%s", p->title); break;
+                case 4: printf("�������Ա�: "); 
+                    while (1) {
+                        scanf("%s", p->sex);
+                        if (strcmp(p->sex, "����") != 0 && strcmp(p->sex, "Ů��") !=0 ){
+                            printf("��Ч���룬������ '����' �� 'Ů��': ");
+
+                        }
+                        else
+                            break;
+                    }
+                default: printf("��Чѡ�� %d��������\n", choices[i]);
                 }
             }
             printf("医生信息修改成功。\n");
@@ -150,7 +190,9 @@ static void updateDoctor() {
 // ---------------------------------------------------------
 static void queryDoctor() {
     int choice;
-    printf("查询方式：1-按ID  2-按姓名（模糊）: "); scanf("%d", &choice);
+    printf("��ѯ��ʽ��1-��ID  2-��������ģ����3-��ְ��: "); 
+    if (scanf("%d", &choice) != 1)
+		choice = -1; // ��������������
 
     // 精确匹配
     if (choice == 1) {
@@ -180,22 +222,22 @@ static void queryDoctor() {
         }
         if (!found) printf("未找到。\n");
     }
-    //模糊检索 (使用 strstr)
+    //ģ������ (ʹ�� strstr)
     else if (choice == 3) {
-        char title[20]; printf("请输入职称关键字: "); scanf("%s", title);
+        char title[20]; printf("������ְ�ƹؼ���: "); scanf("%s", title);
         int found = 0;
         Doctor* p = doctorList;
         while (p) {
             if (strstr(p->title, title)) {
-                if (!found) printf("\n--- 查询结果 ---\n");
-                printf("ID: %d, 姓名: %s, 科室: %s, 职称: %s\n", p->id, p->name, p->department, p->title);
+                if (!found) printf("\n--- ��ѯ��� ---\n");
+                printf("ID: %d, ����: %s, ����: %s, ְ��: %s\n", p->id, p->name, p->department, p->title);
                 found = 1;
             }
             p = p->next;
         }
-    	if (!found) printf("未找到。\n");
+    	if (!found) printf("δ�ҵ���\n");
     }
-    else printf("无效选择。\n");
+    else printf("��Чѡ��\n");
 }
 
 // ---------------------------------------------------------
@@ -204,15 +246,16 @@ static void queryDoctor() {
 void doctorMenu() {
     int choice;
     do {
-        printf("\n===== 医生信息管理 =====\n");
-        printf("1. 查看所有医生\n");
-        printf("2. 添加医生\n");
-        printf("3. 删除医生\n");
-        printf("4. 修改医生信息\n");
-        printf("5. 查询医生\n");
-        printf("0. 返回主菜单\n");
-        printf("请选择: ");
-        scanf("%d", &choice);
+        printf("\n===== ҽ����Ϣ���� =====\n");
+        printf("1. �鿴����ҽ��\n");
+        printf("2. ����ҽ��\n");
+        printf("3. ɾ��ҽ��\n");
+        printf("4. �޸�ҽ����Ϣ\n");
+        printf("5. ��ѯҽ��\n");
+        printf("0. �������˵�\n");
+        printf("��ѡ��: ");
+        if(scanf("%d", &choice)!=1)
+			choice = -1; // ��������������
         switch (choice) {
         case 1: displayAllDoctors(); break;
         case 2: addDoctor(); break;

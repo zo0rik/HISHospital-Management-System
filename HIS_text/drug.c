@@ -4,23 +4,23 @@
 #include <stdlib.h>
 #include <string.h>
 
-// 队友自己定义的管理端独立药房链表与历史记录链表
+// �����Լ�����Ĺ����˶���ҩ����������ʷ��¼����
 Drug* drugList = NULL;
 DrugHistory* drugHistoryList = NULL;
 
 // ---------------------------------------------------------
-// 从本地加载管理端的药品数据
+// �ӱ��ؼ��ع����˵�ҩƷ����
 // ---------------------------------------------------------
 void loadDrugs() {
     FILE* fp = fopen("drugs.txt", "r");
-    if (!fp) return;  // 文件不存在，则从空链表开始
+    if (!fp) return;  // �ļ������ڣ���ӿ�������ʼ
 
     char line[512];
     Drug d;
     Drug* tail = NULL;
-    // 按行读取并使用 strtok 按照逗号分割解析字段
+    // ���ж�ȡ��ʹ�� strtok ���ն��ŷָ�����ֶ�
     while (fgets(line, sizeof(line), fp)) {
-        // 去掉行尾换行符
+        // ȥ����β���з�
         line[strcspn(line, "\n")] = 0;
 
         char* token = strtok(line, ",");
@@ -40,7 +40,7 @@ void loadDrugs() {
         token = strtok(NULL, ",");
 		if (token) strcpy(d.last_out, token); else d.last_out[0] = '\0';//�������ʱ��
 
-        // 尾插法构建药品链表
+        // β�巨����ҩƷ����
         Drug* node = (Drug*)malloc(sizeof(Drug));
         *node = d;
         node->next = NULL;
@@ -51,7 +51,7 @@ void loadDrugs() {
 }
 
 // ---------------------------------------------------------
-// 保存管理端的药品数据到本地
+// ��������˵�ҩƷ���ݵ�����
 // ---------------------------------------------------------
 void saveDrugs() {
     FILE* fp = fopen("drugs.txt", "w");
@@ -97,7 +97,7 @@ void loadDrugHistory() {
 }
 
 // ---------------------------------------------------------
-// 保存药品出入库变动历史记录
+// ����ҩƷ�����䶯��ʷ��¼
 // ---------------------------------------------------------
 void saveDrugHistory() {
     FILE* fp = fopen("drug_history.txt", "w");
@@ -111,11 +111,11 @@ void saveDrugHistory() {
 }
 
 // ---------------------------------------------------------
-// 内部工具：格式化打印所有药品信息
+// �ڲ����ߣ���ʽ����ӡ����ҩƷ��Ϣ
 // ---------------------------------------------------------
 static void displayAllDrugs() {
     if (!drugList) {
-        printf("药品库为空。\n");
+        printf("ҩƷ��Ϊ�ա�\n");
         return;
     }
     printf("\n--- ҩƷ�б� ---\n");
@@ -130,14 +130,16 @@ static void displayAllDrugs() {
 }
 
 // ---------------------------------------------------------
-// 业务一：药品库存多维度查询
+// ҵ��һ��ҩƷ����ά�Ȳ�ѯ
 // ---------------------------------------------------------
 static void drugStockQuery() {
     int choice;
-    printf("\n药品库存查询:\n1-按ID查询\n2-按名称模糊查询\n3-查看所有药品\n请选择: ");
-    scanf("%d", &choice);
+    printf("\nҩƷ����ѯ:\n1-��ID��ѯ\n2-������ģ����ѯ\n3-�鿴����ҩƷ\n��ѡ��: ");
+    if(scanf("%d", &choice) != 1) {
+        choice = -1;
+    }
 
-    // 按精确ID检索
+    // ����ȷID����
     if (choice == 1) {
         char id[15];
         for(int i=0;i<15;i++)   
@@ -156,34 +158,34 @@ static void drugStockQuery() {
             }
             p = p->next;
         }
-        printf("未找到该药品。\n");
+        printf("δ�ҵ���ҩƷ��\n");
     }
-    // 按名称关键字模糊检索
+    // �����ƹؼ���ģ������
     else if (choice == 2) {
-        char name[50]; printf("请输入药品名称关键字: "); scanf("%s", name);
+        char name[50]; printf("������ҩƷ���ƹؼ���: "); scanf("%s", name);
         int found = 0;
         Drug* p = drugList;
         while (p) {
             if (strstr(p->name, name)) {
-                printf("ID:%d 名称:%s 库存:%d 价格:%.2f 批号:%s 有效期:%s\n",
+                printf("ID:%d ����:%s ���:%d �۸�:%.2f ����:%s ��Ч��:%s\n",
                     p->id, p->name, p->stock, p->price, p->batch, p->expiry);
                 found = 1;
             }
             p = p->next;
         }
-        if (!found) printf("未找到匹配药品。\n");
+        if (!found) printf("δ�ҵ�ƥ��ҩƷ��\n");
     }
     else if (choice == 3) {
         displayAllDrugs();
     }
-    else printf("无效选择。\n");
+    else printf("��Чѡ��\n");
 }
 
 // ---------------------------------------------------------
-// 业务二：查看历史库存流水记录
+// ҵ������鿴��ʷ�����ˮ��¼
 // ---------------------------------------------------------
 static void viewStockRecords() {
-    printf("\n--- 库存变动记录 ---\n");
+    printf("\n--- ���䶯��¼ ---\n");
     DrugHistory* h = drugHistoryList;
     if (!h) { printf("���޼�¼��\n"); return; }
     printf("%-15s %-6s %-8s %-20s\n", "ҩƷID", "����", "����", "ʱ��");
@@ -195,7 +197,7 @@ static void viewStockRecords() {
 }
 
 // ---------------------------------------------------------
-// 业务三：药品入库管理 (增加库存并记录流水)
+// ҵ������ҩƷ������ (���ӿ�沢��¼��ˮ)
 // ---------------------------------------------------------
 static void drugIn() {
     int  quantity;
@@ -213,12 +215,12 @@ static void drugIn() {
             printf("��ǰ���: %d\n", p->stock);
             printf("�������������: ");
             scanf("%d", &quantity);
-            if (quantity <= 0) { printf("数量必须为正。\n"); return; }
+            if (quantity <= 0) { printf("��������Ϊ����\n"); return; }
 
-            p->stock += quantity; // 增加物理库存
-            getCurrentTime(p->last_in, 30); // 更新最近入库时间
+            p->stock += quantity; // �����������
+            getCurrentTime(p->last_in, 30); // ����������ʱ��
 
-            // 采用头插法将变动记录插入历史流水链表
+            // ����ͷ�巨���䶯��¼������ʷ��ˮ����
             DrugHistory* h = (DrugHistory*)malloc(sizeof(DrugHistory));
             strcpy(h->drug_id,id);
             h->type = 1;
@@ -226,16 +228,16 @@ static void drugIn() {
             getCurrentTime(h->time, 30);
             h->next = drugHistoryList;
             drugHistoryList = h;
-            printf("入库成功，新库存: %d\n", p->stock);
+            printf("���ɹ����¿��: %d\n", p->stock);
             return;
         }
         p = p->next;
     }
-    printf("未找到该药品。\n");
+    printf("δ�ҵ���ҩƷ��\n");
 }
 
 // ---------------------------------------------------------
-// 业务四：药品人工出库管理
+// ҵ���ģ�ҩƷ�˹��������
 // ---------------------------------------------------------
 static void drugOut() {
     int  quantity;
@@ -253,13 +255,13 @@ static void drugOut() {
             printf("��ǰ���: %d\n", p->stock);
             printf("�������������: ");
             scanf("%d", &quantity);
-            if (quantity <= 0) { printf("数量必须为正。\n"); return; }
-            if (p->stock < quantity) { printf("库存不足！\n"); return; }
+            if (quantity <= 0) { printf("��������Ϊ����\n"); return; }
+            if (p->stock < quantity) { printf("��治�㣡\n"); return; }
 
-            p->stock -= quantity; // 扣减物理库存
+            p->stock -= quantity; // �ۼ��������
             getCurrentTime(p->last_out, 30);
 
-            // 生成流水记录
+            // ������ˮ��¼
             DrugHistory* h = (DrugHistory*)malloc(sizeof(DrugHistory));
             strcpy(h->drug_id ,id);
             h->type = 2; // 2��������
@@ -267,12 +269,12 @@ static void drugOut() {
             getCurrentTime(h->time, 30);
             h->next = drugHistoryList;
             drugHistoryList = h;
-            printf("出库成功，新库存: %d\n", p->stock);
+            printf("����ɹ����¿��: %d\n", p->stock);
             return;
         }
         p = p->next;
     }
-    printf("未找到该药品。\n");
+    printf("δ�ҵ���ҩƷ��\n");
 }
 // ---------------------------------------------------------
 // ҵ���壺������ҩƷ��Ϣ
@@ -287,15 +289,25 @@ void addDrug() {
         return;
     }
     printf("������ҩƷ����: ");
-    scanf("%s", d.name);
+    scanf("%20s", d.name);
     printf("�������ʼ�������: ");
-    scanf("%d", &d.stock);
+    while (1) {
+        if (scanf("%d", &d.stock) == 1)
+            break;
+        while (getchar() != '\n');
+           printf("����Ĳ������֣�����������: ");
+    }
     printf("������ҩƷ�۸�: ");
-    scanf("%f", &d.price);
+    while (1) {
+        if (scanf("%f", &d.price));
+            break;
+        while (getchar() != '\n');
+        printf("����Ĳ������֣�����������: ");
+    }
     printf("����������: ");
     scanf("%s", d.batch);
-    printf("��������Ч�� (��2025-12-31): ");
-    scanf("%s", d.expiry);
+    printf("��������Ч�� (��XXXX-YY-ZZ): ");
+	judgetime(d.expiry);// ��֤���ڸ�ʽ
     getCurrentTime(d.last_in, 30); // ��ʼ���ʱ��Ϊ��
     strcpy(d.last_out, ""); // ��ʼ����ʱ��Ϊ��
     // ����ҩƷ���ӵ�����ĩβ
@@ -348,7 +360,7 @@ void addDrug() {
 }
 
 // ---------------------------------------------------------
-// 管理端：药房系统子路由
+// �����ˣ�ҩ��ϵͳ��·��
 // ---------------------------------------------------------
 void drugMenu() {
     int choice;
@@ -362,7 +374,8 @@ void drugMenu() {
 		printf("5.����ҩƷ��Ϣ\n");
         printf("0. �������˵�\n");
         printf("��ѡ��: ");
-        scanf("%d", &choice);
+        if (scanf("%d", &choice) != 1)
+            choice = -1;
         switch (choice) {
         case 1: drugStockQuery(); break;
         case 2: drugIn(); break;
@@ -370,7 +383,7 @@ void drugMenu() {
         case 4: viewStockRecords(); break;
 		case 5: addDrug(); break;
         case 0: break;
-        default: printf("无效选项。\n");
+        default: printf("��Чѡ�\n");
         }
     } while (choice != 0);
 }

@@ -167,7 +167,8 @@ void decisionMenu() {
         printf("4. 一键执行全景分析\n");
         printf("0. 返回高管主菜单\n");
         printf("请选择功能: ");
-        scanf("%d", &choice);
+        if (scanf("%d", &choice) != 1)
+            choice = -1;
         switch (choice) {
         case 1: personnelPrediction(); break;
         case 2: warehouseStrategy(); break;

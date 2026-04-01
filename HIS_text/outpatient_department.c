@@ -140,7 +140,7 @@ void diagnoseAndTest(const char* docId) {
         sprintf(r4->description, "检查名称:%s", testName);
         getCurrentTimeStr(r4->createTime, 30);
         r4->next = recordHead->next; recordHead->next = r4;
-        printf("【通知】已生成专属 ④检查单记录，已同步至患者待缴费。\n");
+        printf("【通知】已生成专属 ④ 检查单记录，已同步至患者待缴费。\n");
     }
 }
 
@@ -226,7 +226,7 @@ void prescribeMedicine(const char* docId) {
         getCurrentTimeStr(r3->createTime, 30);
         r3->next = recordHead->next; recordHead->next = r3;
 
-        printf("【成功】③处方记录已生成下发，该药总计 %.2f 元。您可以继续搜索开药。\n", totalCost);
+        printf("【成功】③ 处方记录已生成下发，该药总计 %.2f 元。您可以继续搜索开药。\n", totalCost);
     }
 }
 

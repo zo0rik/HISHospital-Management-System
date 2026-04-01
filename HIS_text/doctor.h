@@ -6,6 +6,7 @@ typedef struct Doctor {
     char name[50];
     char department[30];
     char title[20];
+    char sex[10];
     struct Doctor* next;
 } Doctor;
 
@@ -16,4 +17,3 @@ void saveDoctors(void);
 void doctorMenu(void);
 
 #endif
-#pragma once

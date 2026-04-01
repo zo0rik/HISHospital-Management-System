@@ -7,7 +7,7 @@
 
 Schedule* scheduleList = NULL;
 //---------------------------------------------------------
-//从文件中加载排班表
+//���ļ��м����Ű��
 //---------------------------------------------------------
 void loadSchedules() {
     FILE* fp = fopen("schedules.txt", "r");
@@ -36,7 +36,7 @@ void loadSchedules() {
     fclose(fp);
 }
 //----------------------------------------------------------------------
-//保存排班表
+//�����Ű��
 //----------------------------------------------------------------------
 void saveSchedules() {
     FILE* fp = fopen("schedules.txt", "w");
@@ -50,7 +50,7 @@ void saveSchedules() {
     fclose(fp);
 }
 //--------------------------------------------------------------
-//查看排班表是否存在时间矛盾
+//�鿴�Ű���Ƿ����ʱ��ì��
 //--------------------------------------------------------------
 static int checkConflict(int doctor_id, char* date) {
     Schedule* s = scheduleList;
@@ -61,14 +61,16 @@ static int checkConflict(int doctor_id, char* date) {
     return 0;
 }
 //-----------------------------------------------------------------
-//查看排班表
+//�鿴�Ű��
 //-----------------------------------------------------------------
 static void viewSchedule() {
     char start[11], end[11];
-    printf("请输入起始日期 (YYYY-MM-DD): "); scanf("%s", start);
-    printf("请输入结束日期 (YYYY-MM-DD): "); scanf("%s", end);
-    printf("\n--- 排班表 (%s 至 %s) ---\n", start, end);
-    printf("%-8s %-12s %-15s %-12s %-10s\n", "排班ID", "日期", "医生姓名", "科室", "班次");
+    printf("��������ʼ���� (YYYY-MM-DD): "); 
+	judgetime(start);// ��֤���ڸ�ʽ);
+    printf("������������� (YYYY-MM-DD): ");
+	judgetime(end);// ��֤���ڸ�ʽ);
+    printf("\n--- �Ű�� (%s �� %s) ---\n", start, end);
+    printf("%-8s %-12s %-15s %-12s %-10s\n", "�Ű�ID", "����", "ҽ������", "����", "���");
     Schedule* s = scheduleList;
     if (!s) { printf("暂无排班记录。\n"); return; }
     while (s) {
@@ -85,20 +87,24 @@ static void viewSchedule() {
     }
 }
 //-------------------------------------------------------------------------------
-//增加排班信息
+//�����Ű���Ϣ
 //-------------------------------------------------------------------------------
 static void addSchedule() {
     int doc_id; char date[11], shift[10];
-    printf("请输入医生ID: "); scanf("%d", &doc_id);
+    printf("������ҽ��ID: "); 
+    while (scanf("%d", &doc_id) != 1) {
+		while (getchar() != '\n');// ������뻺����
+		printf("����Ĳ������֣�����������: ");
+    }
     Doctor* d = doctorList; int exists = 0;
     while (d) { if (d->id == doc_id) { exists = 1; break; } d = d->next; }
-    if (!exists) { printf("医生ID不存在！\n"); return; }
-
-    printf("请输入日期 (YYYY-MM-DD): "); scanf("%s", date);
-    if (checkConflict(doc_id, date)) { printf("该医生当天已有排班，不能重复添加。\n"); return; }
-    printf("请输入班次 (早班/晚班/休息): "); scanf("%s", shift);
-    if (strcmp(shift, "早班") != 0 && strcmp(shift, "晚班") != 0 && strcmp(shift, "休息") != 0) {
-        printf("无效班次。\n"); return;
+    if (!exists) { printf("ҽ��ID�����ڣ�\n"); return; }
+    printf("���������� (YYYY-MM-DD): ");
+	judgetime(date);// ��֤���ڸ�ʽ
+    if (checkConflict(doc_id, date)) { printf("��ҽ�����������Ű࣬�����ظ����ӡ�\n"); return; }
+    printf("�������� (���/����/��Ϣ): "); scanf("%s", shift);
+    if (strcmp(shift, "���") != 0 && strcmp(shift, "����") != 0 && strcmp(shift, "��Ϣ") != 0) {
+        printf("��Ч��Ρ�\n"); return;
     }
 
     Schedule* node = (Schedule*)malloc(sizeof(Schedule));
@@ -117,11 +123,15 @@ static void addSchedule() {
     printf("排班添加成功，自动分配排班ID: %d\n", node->schedule_id);
 }
 //-------------------------------------------------------------------------------
-//删除排班信息
+//ɾ���Ű���Ϣ
 //-------------------------------------------------------------------------------
 static void deleteSchedule() {
     int sid;
-    printf("请输入要删除的排班ID: "); scanf("%d", &sid); // 改用精准的排班ID删除
+    printf("������Ҫɾ�����Ű�ID: ");
+    while (scanf("%d", &sid) != 1) {
+		while (getchar() != '\n');
+		printf("����Ĳ������֣�����������: ");
+    }// ���þ�׼���Ű�IDɾ��
     Schedule* prev = NULL, * curr = scheduleList;
     while (curr) {
         if (curr->schedule_id == sid) {
@@ -136,11 +146,15 @@ static void deleteSchedule() {
     printf("未找到该排班ID。\n");
 }
 //-------------------------------------------------------------------------------
-//删除排班信息
+//ɾ���Ű���Ϣ
 //-------------------------------------------------------------------------------
 static void modifySchedule() {
     int sid;
-    printf("请输入要修改的排班ID: "); scanf("%d", &sid); // 改用精准的排班ID修改
+    printf("������Ҫ�޸ĵ��Ű�ID: "); 
+    while (scanf("%d", &sid) != 1) {
+        while (getcahr() != '\n');
+		printf("����Ĳ������֣�����������: ");
+    }// ���þ�׼���Ű�ID�޸�
     Schedule* p = scheduleList;
     while (p) {
         if (p->schedule_id == sid) {
@@ -157,19 +171,21 @@ static void modifySchedule() {
     printf("未找到该排班ID。\n");
 }
 //-------------------------------------------------------------------------------
-//排班总路由
+//�Ű���·��
 //-------------------------------------------------------------------------------
 void scheduleMenu() {
     int choice;
     do {
-        printf("\n========== 医生排班管理 ==========\n");
-        printf("1. 排班表查看\n");
-        printf("2. 手动排班（添加）\n");
-        printf("3. 删除排班\n");
-        printf("4. 修改排班\n");
-        printf("0. 返回主菜单\n");
-        printf("请选择: ");
-        scanf("%d", &choice);
+        printf("\n========== ҽ���Ű���� ==========\n");
+        printf("1. �Ű���鿴\n");
+        printf("2. �ֶ��Űࣨ���ӣ�\n");
+        printf("3. ɾ���Ű�\n");
+        printf("4. �޸��Ű�\n");
+        printf("0. �������˵�\n");
+        printf("��ѡ��: ");
+        if (scanf("%d", &choice) != 1) {
+            choice = -1;
+        }
         switch (choice) {
         case 1: viewSchedule(); break;
         case 2: addSchedule(); break;
