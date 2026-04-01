@@ -152,7 +152,7 @@ static void modifySchedule() {
     int sid;
     printf("请输入要修改的排班ID: "); 
     while (scanf("%d", &sid) != 1) {
-        while (getcahr() != '\n');
+        while (getchar() != '\n');
 		printf("输入的不是数字，请重新输入: ");
     }// 改用精准的排班ID修改
     Schedule* p = scheduleList;

@@ -16,7 +16,7 @@ void getCurrentTime(char* buffer, int size) {
     struct tm* tm_info = localtime(&t);
 
     // 3. 将 tm 结构体内的离散时间格式化为符合 YYYY-MM-DD HH:MM:SS 的标准串
-    strftime(buffer, size, "%Y-%m-%d %H:%M:%S", tm_info);
+    strftime(buffer, size, "%Y-%m-%d", tm_info);
 }
 //用于时间格式输入的校验，确保用户输入的时间符合 YYYY-MM-DD 的格式，并且日期合法
 void judgetime(char* end) {
@@ -78,4 +78,41 @@ void judgetime(char* end) {
             }
         }
     }
+}
+//获取过去某段时间的日期，精确到天，返回格式为 YYYY-MM-DD 的字符串
+int isLeapYear(int year) {
+    return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+}
+
+int getDaysInMonth(int year, int month) {
+    int days[] = { 31,28,31,30,31,30,31,31,30,31,30,31 };
+    if (month == 2 && isLeapYear(year)) return 29;
+    return days[month - 1];
+}
+
+
+void getPastDateSimple(char* current, char* result, int days_ago) {
+    int y, m, d;
+    sscanf(current, "%4d-%2d-%2d", &y, &m, &d);  // 解析年月日
+
+    // 逐天回退
+    while (days_ago-- > 0) {
+        d--;
+        if (d > 0) continue;  // 正常递减
+
+        // 需要借位：月份减1
+        m--;
+        if (m > 0) {
+            d = getDaysInMonth(y, m);  // 上个月的天数
+        }
+        else {
+            // 跨年
+            y--;
+            m = 12;
+            d = 31;
+        }
+    }
+
+    // 格式化输出
+    sprintf(result, "%04d-%02d-%02d", y, m, d);
 }

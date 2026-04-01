@@ -5,26 +5,119 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "transaction.h"
 
 // ---------------------------------------------------------
-// 业务一：基于概率的人员异常与风险预测模型
+// 业务一：基于概率的人员异常与风险预测模型（简化版）
 // ---------------------------------------------------------
 static void personnelPrediction() {
     printf("\n========== 人员异常预测预警 ==========\n");
-    srand((unsigned)time(NULL));
-    // 使用随机数模拟 15% 概率触发预警机制
-    int abnormal = rand() % 100 < 15;
+    personnelReportList = NULL;
+	char start[15],currentTime[15];
+	getCurrentTime(currentTime, 15);
+	getPastDateAccurate(currentTime, start, 14);
+	parttimereport(start, currentTime);
+    if (!personnelReportList) {
+        printf(" 在指定时间范围内无接诊数据，无法进行分析。\n");
+        return;
+    }
 
-    if (abnormal) {
-        printf("[!] 警告：本周药师值班出现异常（请假/缺勤比例偏高），可能影响药品分拣与发药效率。\n");
-        printf("    AI 建议：立刻启动应急排班方案，从门诊部抽调或增加临时辅助人员。\n");
+    int totalDoctors = 0;
+    int highVolumeDoctors = 0;
+    int lowVolumeDoctors = 0;
+    
+    PersonnelReport* current = personnelReportList;
+    while (current != NULL) {
+        totalDoctors++;
+        
+        if (current->count > 100) {
+            highVolumeDoctors++;
+        } else if (current->count < 20) {
+            lowVolumeDoctors++;
+        }
+        current = current->next;
     }
-    else {
-        printf("[√] 智能监控：根据近期考勤大数据分析，各项人事排班稳定，暂无异常流失风险。\n");
+    
+    printf("统计完成：共 %d 名医生\n", totalDoctors);
+    printf("  高接诊量医生(>100): %d 名\n", highVolumeDoctors);
+    printf("  低接诊量医生(<20): %d 名\n", lowVolumeDoctors);
+
+    printf("\n--- 医生接诊情况分析 ---\n");
+    printf("%-10s %-20s %-15s %-8s %s\n", "医生ID", "姓名", "科室", "接诊量", "风险状态");
+    printf("------------------------------------------------------------\n");
+    
+    current = personnelReportList;
+    while (current != NULL) {
+        char riskStatus[20] = "正常";
+        float riskProbability = 0.0f;
+        
+        if (current->count > 120) {
+            strcpy(riskStatus, "过劳风险");
+            riskProbability = 0.8f;
+        } else if (current->count > 100) {
+            strcpy(riskStatus, "负荷较高");
+            riskProbability = 0.6f;
+        } else if (current->count < 10) {
+            strcpy(riskStatus, "工作不足");
+            riskProbability = 0.4f;
+        } else if (current->count < 20) {
+            strcpy(riskStatus, "关注对象");
+            riskProbability = 0.3f;
+        }
+        
+        printf("%-10s %-20s %-15s %-8d %s(%.1f%%)\n", 
+               current->doctor_id, current->doctor_name, current->department,
+               current->count, riskStatus, riskProbability * 100);
+        
+        current = current->next;
     }
-    printf("\n");
+
+    printf("\n--- 预警名单 ---\n");
+    int warningCount = 0;
+    current = personnelReportList;
+    
+    while (current != NULL) {
+        if (current->count > 100 || current->count < 20) {
+            if (warningCount == 0) {
+                printf("%-10s %-20s %-15s %-8s %s\n", "医生ID", "姓名", "科室", "接诊量", "预警原因");
+                printf("----------------------------------------------------------------\n");
+            }
+            
+            char reason[50];
+            if (current->count > 100) {
+                snprintf(reason, sizeof(reason), "接诊量过高(%d)，可能过劳", current->count);
+            } else {
+                snprintf(reason, sizeof(reason), "接诊量过低(%d)，工作状态异常", current->count);
+            }
+            
+            printf("%-10s %-20s %-15s %-8d %s\n", 
+                   current->doctor_id, current->doctor_name, current->department,
+                   current->count, reason);
+            
+            warningCount++;
+        }
+        current = current->next;
+    }
+    
+    if (warningCount == 0) {
+        printf("  暂无需要预警的医生\n");
+    } else {
+        printf("  共 %d 名医生需要关注\n", warningCount);
+    }
+
+    printf("\n--- 管理建议 ---\n");
+    if (highVolumeDoctors > 0) {
+        printf(" 对高接诊量医生(%d名)：适当减少排班，防止过劳\n", highVolumeDoctors);
+    }
+    if (lowVolumeDoctors > 0) {
+        printf(" 对低接诊量医生(%d名)：了解原因，必要时调整岗位\n", lowVolumeDoctors);
+    }
+    if (highVolumeDoctors == 0 && lowVolumeDoctors == 0) {
+        printf(" 所有医生接诊量在正常范围，继续保持\n");
+    }
+    
+    printf("\n分析完成！\n");
 }
-
 // ---------------------------------------------------------
 // 业务二：分拣仓库效率监控与异常处理策略
 // ---------------------------------------------------------

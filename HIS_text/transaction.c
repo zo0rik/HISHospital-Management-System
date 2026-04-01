@@ -8,7 +8,44 @@
 
 // 独立维护的全局业务流水与财务链表指针
 Transaction* transactionList = NULL;
-
+// 人事报表链表头指针
+PersonnelReport* personnelReportList = NULL;
+// 人事报表加载函数
+void parttimereport(char* start, char* end) {
+    Record* r = recordHead;
+    while (r) {
+        if (strcmp(r->createTime, start) >= 0 && strcmp(r->createTime, end) <= 0) {
+            int flag = 0;
+            PersonnelReport* pr = personnelReportList;
+            while (pr) {
+                if (strcmp(pr->doctor_id, r->staffId) == 0) {
+                    pr->count++;
+                    flag = 1;
+                    break;
+                }
+                pr = pr->next;
+            }
+            if (flag == 0) {
+                PersonnelReport* new_pr = (PersonnelReport*)malloc(sizeof(PersonnelReport));
+                strcpy(new_pr->doctor_id, r->staffId);
+                // 从员工链表中查找医生的科室信息
+                Staff* s = staffHead;
+                while (s) {
+                    if (strcmp(s->id, r->staffId) == 0) {
+                        strcpy(new_pr->department, s->department);
+                        strcpy(new_pr->doctor_name, s->name);
+                        break;
+                    }
+                    s = s->next;
+                }
+                new_pr->count = 1;
+                new_pr->next = personnelReportList;
+                personnelReportList = new_pr;
+            }
+        }
+        r = r->next;
+    }
+}
 // ---------------------------------------------------------
 // 加载本地财务交易记录
 // ---------------------------------------------------------
@@ -98,8 +135,21 @@ static void showPersonnelReport() {
     printf("请输入统计结束日期 (YYYY-MM-DD): ");
 	judgetime(end);// 验证日期格式;
     printf("\n========== 人事报表 (%s 至 %s) ==========\n", start, end);
-    printf("%-15s %-12s %-10s\n", "医生姓名", "科室", "开单量");
-    
+    printf("%-15s %-12s %-10s\n", "医生姓名", "科室", "接诊量");
+	parttimereport(start, end); // 加载人事报表数据到链表
+    PersonnelReport* cr = personnelReportList;
+    if (cr == NULL) {
+        printf("统计范围内无接诊记录。\n");
+		return;
+    }
+    while (cr) {
+        printf("%-15s %-12s %-10d\n", cr->doctor_name, cr->department, cr->count);
+		PersonnelReport* temp = cr; // 临时保存当前节点指针
+        cr = cr->next;
+        free(temp); // 释放节点内存
+        
+    }
+	personnelReportList = NULL; // 重置链表头指针，避免悬挂指针
     printf("\n（可导出报表，此处仅为大屏预览）\n");
 }
 
