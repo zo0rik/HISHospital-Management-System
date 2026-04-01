@@ -266,7 +266,7 @@ void bookAppointment(const char* currentPatientId) {
 
         printf("\n【挂号成功】您已成功抢占 %s 医师 的号源！费用 %.2f 元。\n", targetDoc->name, regFee);
         printf(">>> 您在当日的专属候诊顺序为：【第 %d 号】 <<<\n", seqNum);
-        printf("注：请在就诊前前往财务中心完成缴费，否则医生端将无法呼叫。\n");
+        printf("注：请在就诊前前往财务中心完成缴费。\n");
         system("pause"); return;
     }
 }
@@ -405,11 +405,11 @@ void medicalRecords(const char* currentPatientId) {
     while (1) {
         system("cls");
         printf("\n--- 个人医疗档案库 ---\n");
-        printf("1. ①挂号与分诊记录\n");
-        printf("2. ②临床看诊记录\n");
-        printf("3. ③电子处方记录\n");
-        printf("4. ④辅助检查记录\n");
-        printf("5. ⑤住院记录与出院总账单\n");
+        printf("1. ① 挂号与分诊记录\n");
+        printf("2. ② 临床看诊记录\n");
+        printf("3. ③ 电子处方记录\n");
+        printf("4. ④ 辅助检查记录\n");
+        printf("5. ⑤ 住院记录与出院总账单\n");
         printf("6. 个人资金收支流水报表\n");
         printf("0. 返回上级菜单\n");
         printf("请选择查询大类: ");
