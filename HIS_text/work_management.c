@@ -63,12 +63,12 @@ void workManagementMenu(const char* docId) {
             for (int i = 0; i < rCount; i++) {
                 char tName[30];
                 switch (recs[i].type) {
-                case 1: strcpy(tName, "①挂号记录"); break;
-                case 2: strcpy(tName, "②看诊记录"); break;
-                case 3: strcpy(tName, "③开药记录"); break;
-                case 4: strcpy(tName, "④检查记录"); break;
-                case 5: strcpy(tName, "⑤住院记录"); break;
-                case 6: strcpy(tName, "⑥住院通知单"); break;
+                case 1: strcpy(tName, "① 挂号记录"); break;
+                case 2: strcpy(tName, "② 看诊记录"); break;
+                case 3: strcpy(tName, "③ 开药记录"); break;
+                case 4: strcpy(tName, "④ 检查记录"); break;
+                case 5: strcpy(tName, "⑤ 住院记录"); break;
+                case 6: strcpy(tName, "⑥ 住院通知单"); break;
                 }
                 printf("[%d] %s | 流水号: %s | 详情: %s\n", i + 1, tName, recs[i].recId, recs[i].desc);
             }
