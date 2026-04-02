@@ -3,66 +3,52 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "utils.h" // 强行引入安全输入防护组件
 
-<<<<<<< HEAD
-// 队友自己定义的管理端独立药房链表与历史记录链表
-=======
-// 锟斤拷锟斤拷锟皆硷拷锟斤拷锟斤拷墓锟斤拷锟斤拷硕锟斤拷锟揭╋拷锟斤拷锟斤拷锟斤拷锟斤拷锟绞凤拷锟铰硷拷锟斤拷锟?
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
+// 全局药品库与流水记录单链表
 Drug* drugList = NULL;
 DrugHistory* drugHistoryList = NULL;
 
 // ---------------------------------------------------------
-<<<<<<< HEAD
-// 从本地加载管理端的药品数据
+// 底层数据引擎：从本地库反序列化药品数据
 // ---------------------------------------------------------
 void loadDrugs() {
     FILE* fp = fopen("drugs.txt", "r");
-    if (!fp) return;  // 文件不存在，则从空链表开始
-=======
-// 锟接憋拷锟截硷拷锟截癸拷锟斤拷锟剿碉拷药品锟斤拷锟斤拷
-// ---------------------------------------------------------
-void loadDrugs() {
-    FILE* fp = fopen("drugs.txt", "r");
-    if (!fp) return;  // 锟侥硷拷锟斤拷锟斤拷锟节ｏ拷锟斤拷涌锟斤拷锟斤拷锟斤拷锟绞?
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
+    if (!fp) return;
 
     char line[512];
     Drug d;
     Drug* tail = NULL;
-<<<<<<< HEAD
-    // 按行读取并使用 strtok 按照逗号分割解析字段
+
+    // 采用逗号分隔符解析协议，适配管理端的高级数据结构
     while (fgets(line, sizeof(line), fp)) {
-        // 去掉行尾换行符
-=======
-    // 锟斤拷锟叫讹拷取锟斤拷使锟斤拷 strtok 锟斤拷锟秸讹拷锟脚分革拷锟斤拷锟斤拷侄锟?
-    while (fgets(line, sizeof(line), fp)) {
-        // 去锟斤拷锟斤拷尾锟斤拷锟叫凤拷
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
-        line[strcspn(line, "\n")] = 0;
+        line[strcspn(line, "\n")] = 0; // 剥离回车符
 
         char* token = strtok(line, ",");
-        if (token) strcpy(d.id,token); else d.id[0] = '\0';
-        token = strtok(NULL, ",");
-        if (token) strcpy(d.name, token); else d.name[0] = '\0';//????????
-        token = strtok(NULL, ",");
-		if (token) d.stock = atoi(token); else d.stock = 0;//??????
-        token = strtok(NULL, ",");
-		if (token) d.price = atof(token); else d.price = 0.0;//??????
-        token = strtok(NULL, ",");
-		if (token) strcpy(d.batch, token); else d.batch[0] = '\0';//????????
-        token = strtok(NULL, ",");
-		if (token) strcpy(d.expiry, token); else d.expiry[0] = '\0';//????Ч????
-        token = strtok(NULL, ",");
-		if (token) strcpy(d.last_in, token); else d.last_in[0] = '\0';//??????????????????
-        token = strtok(NULL, ",");
-		if (token) strcpy(d.last_out, token); else d.last_out[0] = '\0';//????????????????????
+        if (token) strcpy(d.id, token); else d.id[0] = '\0';
 
-<<<<<<< HEAD
-        // 尾插法构建药品链表
-=======
-        // 尾锟藉法锟斤拷锟斤拷药品锟斤拷锟斤拷
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
+        token = strtok(NULL, ",");
+        if (token) strcpy(d.name, token); else d.name[0] = '\0';
+
+        token = strtok(NULL, ",");
+        if (token) d.stock = atoi(token); else d.stock = 0;
+
+        token = strtok(NULL, ",");
+        if (token) d.price = atof(token); else d.price = 0.0;
+
+        token = strtok(NULL, ",");
+        if (token) strcpy(d.batch, token); else d.batch[0] = '\0';
+
+        token = strtok(NULL, ",");
+        if (token) strcpy(d.expiry, token); else d.expiry[0] = '\0';
+
+        token = strtok(NULL, ",");
+        if (token) strcpy(d.last_in, token); else d.last_in[0] = '\0';
+
+        token = strtok(NULL, ",");
+        if (token) strcpy(d.last_out, token); else d.last_out[0] = '\0';
+
+        // 尾插法构建全局物资树
         Drug* node = (Drug*)malloc(sizeof(Drug));
         *node = d;
         node->next = NULL;
@@ -73,11 +59,7 @@ void loadDrugs() {
 }
 
 // ---------------------------------------------------------
-<<<<<<< HEAD
-// 保存管理端的药品数据到本地
-=======
-// 锟斤拷锟斤拷锟斤拷锟斤拷说锟揭┢凤拷锟斤拷莸锟斤拷锟斤拷锟?
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
+// 数据持久化：内存数据同步至物理磁盘
 // ---------------------------------------------------------
 void saveDrugs() {
     FILE* fp = fopen("drugs.txt", "w");
@@ -93,7 +75,7 @@ void saveDrugs() {
 }
 
 // --------------------------------------------------------
-// ????????????????????????????????????
+// 物资流转溯源：加载出入库历史记录
 // --------------------------------------------------------
 void loadDrugHistory() {
     FILE* fp = fopen("drug_history.txt", "r");
@@ -105,11 +87,14 @@ void loadDrugHistory() {
     while (fgets(line, sizeof(line), fp)) {
         line[strcspn(line, "\n")] = 0;
         char* token = strtok(line, ",");
-        if (token) strcpy(h.drug_id,token); else h.drug_id[0] = '\0';
+        if (token) strcpy(h.drug_id, token); else h.drug_id[0] = '\0';
+
         token = strtok(NULL, ",");
         if (token) h.type = atoi(token); else h.type = 0;
+
         token = strtok(NULL, ",");
         if (token) h.quantity = atoi(token); else h.quantity = 0;
+
         token = strtok(NULL, ",");
         if (token) strcpy(h.time, token); else h.time[0] = '\0';
 
@@ -123,11 +108,7 @@ void loadDrugHistory() {
 }
 
 // ---------------------------------------------------------
-<<<<<<< HEAD
-// 保存药品出入库变动历史记录
-=======
-// 锟斤拷锟斤拷药品锟斤拷锟斤拷锟戒动锟斤拷史锟斤拷录
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
+// 物资流转溯源：保存历史记录
 // ---------------------------------------------------------
 void saveDrugHistory() {
     FILE* fp = fopen("drug_history.txt", "w");
@@ -141,369 +122,262 @@ void saveDrugHistory() {
 }
 
 // ---------------------------------------------------------
-<<<<<<< HEAD
-// 内部工具：格式化打印所有药品信息
+// 报表输出：全景物资清单视图
 // ---------------------------------------------------------
 static void displayAllDrugs() {
     if (!drugList) {
-        printf("药品库为空。\n");
-=======
-// 锟节诧拷锟斤拷锟竭ｏ拷锟斤拷式锟斤拷锟斤拷印锟斤拷锟斤拷药品锟斤拷息
-// ---------------------------------------------------------
-static void displayAllDrugs() {
-    if (!drugList) {
-        printf("药品锟斤拷为锟秸★拷\n");
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
+        printf("  [系统提示] 当前中央物资储备库为空。\n");
         return;
     }
-    printf("\n--- ??????б?? ---\n");
-    printf("%-15s %-20s %-10s %-8s %-12s %-12s %-20s %-20s\n", "ID", "????????", "??????", "??????", "????????", "????Ч????", "????????????", "??????????????");
+    printf("\n============================================================================================================\n");
+    printf("                                         全院物资储存储备清单视图                                           \n");
+    printf("============================================================================================================\n");
+    printf(" %-10s | %-18s | %-8s | %-8s | %-12s | %-12s | %-20s\n", "系统内码", "国家标准药名", "物理库存", "统一零售", "批号", "有效期阈值", "末次入库时间");
+    printf("------------------------------------------------------------------------------------------------------------\n");
     Drug* p = drugList;
     while (p) {
-        printf("%-15s %-20s %-10d %-8.2f %-12s %-12s %-20s %-20s\n",
-            p->id, p->name, p->stock, p->price, p->batch, p->expiry,
-            p->last_in, p->last_out);
+        printf(" %-10s | %-18s | %-8d | %-8.2f | %-12s | %-12s | %-20s\n",
+            p->id, p->name, p->stock, p->price, p->batch, p->expiry, p->last_in);
         p = p->next;
     }
+    printf("------------------------------------------------------------------------------------------------------------\n");
 }
 
 // ---------------------------------------------------------
-<<<<<<< HEAD
-// 业务一：药品库存多维度查询
+// 业务一：药品多维检索矩阵
 // ---------------------------------------------------------
 static void drugStockQuery() {
-    int choice;
-    printf("\n药品库存查询:\n1-按ID查询\n2-按名称模糊查询\n3-查看所有药品\n请选择: ");
-    scanf("%d", &choice);
+    while (1) {
+        system("cls");
+        printf("\n========== 药房物资检索引擎 ==========\n");
+        printf("  [1] 基于唯一内码 (ID) 精确检索\n");
+        printf("  [2] 基于药品名称模糊匹配\n");
+        printf("  [3] 提取全库物资清单报表\n");
+        printf("  [0] 返回主调度界面\n");
+        printf("--------------------------------------\n");
+        printf("  选择检索模式: ");
 
-    // 按精确ID检索
-=======
-// 业锟斤拷一锟斤拷药品锟斤拷锟斤拷维锟饺诧拷询
-// ---------------------------------------------------------
-static void drugStockQuery() {
-    int choice;
-    printf("\n药品锟斤拷锟斤拷询:\n1-锟斤拷ID锟斤拷询\n2-锟斤拷锟斤拷锟斤拷模锟斤拷锟斤拷询\n3-锟介看锟斤拷锟斤拷药品\n锟斤拷选锟斤拷: ");
-    if(scanf("%d", &choice) != 1) {
-        choice = -1;
-    }
+        int choice = safeGetInt(); // 引入边界拦截组件，防止异常输入拖垮系统
+        if (choice == 0) return;
 
-    // 锟斤拷锟斤拷确ID锟斤拷锟斤拷
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
-    if (choice == 1) {
-        char id[15];
-        for(int i=0;i<15;i++)   
-			id[i]= '\0'; // ????????????????????β]
-        printf("????????????????ID: "); scanf("%s", id);
-        if (id[14] != '\0') {
-            printf("δ??????????????????\n");
-            return ;
-        }
-        Drug* p = drugList;
-        while (p) {
-            if (strcmp(p->id,id)==0){
-                printf("ID:%s ????????:%s ??????:%d ??????:%.2f ????????:%s ????Ч????:%s\n",
-                    p->id, p->name, p->stock, p->price, p->batch, p->expiry);
-                return;
+        if (choice == 1) {
+            char id[30];
+            printf("\n  请输入待检索的药品精确内码 (ID): ");
+            safeGetString(id, 30);
+
+            Drug* p = drugList; int found = 0;
+            while (p) {
+                if (strcmp(p->id, id) == 0) {
+                    printf("\n  [检索命中] 资产详情:\n");
+                    printf("  内码: %s | 名称: %s | 库存量: %d 盒 | 零售价: %.2f 元\n", p->id, p->name, p->stock, p->price);
+                    printf("  批号: %s | 有效期: %s | 变动记录: %s\n", p->batch, p->expiry, p->last_in);
+                    found = 1; break;
+                }
+                p = p->next;
             }
-            p = p->next;
+            if (!found) printf("  [!] 检索库穿透：未寻址到与该内码匹配的物资实体。\n");
+            system("pause");
         }
-<<<<<<< HEAD
-        printf("未找到该药品。\n");
-    }
-    // 按名称关键字模糊检索
-    else if (choice == 2) {
-        char name[50]; printf("请输入药品名称关键字: "); scanf("%s", name);
-=======
-        printf("未锟揭碉拷锟斤拷药品锟斤拷\n");
-    }
-    // 锟斤拷锟斤拷锟狡关硷拷锟斤拷模锟斤拷锟斤拷锟斤拷
-    else if (choice == 2) {
-        char name[50]; printf("锟斤拷锟斤拷锟斤拷药品锟斤拷锟狡关硷拷锟斤拷: "); scanf("%s", name);
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
-        int found = 0;
-        Drug* p = drugList;
-        while (p) {
-            if (strstr(p->name, name)) {
-<<<<<<< HEAD
-                printf("ID:%d 名称:%s 库存:%d 价格:%.2f 批号:%s 有效期:%s\n",
-=======
-                printf("ID:%d 锟斤拷锟斤拷:%s 锟斤拷锟?%d 锟桔革拷:%.2f 锟斤拷锟斤拷:%s 锟斤拷效锟斤拷:%s\n",
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
-                    p->id, p->name, p->stock, p->price, p->batch, p->expiry);
-                found = 1;
+        else if (choice == 2) {
+            char name[50];
+            printf("\n  键入药品名称关键字片段: ");
+            safeGetString(name, 50);
+
+            int found = 0; Drug* p = drugList;
+            printf("\n--- 模糊匹配反馈结果 ---\n");
+            while (p) {
+                if (strstr(p->name, name)) {
+                    printf("  命中 -> ID:%s | 名称:%s | 库存:%d | 定价:%.2f\n", p->id, p->name, p->stock, p->price);
+                    found = 1;
+                }
+                p = p->next;
             }
-            p = p->next;
+            if (!found) printf("  [!] 算法反馈：特征字段未在现有库中命中任何记录。\n");
+            system("pause");
         }
-<<<<<<< HEAD
-        if (!found) printf("未找到匹配药品。\n");
-=======
-        if (!found) printf("未锟揭碉拷匹锟斤拷药品锟斤拷\n");
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
+        else if (choice == 3) {
+            displayAllDrugs();
+            system("pause");
+        }
     }
-    else if (choice == 3) {
-        displayAllDrugs();
-    }
-<<<<<<< HEAD
-    else printf("无效选择。\n");
 }
 
 // ---------------------------------------------------------
-// 业务二：查看历史库存流水记录
+// 业务二：全局物资流转审计报表
 // ---------------------------------------------------------
 static void viewStockRecords() {
-    printf("\n--- 库存变动记录 ---\n");
-=======
-    else printf("锟斤拷效选锟斤拷\n");
-}
-
-// ---------------------------------------------------------
-// 业锟斤拷锟斤拷锟斤拷榭达拷锟绞凤拷锟斤拷锟斤拷水锟斤拷录
-// ---------------------------------------------------------
-static void viewStockRecords() {
-    printf("\n--- 锟斤拷锟戒动锟斤拷录 ---\n");
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
+    printf("\n========== 仓储空间异动流水审计 ==========\n");
     DrugHistory* h = drugHistoryList;
-    if (!h) { printf("????????????????\n"); return; }
-    printf("%-15s %-6s %-8s %-20s\n", "????ID", "????????", "????????", "??????");
+    if (!h) { printf("  [报告空置] 系统暂未监控到任何物理库存的干预与流转行为。\n"); return; }
+
+    printf(" %-15s | %-8s | %-10s | %-20s\n", "变动关联内码", "动作属性", "吞吐基数", "时间戳");
+    printf("----------------------------------------------------------------\n");
     while (h) {
-        printf("%-15s %-6s %-8d %-20s\n", h->drug_id,
-            (h->type == 1) ? "??????" : "????????", h->quantity, h->time);
+        printf(" %-15s | %-8s | %-10d | %-20s\n",
+            h->drug_id, (h->type == 1) ? "[入库 +]" : "[出库 -]", h->quantity, h->time);
         h = h->next;
     }
+    printf("----------------------------------------------------------------\n");
 }
 
 // ---------------------------------------------------------
-<<<<<<< HEAD
-// 业务三：药品入库管理 (增加库存并记录流水)
-=======
-// 业锟斤拷锟斤拷锟斤拷药品锟斤拷锟斤拷锟斤拷 (锟斤拷锟接匡拷娌拷锟铰硷拷锟剿?
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
+// 业务三：药房物资增补入库 (写入物理库并产生审计流水)
 // ---------------------------------------------------------
 static void drugIn() {
-    int  quantity;
-    char id[15];
-    printf("????????????????ID: ");
-    id[14] = '\0'; // ????????????????????β
-    scanf("%s", id);
-    if (id[14]!='\0'){
-		printf("δ??????????????????\n");
-        return;
-    }
+    char id[30];
+    printf("\n  扫描入库物资对应的系统内码(ID): ");
+    safeGetString(id, 30);
+
     Drug* p = drugList;
     while (p) {
-        if (strcmp(p->id,id)==0) {
-            printf("????????????: %d\n", p->stock);
-            printf("??????????????????????????: ");
-            scanf("%d", &quantity);
-<<<<<<< HEAD
-            if (quantity <= 0) { printf("数量必须为正。\n"); return; }
+        if (strcmp(p->id, id) == 0) {
+            printf("  [目标确认] 当前资产存量为: %d 盒\n", p->stock);
+            printf("  键入本次物资补给装填量: ");
 
-            p->stock += quantity; // 增加物理库存
-            getCurrentTime(p->last_in, 30); // 更新最近入库时间
+            // 安全过滤：严格限制只能输入正整数，阻断恶意虚假账目
+            int quantity = safeGetPositiveInt();
 
-            // 采用头插法将变动记录插入历史流水链表
-=======
-            if (quantity <= 0) { printf("锟斤拷锟斤拷锟斤拷锟斤拷为锟斤拷锟斤拷\n"); return; }
+            p->stock += quantity;
+            extern void getCurrentTimeStr(char* buffer, int size);
+            getCurrentTimeStr(p->last_in, 30); // 更新最近入库快照
 
-            p->stock += quantity; // 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟?
-            getCurrentTime(p->last_in, 30); // 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷时锟斤拷
-
-            // 锟斤拷锟斤拷头锟藉法锟斤拷锟戒动锟斤拷录锟斤拷锟斤拷锟斤拷史锟斤拷水锟斤拷锟斤拷
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
+            // 头插法同步构建流转审计日志
             DrugHistory* h = (DrugHistory*)malloc(sizeof(DrugHistory));
-            strcpy(h->drug_id,id);
+            strcpy(h->drug_id, id);
             h->type = 1;
             h->quantity = quantity;
-            getCurrentTime(h->time, 30);
+            getCurrentTimeStr(h->time, 30);
             h->next = drugHistoryList;
             drugHistoryList = h;
-<<<<<<< HEAD
-            printf("入库成功，新库存: %d\n", p->stock);
-=======
-            printf("锟斤拷锟缴癸拷锟斤拷锟铰匡拷锟? %d\n", p->stock);
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
+
+            printf("  [√] 底层区块写入成功，该物资最新持有量刷新为: %d 盒\n", p->stock);
             return;
         }
         p = p->next;
     }
-<<<<<<< HEAD
-    printf("未找到该药品。\n");
+    printf("  [拦截] 系统抛出异常：无法锁定该 ID，请确认物资是否已在名录中建档。\n");
 }
 
 // ---------------------------------------------------------
-// 业务四：药品人工出库管理
-=======
-    printf("未锟揭碉拷锟斤拷药品锟斤拷\n");
-}
-
-// ---------------------------------------------------------
-// 业锟斤拷锟侥ｏ拷药品锟剿癸拷锟斤拷锟斤拷锟斤拷锟?
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
+// 业务四：库房人工强制调拨出库
 // ---------------------------------------------------------
 static void drugOut() {
-    int  quantity;
-    char id[15];
-    printf("????????????????ID: ");
-    id[14] = '\0'; // ????????????????????β
-    scanf("%s", id);
-    if (id[14] != '\0') {
-        printf("δ??????????????????\n");
-        return;
-	}//????????????????????????????????????????
+    char id[30];
+    printf("\n  核对需执行调拨的物资内码(ID): ");
+    safeGetString(id, 30);
+
     Drug* p = drugList;
     while (p) {
-        if (strcmp(p->id,id)==0) {
-            printf("????????????: %d\n", p->stock);
-            printf("??????????????????????????: ");
-            scanf("%d", &quantity);
-<<<<<<< HEAD
-            if (quantity <= 0) { printf("数量必须为正。\n"); return; }
-            if (p->stock < quantity) { printf("库存不足！\n"); return; }
+        if (strcmp(p->id, id) == 0) {
+            printf("  [数据镜像] 该资产可供调拨量为: %d 盒\n", p->stock);
+            printf("  键入出库损耗配额: ");
 
-            p->stock -= quantity; // 扣减物理库存
-            getCurrentTime(p->last_out, 30);
+            int quantity = safeGetPositiveInt();
+            if (p->stock < quantity) {
+                printf("  [熔断预警] 物理储备量无法覆盖本次调拨请求，操作已回滚！\n");
+                return;
+            }
 
-            // 生成流水记录
-=======
-            if (quantity <= 0) { printf("锟斤拷锟斤拷锟斤拷锟斤拷为锟斤拷锟斤拷\n"); return; }
-            if (p->stock < quantity) { printf("锟斤拷娌伙拷悖n"); return; }
+            p->stock -= quantity;
+            extern void getCurrentTimeStr(char* buffer, int size);
+            getCurrentTimeStr(p->last_out, 30);
 
-            p->stock -= quantity; // 锟桔硷拷锟斤拷锟斤拷锟斤拷锟?
-            getCurrentTime(p->last_out, 30);
-
-            // 锟斤拷锟斤拷锟斤拷水锟斤拷录
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
+            // 建立追溯凭证
             DrugHistory* h = (DrugHistory*)malloc(sizeof(DrugHistory));
-            strcpy(h->drug_id ,id);
-            h->type = 2; // 2????????????????
+            strcpy(h->drug_id, id);
+            h->type = 2; // 状态2映射出库动作
             h->quantity = quantity;
-            getCurrentTime(h->time, 30);
+            getCurrentTimeStr(h->time, 30);
             h->next = drugHistoryList;
             drugHistoryList = h;
-<<<<<<< HEAD
-            printf("出库成功，新库存: %d\n", p->stock);
-=======
-            printf("锟斤拷锟斤拷晒锟斤拷锟斤拷驴锟斤拷: %d\n", p->stock);
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
+
+            printf("  [√] 账目平衡扣除成功，核心账本库存结余: %d 盒\n", p->stock);
             return;
         }
         p = p->next;
     }
-<<<<<<< HEAD
-    printf("未找到该药品。\n");
-=======
-    printf("未锟揭碉拷锟斤拷药品锟斤拷\n");
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
+    printf("  [拦截] 字典树中不存在此物料实体。\n");
 }
+
 // ---------------------------------------------------------
-// ????????壺??????????????????????
-//----------------------------------------------------------
+// 业务五：新品种物资入网建档
+// ---------------------------------------------------------
 void addDrug() {
     Drug d;
-    printf("????????????????????ID: ");
-    d.id[14] = '\0'; // ????????????????????β
-    scanf("%s", d.id);
-    if (d.id[14] != '\0') {
-        printf("????ID????????????????????????????\n");
-        return;
+    printf("\n========== 新型医疗物资准入登记 ==========\n");
+    printf("  赋予新物资唯一识别内码(ID): ");
+    safeGetString(d.id, 15);
+
+    // 前置状态锁：阻断主键重复写入
+    Drug* check = drugList;
+    while (check) {
+        if (strcmp(check->id, d.id) == 0) {
+            printf("  [违规操作] 系统底座已存在占用该 ID 的活跃数据，拒绝建档！\n");
+            return;
+        }
+        check = check->next;
     }
-<<<<<<< HEAD
-    printf("????????????????????????: ");
-    scanf("%s", d.name);
-    printf("??????????????????????????????: ");
-    scanf("%d", &d.stock);
-    printf("??????????????????????: ");
-    scanf("%f", &d.price);
-    printf("????????????????????: ");
-    scanf("%s", d.batch);
-    printf("????????????????Ч???? (????2025-12-31): ");
-    scanf("%s", d.expiry);
-    getCurrentTime(d.last_in, 30); // ????????????????????????
-    strcpy(d.last_out, ""); // ??????????????????????????
-    // ????????????????????????????????β
-=======
-    printf("锟斤拷锟斤拷锟斤拷药品锟斤拷锟斤拷: ");
-    scanf("%20s", d.name);
-    printf("锟斤拷锟斤拷锟斤拷锟绞硷拷锟斤拷锟斤拷锟斤拷: ");
-    while (1) {
-        if (scanf("%d", &d.stock) == 1)
-            break;
-        while (getchar() != '\n');
-           printf("锟斤拷锟斤拷牟锟斤拷锟斤拷锟斤拷郑锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟? ");
-    }
-    printf("锟斤拷锟斤拷锟斤拷药品锟桔革拷: ");
-    while (1) {
-        if (scanf("%f", &d.price));
-            break;
-        while (getchar() != '\n');
-        printf("锟斤拷锟斤拷牟锟斤拷锟斤拷锟斤拷郑锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟? ");
-    }
-    printf("锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷: ");
-    scanf("%s", d.batch);
-    printf("锟斤拷锟斤拷锟斤拷锟斤拷效锟斤拷 (锟斤拷XXXX-YY-ZZ): ");
-	judgetime(d.expiry);// 锟斤拷证锟斤拷锟节革拷式
-    getCurrentTime(d.last_in, 30); // 锟斤拷始锟斤拷锟绞憋拷锟轿拷锟?
-    strcpy(d.last_out, ""); // 锟斤拷始锟斤拷锟斤拷时锟斤拷为锟斤拷
-    // 锟斤拷锟斤拷药品锟斤拷锟接碉拷锟斤拷锟斤拷末尾
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
+
+    printf("  键入国家药监局备案名称: ");
+    while (1) { safeGetString(d.name, 50); if (strlen(d.name) > 0) break; }
+
+    printf("  初始化入网物理装填量: ");
+    d.stock = safeGetInt(); // 允许为0初始库存
+    if (d.stock < 0) d.stock = 0;
+
+    printf("  设定系统核算基准单价: ");
+    d.price = safeGetDouble();
+    if (d.price < 0) d.price = 0.0;
+
+    printf("  追溯批次核准代码: ");
+    while (1) { safeGetString(d.batch, 20); if (strlen(d.batch) > 0) break; }
+
+    printf("  限定生命周期失效阀值 (如2026-12-31): ");
+    while (1) { safeGetString(d.expiry, 15); if (strlen(d.expiry) > 0) break; }
+
+    extern void getCurrentTimeStr(char* buffer, int size);
+    getCurrentTimeStr(d.last_in, 30); // 注入首次活跃时间戳
+    strcpy(d.last_out, "-");
+
     Drug* node = (Drug*)malloc(sizeof(Drug));
     *node = d;
     node->next = NULL;
+
     if (!drugList) drugList = node;
     else {
         Drug* p = drugList;
         while (p->next) p = p->next;
         p->next = node;
     }
-    printf("????????????????????????\n");
+    printf("  [√] 物资拓扑图节点生成成功，已纳入全院监控网络。\n");
 }
 
 // ---------------------------------------------------------
-<<<<<<< HEAD
-// 管理端：药房系统子路由
-=======
-// 锟斤拷锟斤拷锟剿ｏ拷药锟斤拷系统锟斤拷路锟斤拷
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
+// 高管管理端：药房核心业务集线器
 // ---------------------------------------------------------
 void drugMenu() {
-    int choice;
-    do {
-<<<<<<< HEAD
-        // ??????????????????????????????????????????????????
-        printf("\n========== ?????????????? ==========\n");
-        printf("1. ??????????????\n");
-        printf("2. ??????????\n");
-        printf("3. ????????????\n");
-        printf("4. ??????????????????\n");
-		printf("5.??????????????????\n");
-        printf("0. ??????????????????\n");
-        printf("??????????: ");
-        scanf("%d", &choice);
-=======
-        // 注锟解：锟斤拷锟斤拷锟铰硷拷锟斤拷兀锟街憋拷映锟斤拷锟揭碉拷锟剿碉拷
-        printf("\n========== 药锟斤拷锟斤拷锟斤拷 ==========\n");
-        printf("1. 药品锟斤拷锟斤拷询\n");
-        printf("2. 药品锟斤拷锟絓n");
-        printf("3. 药品锟斤拷锟斤拷\n");
-        printf("4. 锟介看锟斤拷锟戒动锟斤拷录\n");
-		printf("5.锟斤拷锟斤拷药品锟斤拷息\n");
-        printf("0. 锟斤拷锟斤拷锟斤拷锟剿碉拷\n");
-        printf("锟斤拷选锟斤拷: ");
-        if (scanf("%d", &choice) != 1)
-            choice = -1;
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
+    while (1) {
+        system("cls");
+        printf("\n==================================================\n");
+        printf("                 全院药剂耗材管理总机                 \n");
+        printf("==================================================\n");
+        printf("  [1] 药品库存拓扑检索\n");
+        printf("  [2] 院外物资采购入库\n");
+        printf("  [3] 院内耗材强制调拨\n");
+        printf("  [4] 提取出入库异动审计流水\n");
+        printf("  [5] 新品种物资准入建档\n");
+        printf("  [0] 断开链路，返回上级枢纽\n");
+        printf("--------------------------------------------------\n");
+        printf("  传输执行动作编码: ");
+
+        int choice = safeGetInt(); // 防控无效字母与溢出操作
         switch (choice) {
         case 1: drugStockQuery(); break;
-        case 2: drugIn(); break;
-        case 3: drugOut(); break;
-        case 4: viewStockRecords(); break;
-		case 5: addDrug(); break;
-        case 0: break;
-<<<<<<< HEAD
-        default: printf("无效选项。\n");
-=======
-        default: printf("锟斤拷效选锟筋。\n");
->>>>>>> 84ae28902b24ca7d8c8b7d99bcdcb8609ec720f2
+        case 2: drugIn(); system("pause"); break;
+        case 3: drugOut(); system("pause"); break;
+        case 4: viewStockRecords(); system("pause"); break;
+        case 5: addDrug(); system("pause"); break;
+        case 0: return;
         }
-    } while (choice != 0);
+    }
 }
