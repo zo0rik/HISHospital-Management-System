@@ -152,7 +152,7 @@ static void modifySchedule() {
     int sid;
     printf("������Ҫ�޸ĵ��Ű�ID: "); 
     while (scanf("%d", &sid) != 1) {
-        while (getcahr() != '\n');
+        while (getchar() != '\n');
 		printf("����Ĳ������֣�����������: ");
     }// ���þ�׼���Ű�ID�޸�
     Schedule* p = scheduleList;

@@ -11,13 +11,22 @@ typedef struct Transaction {
     char description[200];  // 交易描述明细
     struct Transaction* next; // 指向下一条记录的指针
 } Transaction;
-
+//用于统计报表中人事接诊量的结构体定义
+typedef struct PersonnelReport {
+	char doctor_id[20];  // 医生ID
+	char doctor_name[20];    // 医生姓名
+    char department[30];    // 科室
+    int count;             // 接诊量统计
+    struct PersonnelReport* next; // 指向下一条记录的指针
+} PersonnelReport;
 // 声明全局链表供 .c 文件使用
 extern Transaction* transactionList;
-
+// 人事报表链表头指针
+extern PersonnelReport* personnelReportList;
 // 核心业务函数声明
 void loadTransactions(void);
 void saveTransactions(void);
 void reportMenu(void);
+void parttimereport(char* start,char* end);//专用于财务报表的输出格式化展示
 
 #endif
