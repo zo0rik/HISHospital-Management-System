@@ -6,46 +6,98 @@
 #include "models.h"
 #include "utils.h"
 
+// ---------------------------------------------------------
+// 基础工具：读取字符串并处理换行符
+// ---------------------------------------------------------
+// 使用 fgets 替代原生的 scanf，能够安全地读取包含空格的字符串，
+// 并在读取后手动去除末尾的换行符，避免回车残留对后续输入造成影响。
 void safeGetString(char* buffer, int size) {
     if (fgets(buffer, size, stdin) != NULL) {
         buffer[strcspn(buffer, "\n")] = '\0';
     }
-    else { buffer[0] = '\0'; }
+    else {
+        buffer[0] = '\0';
+    }
 }
 
+// ---------------------------------------------------------
+// 安全输入模块：整数读取与容错处理
+// ---------------------------------------------------------
+// 解决原生 scanf 读取异常字符会导致输入流阻塞、控制台死循环的问题。
+// 先将输入作为整行字符串读取，再利用 sscanf 的匹配返回值进行严格校验。
 int safeGetInt() {
-    char buffer[100]; safeGetString(buffer, sizeof(buffer));
-    int value = 0; sscanf(buffer, "%d", &value);
-    return value;
+    char buffer[100];
+    int value = 0;
+    while (1) {
+        safeGetString(buffer, sizeof(buffer));
+        // 屏蔽用户直接敲击回车产生的空输入
+        if (strlen(buffer) == 0) {
+            continue;
+        }
+        char extra;
+        // 仅当 sscanf 只成功匹配到一个整型数据时，才认为输入完全合法。
+        // 如果输入类似 "12abc"，则会匹配到两个参数，从而触发拦截。
+        if (sscanf(buffer, "%d%c", &value, &extra) == 1) {
+            return value;
+        }
+        printf("  [!] 输入格式不合法，请重新输入一个有效的整数: ");
+    }
 }
 
+// ---------------------------------------------------------
+// 安全输入模块：浮点数读取与容错处理
+// ---------------------------------------------------------
+// 机制与 safeGetInt 相同，专门用于金额、价格等需要小数的业务场景。
 double safeGetDouble() {
-    char buffer[100]; safeGetString(buffer, sizeof(buffer));
-    double value = 0.0; sscanf(buffer, "%lf", &value);
-    return value;
+    char buffer[100];
+    double value = 0.0;
+    while (1) {
+        safeGetString(buffer, sizeof(buffer));
+        if (strlen(buffer) == 0) continue;
+
+        char extra;
+        if (sscanf(buffer, "%lf%c", &value, &extra) == 1) {
+            return value;
+        }
+        printf("  [!] 输入格式不合法，请输入有效的金额数值: ");
+    }
 }
 
-// 【防呆设计】强制要求输入大于0的正整数
+// ---------------------------------------------------------
+// 业务约束：获取正整数
+// ---------------------------------------------------------
+// 强制要求返回值必须大于0，常用于诸如开药数量、住院天数等不能为负数或零的业务节点。
 int safeGetPositiveInt() {
     while (1) {
         int val = safeGetInt();
         if (val > 0) return val;
-        printf("【输入错误】请输入大于0的有效整数: ");
+        printf("  [!] 数值不能为零或负数，请重新输入有效正整数: ");
     }
 }
 
-// 【防呆设计】强制限制性别输入
+// ---------------------------------------------------------
+// 业务约束：获取规范化的性别字符串
+// ---------------------------------------------------------
+// 严格限制内容的录入，确保写入本地文件时字段统一，避免后续读取解析错位。
 void safeGetGender(char* buffer, int size) {
     while (1) {
         safeGetString(buffer, size);
         if (strcmp(buffer, "男性") == 0 || strcmp(buffer, "女性") == 0) {
             return;
         }
-        printf("【输入错误】只能填入 男性 或 女性，请重新输入: ");
+        // 为了提升系统的输入体验，增加对简写的兼容转换
+        if (strcmp(buffer, "男") == 0) { strcpy(buffer, "男性"); return; }
+        if (strcmp(buffer, "女") == 0) { strcpy(buffer, "女性"); return; }
+
+        printf("  [!] 性别信息只能填入【男】或【女】，请重新输入: ");
     }
 }
 
-// 获取格式化系统时间（无空格，防止文件读取断裂）
+// ---------------------------------------------------------
+// 内部工具：生成连续格式的当前时间戳
+// ---------------------------------------------------------
+// 格式化当前系统时间。特意去除了日期与时间之间的空格（使用下划线代替），
+// 这是为了防止 fscanf 在按空格读取本地 txt 数据时将时间戳错误地切割成两段。
 void getCurrentTimeStr(char* buffer, int size) {
     time_t t = time(NULL);
     struct tm* tm_info = localtime(&t);
@@ -53,10 +105,12 @@ void getCurrentTimeStr(char* buffer, int size) {
 }
 
 // ---------------------------------------------------------
-// 数据读取模块：从本地 TXT 文件加载所有基础数据到内存链表
+// 数据加载引擎：从本地文件反序列化到内存链表
 // ---------------------------------------------------------
+// 系统启动时调用。采用尾插法构建各业务模块的单链表，
+// 这样可以确保数据在内存中的顺序与本地文件中的记录顺序完全一致。
 void loadAllDataFromTxt() {
-    // 1. [加载患者档案] - 8个字段
+    // 1. 加载患者档案信息
     FILE* fp = fopen("patients.txt", "r");
     if (fp) {
         Patient* tail = patientHead;
@@ -72,7 +126,7 @@ void loadAllDataFromTxt() {
         fclose(fp);
     }
 
-    // 2. [加载药品库存] - 5个字段
+    // 2. 加载大药房物资库存
     fp = fopen("medicines.txt", "r");
     if (fp) {
         Medicine* tail = medicineHead;
@@ -88,7 +142,7 @@ void loadAllDataFromTxt() {
         fclose(fp);
     }
 
-    // 3. [加载医护人员名单] - 5个字段
+    // 3. 加载全院医护人员名录
     fp = fopen("staff.txt", "r");
     if (fp) {
         Staff* tail = staffHead;
@@ -104,7 +158,7 @@ void loadAllDataFromTxt() {
         fclose(fp);
     }
 
-    // 4. [加载全院流水账单] - 8个字段 (包含最后的时间戳)
+    // 4. 加载全系统业务流水账单
     fp = fopen("records.txt", "r");
     if (fp) {
         Record* tail = recordHead;
@@ -120,7 +174,7 @@ void loadAllDataFromTxt() {
         fclose(fp);
     }
 
-    // 5. [加载病床与查房数据] - 7个字段 (适配新版字符串 bedId 和 isRoundsDone)
+    // 5. 加载住院部病床及查房状态
     fp = fopen("beds.txt", "r");
     if (fp) {
         Bed* tail = bedHead;
@@ -138,8 +192,10 @@ void loadAllDataFromTxt() {
 }
 
 // ---------------------------------------------------------
-// 数据持久化模块：将内存链表中的所有数据同步保存到本地 TXT 文件
+// 数据持久化引擎：将内存链表序列化回写至本地文件
 // ---------------------------------------------------------
+// 在系统安全退出时触发，遍历各个链表并覆写对应的 txt 文件，
+// 确保全天所有增删改查的业务数据得到永久保存。
 void saveAllDataToTxt() {
     FILE* fp = fopen("patients.txt", "w");
     if (fp) {
