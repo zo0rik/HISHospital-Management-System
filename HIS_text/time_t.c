@@ -1,118 +1,123 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include "time_t.h"
 #include <stdio.h>
-#include <time.h> // å¿…é¡»å¼•å…¥Cæ ‡å‡†æ—¶é—´åº“
+#include <time.h>
 
 // ---------------------------------------------------------
-// è·å–å½“å‰ç³»ç»Ÿçš„å®æ—¶æ—¶é—´ï¼Œå¹¶æ ¼å¼åŒ–ä¸ºæ ‡å‡†å­—ç¬¦ä¸²
-// @param buffer: ç”¨äºå­˜æ”¾ç”Ÿæˆå­—ç¬¦ä¸²çš„å­—ç¬¦æ•°ç»„æŒ‡é’ˆ
-// @param size:   buffer çš„æœ€å¤§å¯ç”¨é•¿åº¦ï¼Œé˜²æ­¢æº¢å‡ºè¶Šç•Œ
+// »ñÈ¡µ±Ç°ÏµÍ³ÈÕÆÚ£¬¸ñÊ½£ºYYYY-MM-DD
 // ---------------------------------------------------------
 void getCurrentTime(char* buffer, int size) {
-    // 1. è·å–è‡ª Unix çºªå…ƒï¼ˆ1970å¹´ï¼‰ä»¥æ¥çš„ç§’æ•°
     time_t t = time(NULL);
-
-    // 2. å°†ç§’æ•°è½¬æ¢ä¸ºæœ¬åœ°æ—¶åŒºçš„æ—¥æœŸå’Œæ—¶é—´ç»“æ„ä½“ (tm)
     struct tm* tm_info = localtime(&t);
-
-    // 3. å°† tm ç»“æ„ä½“å†…çš„ç¦»æ•£æ—¶é—´æ ¼å¼åŒ–ä¸ºç¬¦åˆ YYYY-MM-DD HH:MM:SS çš„æ ‡å‡†ä¸²
     strftime(buffer, size, "%Y-%m-%d", tm_info);
 }
-//ç”¨äºæ—¶é—´æ ¼å¼è¾“å…¥çš„æ ¡éªŒï¼Œç¡®ä¿ç”¨æˆ·è¾“å…¥çš„æ—¶é—´ç¬¦åˆ YYYY-MM-DD çš„æ ¼å¼ï¼Œå¹¶ä¸”æ—¥æœŸåˆæ³•
+
+// ---------------------------------------------------------
+// Ê±¼ä¸ñÊ½Ğ£Ñé£ºÇ¿ÖÆÊäÈëºÏ·¨µÄ YYYY-MM-DD
+// ---------------------------------------------------------
 void judgetime(char* end) {
     while (1) {
         scanf("%11s", end);
-        for (int i = 0;i < 10;i++) {
-            if (i == 4 || i == 7) {
-                if (end[i] != '-') {
-                    printf("æ ¼å¼é”™è¯¯ï¼Œè¯·é‡æ–°è¾“å…¥: ");
-                    continue;
-                }
-            }
-            else if (end[i] < '0' || end[i]>'9') {
-                printf("æ ¼å¼é”™è¯¯ï¼Œè¯·é‡æ–°è¾“å…¥: ");
-                continue;
-            }
-        }
-        if (end[10] != '\0') {
-            printf("æ ¼å¼é”™è¯¯ï¼Œè¯·é‡æ–°è¾“å…¥: ");
+
+        // ±ØĞëÊÇ10¸ö×Ö·û
+        if (strlen(end) != 10) {
+            printf("¸ñÊ½´íÎó£¬ÇëÖØĞÂÊäÈë (YYYY-MM-DD)£º");
             continue;
         }
+
+        // ¼ì²é·Ö¸ô·û
+        if (end[4] != '-' || end[7] != '-') {
+            printf("¸ñÊ½´íÎó£¬ÇëÖØĞÂÊäÈë (YYYY-MM-DD)£º");
+            continue;
+        }
+
+        // ¼ì²éÊÇ·ñ¶¼ÊÇÊı×Ö
+        int valid = 1;
+        for (int i = 0; i < 10; i++) {
+            if (i == 4 || i == 7) continue;
+            if (end[i] < '0' || end[i] > '9') {
+                valid = 0;
+                break;
+            }
+        }
+        if (!valid) {
+            printf("¸ñÊ½´íÎó£¬ÇëÖØĞÂÊäÈë (YYYY-MM-DD)£º");
+            continue;
+        }
+
+        // ½âÎöÄêÔÂÈÕ
         int year = (end[0] - '0') * 1000 + (end[1] - '0') * 100 + (end[2] - '0') * 10 + (end[3] - '0');
         int month = (end[5] - '0') * 10 + (end[6] - '0');
         int day = (end[8] - '0') * 10 + (end[9] - '0');
-        if (year % 4 == 0 && year % 100 != 0 || year % 400 == 0) {
-            if (month < 1 || month>12) {
-                printf("æ ¼å¼é”™è¯¯ï¼Œè¯·é‡æ–°è¾“å…¥: ");
-                continue;
-            }
-            if ((month == 1 || month == 3 || month == 5 || month == 7 || month == 8 || month == 10 || month == 12) && (day < 1 || day>31)) {
-                printf("æ ¼å¼é”™è¯¯ï¼Œè¯·é‡æ–°è¾“å…¥: ");
-                continue;
-            }
-            if ((month == 4 || month == 6 || month == 9 || month == 11) && (day < 1 || day>30)) {
-                printf("æ ¼å¼é”™è¯¯ï¼Œè¯·é‡æ–°è¾“å…¥: ");
-                continue;
-            }
-            if (month == 2 && (day < 1 || day>29)) {
-                printf("æ ¼å¼é”™è¯¯ï¼Œè¯·é‡æ–°è¾“å…¥: ");
-                continue;
-            }
+
+        // ¼ì²éÔÂ·İ
+        if (month < 1 || month > 12) {
+            printf("ÔÂ·İÎŞĞ§£¬ÇëÖØĞÂÊäÈë£º");
+            continue;
+        }
+
+        // ¼ì²éÈÕÆÚ
+        int max_day;
+        if (month == 2) {
+            if ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0))
+                max_day = 29;
+            else
+                max_day = 28;
+        }
+        else if (month == 4 || month == 6 || month == 9 || month == 11) {
+            max_day = 30;
         }
         else {
-            if (month < 1 || month>12) {
-                printf("æ ¼å¼é”™è¯¯ï¼Œè¯·é‡æ–°è¾“å…¥: ");
-                continue;
-            }
-            if ((month == 1 || month == 3 || month == 5 || month == 7 || month == 8 || month == 10 || month == 12) && (day < 1 || day>31)) {
-                printf("æ ¼å¼é”™è¯¯ï¼Œè¯·é‡æ–°è¾“å…¥: ");
-                continue;
-            }
-            if ((month == 4 || month == 6 || month == 9 || month == 11) && (day < 1 || day>30)) {
-                printf("æ ¼å¼é”™è¯¯ï¼Œè¯·é‡æ–°è¾“å…¥: ");
-                continue;
-            }
-            if (month == 2 && (day < 1 || day>28)) {
-                printf("æ ¼å¼é”™è¯¯ï¼Œè¯·é‡æ–°è¾“å…¥: ");
-                continue;
-            }
+            max_day = 31;
         }
+
+        if (day < 1 || day > max_day) {
+            printf("ÈÕÆÚÎŞĞ§£¬ÇëÖØĞÂÊäÈë£º");
+            continue;
+        }
+
+        // Ğ£ÑéÍ¨¹ı
+        break;
     }
 }
-//è·å–è¿‡å»æŸæ®µæ—¶é—´çš„æ—¥æœŸï¼Œç²¾ç¡®åˆ°å¤©ï¼Œè¿”å›æ ¼å¼ä¸º YYYY-MM-DD çš„å­—ç¬¦ä¸²
+
+// ---------------------------------------------------------
+// ÅĞ¶ÏÈòÄê
+// ---------------------------------------------------------
 int isLeapYear(int year) {
     return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
 }
 
+// ---------------------------------------------------------
+// »ñÈ¡Ö¸¶¨ÔÂ·İµÄÌìÊı
+// ---------------------------------------------------------
 int getDaysInMonth(int year, int month) {
     int days[] = { 31,28,31,30,31,30,31,31,30,31,30,31 };
     if (month == 2 && isLeapYear(year)) return 29;
     return days[month - 1];
 }
 
-
-void getPastDateSimple(char* current, char* result, int days_ago) {
+// ---------------------------------------------------------
+// ¸ù¾İµ±Ç°ÈÕÆÚ£¬»ñÈ¡ N ÌìÇ°µÄÈÕÆÚ
+// ---------------------------------------------------------
+void getPastDateAccurate(char* current, char* result, int days_ago) {
     int y, m, d;
-    sscanf(current, "%4d-%2d-%2d", &y, &m, &d);  // è§£æå¹´æœˆæ—¥
+    sscanf(current, "%4d-%2d-%2d", &y, &m, &d);
 
-    // é€å¤©å›é€€
     while (days_ago-- > 0) {
         d--;
-        if (d > 0) continue;  // æ­£å¸¸é€’å‡
+        if (d > 0) continue;
 
-        // éœ€è¦å€Ÿä½ï¼šæœˆä»½å‡1
         m--;
         if (m > 0) {
-            d = getDaysInMonth(y, m);  // ä¸Šä¸ªæœˆçš„å¤©æ•°
+            d = getDaysInMonth(y, m);
         }
         else {
-            // è·¨å¹´
             y--;
             m = 12;
             d = 31;
         }
     }
 
-    // æ ¼å¼åŒ–è¾“å‡º
     sprintf(result, "%04d-%02d-%02d", y, m, d);
 }

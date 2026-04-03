@@ -143,6 +143,7 @@ static void drugStockQuery() {
         choice = -1;
     if (choice == 1) {
         int id; printf("请输入药品ID: "); scanf("%d", &id);
+        int found = 0;
         Drug* p = drugList;
         while (p) {
             if (p->id == id) {
@@ -150,8 +151,7 @@ static void drugStockQuery() {
                     p->id, p->name, p->stock, p->price, p->batch, p->expiry);
                 return;
             }
-            if (!found) printf("  [!] 检索库穿透：未寻址到与该内码匹配的物资实体。\n");
-            system("pause");
+			p = p->next;
         }
         printf("未找到该药品。\n");
     }
@@ -165,12 +165,6 @@ static void drugStockQuery() {
                     p->id, p->name, p->stock, p->price, p->batch, p->expiry);
                 found = 1;
             }
-            if (!found) printf("  [!] 算法反馈：特征字段未在现有库中命中任何记录。\n");
-            system("pause");
-        }
-        else if (choice == 3) {
-            displayAllDrugs();
-            system("pause");
         }
         if (!found) printf("未找到匹配药品。\n");
     }
@@ -340,5 +334,5 @@ void drugMenu() {
         case 0: break;
         default: printf("无效选项。\n");
         }
-    }
+    } while (choice != 0);
 }
