@@ -8,7 +8,6 @@
 
 void safeGetString(char* buffer, int size) {
     if (fgets(buffer, size, stdin) != NULL) {
-        // 如果没有读取到换行符，说明输入超出了缓冲区大小，必须清空残留的输入流
         if (strchr(buffer, '\n') == NULL) {
             int c;
             while ((c = getchar()) != '\n' && c != EOF);
@@ -18,7 +17,6 @@ void safeGetString(char* buffer, int size) {
         }
     }
     else {
-        // 捕获 EOF (Ctrl+Z) 异常，防止死循环
         buffer[0] = '\0';
         clearerr(stdin);
     }
@@ -32,12 +30,12 @@ int safeGetInt() {
         value = 0;
         safeGetString(buffer, sizeof(buffer));
         if (strlen(buffer) == 0) {
-            return 0; // 遇到强制空流，默认返回0以触发安全退出，阻断死循环
+            return 0;
         }
         if (sscanf(buffer, "%d%c", &value, &extra) == 1) {
             return value;
         }
-        printf("  [!] 输入格式不合法，请重新输入一个有效的整数: ");
+        printf("  [!] 输入格式不合法，请重新输入一个有效的整数 (输入0返回): ");
     }
 }
 
@@ -49,10 +47,15 @@ double safeGetDouble() {
         value = 0.0;
         safeGetString(buffer, sizeof(buffer));
         if (strlen(buffer) == 0) return 0.0;
+        if (strcmp(buffer, "0") == 0 || strcmp(buffer, "0.0") == 0) return 0.0;
         if (sscanf(buffer, "%lf%c", &value, &extra) == 1) {
+            if (value < 0) {
+                printf("  [!] 金额不能为负数，请重新输入 (输入0取消): ");
+                continue;
+            }
             return value;
         }
-        printf("  [!] 输入格式不合法，请输入有效的金额数值: ");
+        printf("  [!] 输入格式不合法，请输入有效的金额数值 (输入0取消): ");
     }
 }
 
@@ -61,20 +64,22 @@ int safeGetPositiveInt() {
     while (1) {
         val = safeGetInt();
         if (val > 0) return val;
-        printf("  [!] 数值不能为零或负数，请重新输入有效正整数: ");
+        if (val == 0) return 0; // 支持输入0返回
+        printf("  [!] 数值不能为负数，请重新输入有效正整数 (输入0返回): ");
     }
 }
 
 void safeGetGender(char* buffer, int size) {
     while (1) {
         safeGetString(buffer, size);
+        if (strcmp(buffer, "0") == 0) return; // 支持输入0返回
         if (strcmp(buffer, "男性") == 0 || strcmp(buffer, "女性") == 0) {
             return;
         }
         if (strcmp(buffer, "男") == 0) { strcpy(buffer, "男性"); return; }
         if (strcmp(buffer, "女") == 0) { strcpy(buffer, "女性"); return; }
         if (strlen(buffer) == 0) continue;
-        printf("  [!] 性别信息只能填入【男】或【女】，请重新输入: ");
+        printf("  [!] 性别信息只能填入【男】或【女】，请重新输入 (输入0取消): ");
     }
 }
 
