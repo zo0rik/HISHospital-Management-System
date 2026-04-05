@@ -4,6 +4,7 @@
 
 // 基础安全输入接口
 void safeGetString(char* buffer, int size);
+void safeGetPassword(char* buffer, int size);
 int safeGetInt();
 double safeGetDouble();
 int safeGetPositiveInt();

@@ -25,7 +25,7 @@ void loadDrugs() {
         line[strcspn(line, "\n")] = 0;
 
         char* token = strtok(line, ",");
-        if (token) d.id = token; else d.id = 0;
+        if (token) d.id = atoi(token); else d.id = 0;//编号
         token = strtok(NULL, ",");
         if (token) strcpy(d.name, token); else d.name[0] = '\0';//名称
         token = strtok(NULL, ",");
@@ -80,7 +80,7 @@ void loadDrugHistory() {
     while (fgets(line, sizeof(line), fp)) {
         line[strcspn(line, "\n")] = 0;
         char* token = strtok(line, ",");
-        if (token) h.drug_id=token; else h.drug_id = 0;
+        if (token) h.drug_id=atoi(token); else h.drug_id = 0;
         token = strtok(NULL, ",");
         if (token) h.type = atoi(token); else h.type = 0;
 
@@ -142,7 +142,11 @@ static void drugStockQuery() {
     if (scanf("%d", &choice) != 1)
         choice = -1;
     if (choice == 1) {
-        int id; printf("请输入药品ID: "); scanf("%d", &id);
+        int id; printf("请输入药品ID: "); 
+        while (scanf("%d", &id) != 1) {
+			while (getchar() != '\n');
+			printf("输入格式错误，请重新输入药品ID: ");
+        }
         int found = 0;
         Drug* p = drugList;
         while (p) {
@@ -165,6 +169,7 @@ static void drugStockQuery() {
                     p->id, p->name, p->stock, p->price, p->batch, p->expiry);
                 found = 1;
             }
+            p = p->next;
         }
         if (!found) printf("未找到匹配药品。\n");
     }
@@ -195,7 +200,7 @@ static void viewStockRecords() {
 static void drugIn() {
     int  id,quantity;
     printf("请输入药品ID: ");
-    while (scanf("%d", &id) != -1) {
+    while (scanf("%d", &id) != 1) {
         while (getchar() != '\n');
         printf("输入格式错误，请重新输入药品ID: ");
     }
@@ -204,15 +209,18 @@ static void drugIn() {
         if (p->id == id) {
             printf("当前库存: %d\n", p->stock);
             printf("请输入入库数量: ");
-            scanf("%d", &quantity);
+            while(scanf("%d", &quantity)!=1){
+				while (getchar() != '\n');
+				printf("输入格式错误，请重新输入入库数量: ");
+            }
             if (quantity <= 0) { printf("数量必须为正。\n"); return; }
             p->stock += quantity;
-            getCurrentTime(p->last_in, 15);
+            getCurrentTime(p->last_in, 30);
             DrugHistory* h = (DrugHistory*)malloc(sizeof(DrugHistory));
             h->drug_id = id;
             h->type = 1;
             h->quantity = quantity;
-            getCurrentTime(h->time, 15);
+            getCurrentTime(h->time, 30);
             h->next = drugHistoryList;
             drugHistoryList = h;
             printf("入库成功，新库存: %d\n", p->stock);
@@ -230,17 +238,19 @@ static void drugIn() {
 static void drugOut() {
    int id,quantity;
     printf("请输入药品ID: ");
-    if (scanf("%d",&id) != 1) {
+    while(scanf("%d",&id) != 1) {
         while (getchar() != '\n');
         printf("输入格式错误，请重新输入药品ID: ");
-        return;
     }
     Drug* p = drugList;
     while (p) {
         if (p->id == id) {
             printf("当前库存: %d\n", p->stock);
             printf("请输入出库数量: ");
-            scanf("%d", &quantity);
+            while (scanf("%d", &quantity) != 1) {
+				while (getchar() != '\n');
+				printf("输入格式错误，请重新输入出库数量: ");
+            }
             if (quantity <= 0) { printf("数量必须为正。\n"); return; }
             if (p->stock < quantity) { printf("库存不足！\n"); return; }
             p->stock -= quantity;
@@ -296,9 +306,9 @@ void addDrug() {
     }
     printf("请输入药品批次: ");
     scanf("%s", d->batch);
-    printf("输入格式为(XXXX-YY-ZZ): ");
+    printf("请输入药品有效期,输入格式为(XXXX-YY-ZZ): ");
     judgetime(d->expiry);// 输入格式判断
-    getCurrentTime(d->last_in, 15); // 获取当前时间作为入库时间
+    getCurrentTime(d->last_in, 30); // 获取当前时间作为入库时间
     strcpy(d->last_out, ""); // 出库时间初始为空
     //加入药品链表
     
@@ -325,7 +335,8 @@ void drugMenu() {
         printf("4. 查看库存变动记录\n");
         printf("0. 返回主菜单\n");
         printf("请选择: ");
-        scanf("%d", &choice);
+        if (scanf("%d", &choice) != 1)
+            choice = -1;
         switch (choice) {
         case 1: drugStockQuery(); break;
         case 2: drugIn(); break;

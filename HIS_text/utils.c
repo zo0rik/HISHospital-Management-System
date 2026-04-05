@@ -5,6 +5,32 @@
 #include <time.h>
 #include "models.h"
 #include "utils.h"
+#include <conio.h>
+
+// 密码输入：显示 *
+void safeGetPassword(char pwd[], int maxLen) {
+    int i = 0;
+    char ch;
+    while (1) {
+        ch = _getch(); 
+        if (ch == '\r') break;   // 回车结束
+        // 退格键处理
+        if (ch == '\b') {
+            if (i > 0) {
+                i--;
+                printf("\b \b");
+            }
+            continue;
+        }
+        if (i < maxLen - 1) {
+            pwd[i++] = ch;
+            printf("*");        // 只输出 *
+        }
+    }
+    pwd[i] = '\0';
+    printf("\n");
+}
+
 
 void safeGetString(char* buffer, int size) {
     if (fgets(buffer, size, stdin) != NULL) {

@@ -74,7 +74,7 @@ int main() {
                 // 提供随时退出的后悔机制，避免用户在登录流中卡死
                 if (strcmp(acc, "0") == 0) break;
 
-                printf("  [?] 请输入动态口令密码: "); safeGetString(pwd, 50);
+                printf("  [?] 请输入动态口令密码: "); safeGetPassword(pwd, 50);
 
                 if (strcmp(acc, admin.username) == 0 && strcmp(pwd, admin.password) == 0) {
                     adminMenu();
@@ -92,7 +92,7 @@ int main() {
                 printf("  [?] 请刷取职工工号: "); safeGetString(acc, 50);
                 if (strcmp(acc, "0") == 0) break;
 
-                printf("  [?] 请输入登录密码: "); safeGetString(pwd, 50);
+                printf("  [?] 请输入登录密码: "); safeGetPassword(pwd, 50);
 
                 // 遍历医护人员链表核对身份
                 Staff* s = staffHead->next; Staff* me = NULL;
@@ -125,7 +125,7 @@ int main() {
                     printf("\n  [?] 请输入患者ID (如P20251000, 输入0返回): "); safeGetString(acc, 50);
                     if (strcmp(acc, "0") == 0) break;
 
-                    printf("  [?] 请输入服务密码: "); safeGetString(pwd, 50);
+                    printf("  [?] 请输入服务密码: "); safeGetPassword(pwd, 50);
 
                     // 检索患者档案库进行匹配
                     Patient* p = patientHead->next; Patient* me = NULL;
