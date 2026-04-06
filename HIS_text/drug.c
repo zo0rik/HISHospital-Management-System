@@ -63,6 +63,7 @@ void loadDrugs() {
             tail = node;
         } 
     }
+	tail->next = NULL;  // 确保链表末尾指针正确设置
     fclose(fp);
 }
 // ---------------------------------------------------------
@@ -116,6 +117,7 @@ void loadDrugHistory() {
             tail = node;
         }
     } 
+	tail->next = NULL;  // 确保链表末尾指针正确设置
     fclose(fp);
 }
 
@@ -163,21 +165,25 @@ static void drugStockQuery() {
         choice = -1;
     if (choice == 1) {
         int id; printf("请输入药品ID: "); 
-        while (scanf("%d", &id) != 1) {
+        while (scanf("%d", &id) != 1||choice<0) {
 			while (getchar() != '\n');
 			printf("输入格式错误，请重新输入药品ID: ");
         }
+		while (getchar() != '\n');//清空缓存区
         int found = 0;
         Drug* p = drugList->next;
-        while (p) {
+        while (p!=NULL) {
             if (p->id == id) {
                 printf("ID:%d 名称:%s 库存:%d 价格:%.2f 批号:%s 有效期:%s\n",
                     p->id, p->name, p->stock, p->price, p->batch, p->expiry);
+                found = 1;
                 return;
             }
 			p = p->next;
         }
-        printf("未找到该药品。\n");
+        if (found == 0) {
+            printf("未找到该药品。\n");
+        }
     }
     else if (choice == 2) {
         char name[50]; printf("请输入药品名称关键字: "); scanf("%49s", name);while (getchar() != '\n');//清空缓存区
@@ -281,7 +287,7 @@ static void drugOut() {
             h->quantity = quantity;
             getCurrentTime(h->time, 15);
             h->next = drugHistoryList->next;
-            drugHistoryList = h;
+            drugHistoryList->next = h;
             printf("出库成功，现库存: %d\n", p->stock);
             return;
         }
