@@ -8,6 +8,7 @@
 #include "doctor.h"
 #include "schedule.h"
 #include "transaction.h"
+#include "utils.h"
 
 Admin admin;
 
@@ -46,11 +47,11 @@ void saveAdminData(void) {
 // ---------------------------------------------------------
 void changePassword(void) {
     char old[20] = { '\0' }, new1[20] = { '\0' }, new2[20] = { '\0' };
-    printf("请输入旧密码: "); scanf("%19s", old);
+    printf("请输入旧密码: "); safeGetPassword(old, 20);
     if (old[19]!='\0'||strcmp(old, admin.password) != 0) { printf("旧密码错误！\n"); return; }
-    printf("请输入新密码: "); scanf("%19s", new1);
+    printf("请输入新密码: "); safeGetPassword(new1, 20);
 	if (new1[19] != '\0' || strlen(new1) == 0) { printf("新密码格式错误！\n"); return; }
-    printf("请确认新密码: "); scanf("%19s", new2);
+    printf("请确认新密码: "); safeGetPassword(new2, 20);
     if (new2[19]!='\0'||strcmp(new1, new2) != 0) { printf("两次输入不一致！\n"); return; }
     strcpy(admin.password, new1);
     printf("密码修改成功！\n");

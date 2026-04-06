@@ -8,16 +8,15 @@
 #include "transaction.h"
 
 // ---------------------------------------------------------
-// 业务一：基于概率的人员异常与风险预测模型（简化版）
+// 业务一：基于概率的人员异常与风险预测模型
 // ---------------------------------------------------------
 static void personnelPrediction() {
     printf("\n========== 人员异常预测预警 ==========\n");
-    personnelReportList = NULL;
 	char start[15],currentTime[15];
 	getCurrentTime(currentTime, 15);
 	getPastDateAccurate(currentTime, start, 14);
 	parttimereport(start, currentTime);
-    if (!personnelReportList) {
+    if (!(personnelReportList->next)) {
         printf(" 在指定时间范围内无接诊数据，无法进行分析。\n");
         return;
     }
@@ -26,7 +25,7 @@ static void personnelPrediction() {
     int highVolumeDoctors = 0;
     int lowVolumeDoctors = 0;
     
-    PersonnelReport* current = personnelReportList;
+    PersonnelReport* current = personnelReportList->next;
     while (current != NULL) {
         totalDoctors++;
         
@@ -46,7 +45,7 @@ static void personnelPrediction() {
     printf("%-10s %-20s %-15s %-8s %s\n", "医生ID", "姓名", "科室", "接诊量", "风险状态");
     printf("------------------------------------------------------------\n");
     
-    current = personnelReportList;
+    current = personnelReportList->next;
     while (current != NULL) {
         char riskStatus[20] = "正常";
         float riskProbability = 0.0f;
@@ -74,7 +73,7 @@ static void personnelPrediction() {
 
     printf("\n--- 预警名单 ---\n");
     int warningCount = 0;
-    current = personnelReportList;
+    current = personnelReportList->next;
     
     while (current != NULL) {
         if (current->count > 100 || current->count < 20) {
@@ -129,13 +128,13 @@ static void warehouseStrategy() {
     }
 
     int total_out = 0, drug_count = 0;
-    Drug* p = drugList;
+    Drug* p = drugList->next;
 
     // 遍历整个药品字典，统计历史上所有药品的总出库量
     while (p) {
         drug_count++; // 统计药品品类总数
         int out_qty = 0;
-        DrugHistory* h = drugHistoryList;
+        DrugHistory* h = drugHistoryList->next;
         // 遍历历史流水寻找匹配的药品出库记录(type=2)
         while (h) {
             if (h->drug_id == p->id && h->type == 2) out_qty += h->quantity;
@@ -197,10 +196,10 @@ static void drugProportionAdvice() {
     DrugStat stats[100];
     int count = 0;
 
-    Drug* p = drugList;
+    Drug* p = drugList->next;
     while (p) {
         int out_qty = 0;
-        DrugHistory* h = drugHistoryList;
+        DrugHistory* h = drugHistoryList->next;
         // 累加单一药品的出库消耗
         while (h) {
             if (h->drug_id == p->id && h->type == 2) out_qty += h->quantity;
@@ -260,8 +259,10 @@ void decisionMenu() {
         printf("4. 一键执行全景分析\n");
         printf("0. 返回高管主菜单\n");
         printf("请选择功能: ");
-        if (scanf("%d", &choice) != 1)
+        if (scanf("%d", &choice) != 1) {
             choice = -1;
+			while (getchar() != '\n');
+        }
         switch (choice) {
         case 1: personnelPrediction(); break;
         case 2: warehouseStrategy(); break;

@@ -9,7 +9,7 @@ typedef struct Drug {
     int stock;
     float price;
     char batch[30];
-    char expiry[10];
+    char expiry[30];
     char last_in[30];
     char last_out[30];
     struct Drug* next;
@@ -31,6 +31,8 @@ void saveDrugs(void);
 void loadDrugHistory(void);
 void saveDrugHistory(void);
 void drugMenu(void);
+static int isDrugIdExists(int id);
+void initDrugList();
 
 #endif
 #pragma once

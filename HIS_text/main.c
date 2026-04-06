@@ -31,6 +31,11 @@ void initLists() {
     medicineHead = (MedicineList)malloc(sizeof(Medicine)); medicineHead->next = NULL;
     recordHead = (RecordList)malloc(sizeof(Record)); recordHead->next = NULL;
     bedHead = (BedList)malloc(sizeof(Bed)); bedHead->next = NULL;
+    drugList = (Drug*)malloc(sizeof(Drug));drugList->next = NULL;
+    drugHistoryList = (DrugHistory*)malloc(sizeof(DrugHistory));drugHistoryList->next = NULL;
+    doctorList = (Doctor*)malloc(sizeof(Doctor));doctorList->next = NULL;
+    scheduleList = (Schedule*)malloc(sizeof(Schedule));scheduleList->next = NULL;
+    transactionList = (Transaction*)malloc(sizeof(Transaction));transactionList->next = NULL;
 }
 
 int main() {
@@ -89,9 +94,7 @@ int main() {
                 // 提供中断当前操作的条件分支，避免用户在交互流中受困
                 if (strcmp(acc, "0") == 0) break;
 
-                printf("  [?] 请输入动态口令密码 (输入0返回): ");
-                safeGetString(pwd, 50);
-                if (strcmp(pwd, "0") == 0) break;
+                printf("  [?] 请输入动态口令密码: "); safeGetString(pwd, 50);
 
                 // 校验输入的凭证与本地存储的明文/哈希是否匹配
                 if (strcmp(acc, admin.username) == 0 && strcmp(pwd, admin.password) == 0) {
@@ -111,9 +114,7 @@ int main() {
                 safeGetString(acc, 50);
                 if (strcmp(acc, "0") == 0) break;
 
-                printf("  [?] 请输入登录密码 (输入0返回): ");
-                safeGetString(pwd, 50);
-                if (strcmp(pwd, "0") == 0) break;
+                printf("  [?] 请输入登录密码: "); safeGetString(pwd, 50);
 
                 // 遍历医护人员链表查找对应的身份标识
                 s = staffHead->next;
@@ -152,9 +153,7 @@ int main() {
                     safeGetString(acc, 50);
                     if (strcmp(acc, "0") == 0) break;
 
-                    printf("  [?] 请输入服务密码 (输入0返回): ");
-                    safeGetString(pwd, 50);
-                    if (strcmp(pwd, "0") == 0) break;
+                    printf("  [?] 请输入服务密码: "); safeGetString(pwd, 50);
 
                     // 检索患者基础档案树进行并发认证
                     p = patientHead->next;

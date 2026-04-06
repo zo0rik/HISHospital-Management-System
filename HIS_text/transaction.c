@@ -7,16 +7,25 @@
 #include "models.h"
 
 // 独立维护的全局业务流水与财务链表指针
-Transaction* transactionList = NULL;
+Transaction* transactionList;
 // 人事报表链表头指针
-PersonnelReport* personnelReportList = NULL;
+PersonnelReport* personnelReportList;
 // 人事报表加载函数
 void parttimereport(char* start, char* end) {
-    Record* r = recordHead;
+    // 先清空上一次的报表数据，避免重复
+    PersonnelReport* p = personnelReportList->next;
+    while (p) {
+        PersonnelReport* temp = p;
+        p = p->next;
+        free(temp);
+    }
+    personnelReportList->next = NULL;
+
+    Record* r = recordHead->next;
     while (r) {
         if (strcmp(r->createTime, start) >= 0 && strcmp(r->createTime, end) <= 0) {
             int flag = 0;
-            PersonnelReport* pr = personnelReportList;
+            PersonnelReport* pr = personnelReportList->next;
             while (pr) {
                 if (strcmp(pr->doctor_id, r->staffId) == 0) {
                     pr->count++;
@@ -28,7 +37,6 @@ void parttimereport(char* start, char* end) {
             if (flag == 0) {
                 PersonnelReport* new_pr = (PersonnelReport*)malloc(sizeof(PersonnelReport));
                 strcpy(new_pr->doctor_id, r->staffId);
-                // 从员工链表中查找医生的科室信息
                 Staff* s = staffHead;
                 while (s) {
                     if (strcmp(s->id, r->staffId) == 0) {
@@ -39,8 +47,8 @@ void parttimereport(char* start, char* end) {
                     s = s->next;
                 }
                 new_pr->count = 1;
-                new_pr->next = personnelReportList;
-                personnelReportList = new_pr;
+                new_pr->next = personnelReportList->next;
+                personnelReportList->next = new_pr;
             }
         }
         r = r->next;
@@ -75,8 +83,15 @@ void loadTransactions() {
         node->next = NULL;
 
         // 尾插法挂载节点
-        if (!transactionList) transactionList = tail = node;
-        else { tail->next = node; tail = node; }
+        // 尾插法挂载节点
+        if (transactionList->next == NULL) {
+            transactionList->next = node;
+            tail = node;
+        }
+        else {
+            tail->next = node;
+            tail = node;
+        }
     }
     fclose(fp);
 }
@@ -87,7 +102,7 @@ void loadTransactions() {
 void saveTransactions() {
     FILE* fp = fopen("transactions.txt", "w");
     if (!fp) return;
-    Transaction* p = transactionList;
+    Transaction* p = transactionList->next;
     while (p) {
         fprintf(fp, "%d,%d,%.2f,%s,%s\n", p->id, p->type, p->amount, p->time, p->description);
         p = p->next;
@@ -106,7 +121,7 @@ static void showFinancialReport() {
 	judgetime(start);// 验证日期格式);
     printf("请输入统计结束日期 (YYYY-MM-DD): "); 
 	judgetime(end);// 验证日期格式);
-    Transaction* t = transactionList;
+    Transaction* t = transactionList->next;
     while (t) {
         // 利用字典序比较时间字符串，筛选在时间区间内的记录
         if (strcmp(t->time, start) >= 0 && strcmp(t->time, end) <= 0) {
@@ -131,28 +146,34 @@ static void showFinancialReport() {
 static void showPersonnelReport() {
     char start[11], end[11];
     printf("请输入统计起始日期 (YYYY-MM-DD): ");
-	judgetime(start);// 验证日期格式
+    judgetime(start);
     printf("请输入统计结束日期 (YYYY-MM-DD): ");
-	judgetime(end);// 验证日期格式;
+    judgetime(end);
     printf("\n========== 人事报表 (%s 至 %s) ==========\n", start, end);
     printf("%-15s %-12s %-10s\n", "医生姓名", "科室", "接诊量");
-	parttimereport(start, end); // 加载人事报表数据到链表
-    PersonnelReport* cr = personnelReportList;
+
+    // 生成报表链表
+    parttimereport(start, end);
+
+    PersonnelReport* cr = personnelReportList->next;
     if (cr == NULL) {
         printf("统计范围内无接诊记录。\n");
-		return;
+        return;
     }
     while (cr) {
         printf("%-15s %-12s %-10d\n", cr->doctor_name, cr->department, cr->count);
-		PersonnelReport* temp = cr; // 临时保存当前节点指针
         cr = cr->next;
-        free(temp); // 释放节点内存
-        
     }
-	personnelReportList = NULL; // 重置链表头指针，避免悬挂指针
+    PersonnelReport* p = personnelReportList->next;
+    while (p) {
+        PersonnelReport* temp = p;
+        p = p->next;
+        free(temp);
+    }
+    personnelReportList->next = NULL; // 彻底清空
+
     printf("\n（可导出报表，此处仅为大屏预览）\n");
 }
-
 // ---------------------------------------------------------
 // 业务三：业务流水明细查询
 // ---------------------------------------------------------
@@ -179,7 +200,7 @@ static void showBusinessReport() {
         printf("请输入查询结束日期 (YYYY-MM-DD): ");
 		judgetime(end);// 验证日期格式
         printf("\n========== 诊疗明细流水 (%s 至 %s) ==========\n", start, end);
-        Transaction* t = transactionList;
+        Transaction* t = transactionList->next;
         int found = 0;
         while (t) {
             // 范围检索
@@ -195,7 +216,10 @@ static void showBusinessReport() {
             t = t->next;
         }
         if (!found) printf("检索范围内无相关记录。\n");
-        scanf("%d", &type);
+        while (scanf("%d", &type) != 1) {
+			while (getchar() != '\n');
+			printf("无效选项，请重新选择: ");
+        }
     }
 }
 

@@ -3,9 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "schedule.h"
 
 // 管理端独立维护的医生人事档案链表
-Doctor* doctorList = NULL;
+Doctor* doctorList;
 
 // ---------------------------------------------------------
 // 加载医生人事档案
@@ -33,8 +34,14 @@ void loadDoctors() {
         Doctor* node = (Doctor*)malloc(sizeof(Doctor));
         *node = d;
         node->next = NULL;
-        if (!doctorList) doctorList = tail = node;
-        else { tail->next = node; tail = node; }
+        if (doctorList->next == NULL) {
+            doctorList->next = node;
+            tail = node;
+        }
+        else {
+            tail->next = node;
+            tail = node;
+        }
     }
     fclose(fp);
 }
@@ -45,7 +52,7 @@ void loadDoctors() {
 void saveDoctors() {
     FILE* fp = fopen("doctors.txt", "w");
     if (!fp) return;
-    Doctor* p = doctorList;
+    Doctor* p = doctorList->next;
     while (p) {
         fprintf(fp, "%d,%s,%s,%s,%s\n", p->id, p->name, p->department, p->title, p->sex);
         p = p->next;
@@ -57,10 +64,10 @@ void saveDoctors() {
 // 内部工具：格式化打印全部医生名单
 // ---------------------------------------------------------
 static void displayAllDoctors() {
-    if (!doctorList) { printf("医生列表为空。\n"); return; }
+    if (!(doctorList->next)) { printf("医生列表为空。\n"); return; }
     printf("\n--- 医生列表 ---\n");
     printf("%-5s %-15s %-15s %-15s %-10s\n", "ID", "姓名", "科室", "职称", "性别");
-    Doctor* p = doctorList;
+    Doctor* p = doctorList->next;
     while (p) {
         printf("%-5d %-15s %-15s %-15s %-10s\n", p->id, p->name, p->department, p->title, p->sex);
         p = p->next;
@@ -79,7 +86,7 @@ static void addDoctor() {
     }
 
     // ID查重
-    Doctor* p = doctorList;
+    Doctor* p = doctorList->next;
     while (p) {
         if (p->id == d.id) {
             printf("ID已存在！\n");
@@ -88,12 +95,12 @@ static void addDoctor() {
         p = p->next;
     }
 
-    printf("请输入姓名: "); scanf("%s", d.name);
-    printf("请输入科室: "); scanf("%s", d.department);
-    printf("请输入职称: "); scanf("%s", d.title);
+	printf("请输入姓名: "); scanf("%49s", d.name);while (getchar() != '\n');
+    printf("请输入科室: "); scanf("%29s", d.department);while (getchar() != '\n');
+    printf("请输入职称: "); scanf("%19s", d.title);while (getchar() != '\n');
     printf("请输入性别（男/女）: ");
     while (1) {
-        scanf("%s", d.sex);
+        scanf("%9s", d.sex);while (getchar() != '\n');
         if (strcmp(d.sex, "男") != 0 && strcmp(d.sex, "女") != 0) {
             printf("无效输入，请输入 '男' 或 '女': ");
         }
@@ -104,8 +111,8 @@ static void addDoctor() {
 
     Doctor* node = (Doctor*)malloc(sizeof(Doctor));
     *node = d;
-    node->next = doctorList;
-    doctorList = node;
+    node->next = doctorList->next;
+    doctorList->next = node;
     saveDoctors();
     printf("医生添加成功。\n");
 }
@@ -116,18 +123,22 @@ static void addDoctor() {
 static void deleteDoctor() {
     int id;
     printf("请输入要删除的医生ID: ");
-    scanf("%d", &id);
+    while (scanf("%d", &id) != 1) {
+        while (getchar() != '\n');
+		printf("输入格式错误，请重新输入: ");
+    }
 
     Doctor* prev = NULL;
-    Doctor* curr = doctorList;
+    Doctor* curr = doctorList->next;
 
     while (curr) {
         if (curr->id == id) {
             if (prev) prev->next = curr->next;
-            else doctorList = curr->next;
-
+            else doctorList->next = curr->next;
             free(curr);
             saveDoctors();
+            // 级联删除该医生的所有排班记录
+            deleteScheduleByDoctorId(id);
             printf("删除成功。\n");
             return;
         }
@@ -149,7 +160,7 @@ static void updateDoctor() {
         printf("输入格式错误，请重新输入: ");
     }
 
-    Doctor* p = doctorList;
+    Doctor* p = doctorList->next;
     while (p) {
         if (p->id == id) {
             printf("当前医生信息：\n");
@@ -180,20 +191,20 @@ static void updateDoctor() {
                 switch (choices[i]) {
                 case 1:
                     printf("请输入姓名: ");
-                    scanf("%s", p->name);
+                    scanf("%49s", p->name);
                     break;
                 case 2:
                     printf("请输入科室: ");
-                    scanf("%s", p->department);
+                    scanf("%29s", p->department);
                     break;
                 case 3:
                     printf("请输入职称: ");
-                    scanf("%s", p->title);
+                    scanf("%19s", p->title);
                     break;
                 case 4:
                     printf("请输入性别: ");
                     while (1) {
-                        scanf("%s", p->sex);
+                        scanf("%9s", p->sex);
                         if (strcmp(p->sex, "男") == 0 || strcmp(p->sex, "女") == 0) break;
                         printf("无效输入，请输入 '男' 或 '女': ");
                     }
@@ -217,13 +228,19 @@ static void updateDoctor() {
 static void queryDoctor() {
     int choice;
     printf("查询方式：1-按ID  2-按姓名模糊 3-按职称: ");
-    if (scanf("%d", &choice) != 1) choice = -1;
+    if (scanf("%d", &choice) != 1) {
+        choice = -1;
+		while (getchar() != '\n');
+    }
 
     if (choice == 1) {
         int id;
         printf("请输入ID: ");
-        scanf("%d", &id);
-        Doctor* p = doctorList;
+        while (scanf("%d", &id) != 1) {
+            while (getchar() != '\n');
+			printf("输入格式错误，请重新输入: ");
+        }
+        Doctor* p = doctorList->next;
         while (p) {
             if (p->id == id) {
                 printf("ID: %d, 姓名: %s, 科室: %s, 职称: %s, 性别: %s\n",
@@ -237,9 +254,9 @@ static void queryDoctor() {
     else if (choice == 2) {
         char name[20];
         printf("请输入姓名关键字: ");
-        scanf("%s", name);
+		scanf("%49s", name);while (getchar() != '\n');
         int found = 0;
-        Doctor* p = doctorList;
+        Doctor* p = doctorList->next;
         while (p) {
             if (strstr(p->name, name)) {
                 if (!found) printf("\n--- 查询结果 ---\n");
@@ -254,9 +271,9 @@ static void queryDoctor() {
     else if (choice == 3) {
         char title[20];
         printf("请输入职称关键字: ");
-        scanf("%s", title);
+		scanf("%19s", title);while (getchar() != '\n');
         int found = 0;
-        Doctor* p = doctorList;
+        Doctor* p = doctorList->next;
         while (p) {
             if (strstr(p->title, title)) {
                 if (!found) printf("\n--- 查询结果 ---\n");
