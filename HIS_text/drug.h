@@ -31,6 +31,8 @@ void saveDrugs(void);
 void loadDrugHistory(void);
 void saveDrugHistory(void);
 void drugMenu(void);
+static int isDrugIdExists(int id);
+void initDrugList();
 
 #endif
 #pragma once

@@ -31,6 +31,11 @@ void initLists() {
     medicineHead = (MedicineList)malloc(sizeof(Medicine)); medicineHead->next = NULL;
     recordHead = (RecordList)malloc(sizeof(Record)); recordHead->next = NULL;
     bedHead = (BedList)malloc(sizeof(Bed)); bedHead->next = NULL;
+    drugList = (Drug*)malloc(sizeof(Drug));drugList->next = NULL;
+    drugHistoryList = (DrugHistory*)malloc(sizeof(DrugHistory));drugHistoryList->next = NULL;
+    doctorList = (Doctor*)malloc(sizeof(Doctor));doctorList->next = NULL;
+    scheduleList = (Schedule*)malloc(sizeof(Schedule));scheduleList->next = NULL;
+    transactionList = (Transaction*)malloc(sizeof(Transaction));transactionList->next = NULL;
 }
 
 int main() {
