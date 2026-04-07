@@ -6,11 +6,20 @@
 // ---------------------------------------------------------
 // 获取当前系统日期，格式：YYYY-MM-DD
 // ---------------------------------------------------------
-void getCurrentTime(char* buffer, int size) {
-    time_t t = time(NULL);
+ void getCurrentTime(char* buffer, int size) {
+   time_t t = time(NULL);
     struct tm* tm_info = localtime(&t);
     strftime(buffer, size, "%Y-%m-%d", tm_info);
 }
+
+ // ---------------------------------------------------------
+// 获取当前系统日期，格式：YYYY-MM-DD HH-mm--ss
+// ---------------------------------------------------------
+ void getCurrentDate(char* buffer, int size) {
+     time_t t = time(NULL);
+     struct tm* tm_info = localtime(&t);
+     strftime(buffer, size, "%Y-%m-%d %H %M %S", tm_info);
+ }
 
 // ---------------------------------------------------------
 // 时间格式校验：强制输入合法的 YYYY-MM-DD
@@ -100,6 +109,7 @@ int getDaysInMonth(int year, int month) {
 // ---------------------------------------------------------
 // 根据当前日期，获取 N 天前的日期
 // ---------------------------------------------------------
+// 安全版：不会栈溢出、不会崩溃、日期计算正确
 void getPastDateAccurate(char* current, char* result, int days_ago) {
     int y, m, d;
     sscanf(current, "%4d-%2d-%2d", &y, &m, &d);
@@ -119,5 +129,5 @@ void getPastDateAccurate(char* current, char* result, int days_ago) {
         }
     }
 
-    sprintf(result, "%04d-%02d-%02d", y, m, d);
+    snprintf(result, 30, "%04d-%02d-%02d", y, m, d);
 }

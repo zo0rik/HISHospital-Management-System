@@ -12,17 +12,18 @@ Transaction* transactionList;
 PersonnelReport* personnelReportList;
 // 人事报表加载函数
 void parttimereport(char* start, char* end) {
-    // 先清空上一次的报表数据，避免重复
-    PersonnelReport* p = personnelReportList->next;
-    while (p) {
-        PersonnelReport* temp = p;
-        p = p->next;
-        free(temp);
+    // ==========先判断链表头是否存在，防止空指针崩溃 ==========
+    if (personnelReportList == NULL) {
+        return;
     }
-    personnelReportList->next = NULL;
+    // ==========判断记录链表是否为空 ==========
+    if (recordHead == NULL) {
+        return;
+    }
 
     Record* r = recordHead->next;
     while (r) {
+        // 时间范围判断
         if (strcmp(r->createTime, start) >= 0 && strcmp(r->createTime, end) <= 0) {
             int flag = 0;
             PersonnelReport* pr = personnelReportList->next;
@@ -34,18 +35,28 @@ void parttimereport(char* start, char* end) {
                 }
                 pr = pr->next;
             }
+
             if (flag == 0) {
                 PersonnelReport* new_pr = (PersonnelReport*)malloc(sizeof(PersonnelReport));
                 strcpy(new_pr->doctor_id, r->staffId);
-                Staff* s = staffHead;
-                while (s) {
-                    if (strcmp(s->id, r->staffId) == 0) {
-                        strcpy(new_pr->department, s->department);
-                        strcpy(new_pr->doctor_name, s->name);
-                        break;
+
+                // 默认值先填空，防止乱码
+                strcpy(new_pr->department, "未知科室");
+                strcpy(new_pr->doctor_name, "未知医生");
+
+                // ========== 修复 3：判断员工链表是否为空 ==========
+                if (staffHead != NULL) {
+                    Staff* s = staffHead;
+                    while (s) {
+                        if (strcmp(s->id, r->staffId) == 0) {
+                            strcpy(new_pr->department, s->department);
+                            strcpy(new_pr->doctor_name, s->name);
+                            break;
+                        }
+                        s = s->next;
                     }
-                    s = s->next;
                 }
+
                 new_pr->count = 1;
                 new_pr->next = personnelReportList->next;
                 personnelReportList->next = new_pr;
@@ -118,9 +129,9 @@ static void showFinancialReport() {
     float total_outpatient = 0, total_inpatient = 0, total_drug = 0;
 
     printf("请输入统计起始日期 (YYYY-MM-DD): "); 
-	judgetime(start);// 验证日期格式);
+	judgetime(start);// 验证日期格式;
     printf("请输入统计结束日期 (YYYY-MM-DD): "); 
-	judgetime(end);// 验证日期格式);
+	judgetime(end);// 验证日期格式;
     Transaction* t = transactionList->next;
     while (t) {
         // 利用字典序比较时间字符串，筛选在时间区间内的记录

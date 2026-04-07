@@ -6,17 +6,18 @@
 #include <string.h>
 #include <time.h>
 #include "transaction.h"
+#include "time_t.h"
 
 // ---------------------------------------------------------
-// 业务一：基于概率的人员异常与风险预测模型
+// 业务一：基于历史数据人员异常与风险预测模型
 // ---------------------------------------------------------
 static void personnelPrediction() {
     printf("\n========== 人员异常预测预警 ==========\n");
-	char start[15],currentTime[15];
-	getCurrentTime(currentTime, 15);
+	char start[30],currentTime[30];
+	getCurrentDate(currentTime, 30);
 	getPastDateAccurate(currentTime, start, 14);
 	parttimereport(start, currentTime);
-    if (!(personnelReportList->next)) {
+    if (!personnelReportList ||!(personnelReportList->next)) {
         printf(" 在指定时间范围内无接诊数据，无法进行分析。\n");
         return;
     }
@@ -116,13 +117,20 @@ static void personnelPrediction() {
     }
     
     printf("\n分析完成！\n");
+	PersonnelReport* p = personnelReportList->next;
+    while (p) {
+		PersonnelReport* tmp = p;
+        p = p->next;
+        free(tmp);
+    }
+    personnelReportList->next = NULL;
 }
 // ---------------------------------------------------------
 // 业务二：分拣仓库效率监控与异常处理策略
 // ---------------------------------------------------------
 static void warehouseStrategy() {
     printf("\n========== 药房分拣仓库效能评估 ==========\n");
-    if (!drugList) {
+    if (!(drugList->next)) {
         printf("暂无药品字典数据，无法建立效能评估模型。\n");
         return;
     }
@@ -181,7 +189,7 @@ static void warehouseStrategy() {
 // ---------------------------------------------------------
 static void drugProportionAdvice() {
     printf("\n========== 供应链库存配比 AI 优化建议 ==========\n");
-    if (!drugList) {
+    if (!(drugList->next)) {
         printf("无药品基础数据接入。\n");
         return;
     }

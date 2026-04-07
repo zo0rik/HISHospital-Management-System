@@ -147,7 +147,7 @@ static void displayAllDrugs() {
     printf("%-5s %-20s %-10s %-8s %-12s %-12s %-20s %-20s\n", "ID", "名称", "库存", "价格", "批号", "有效期", "最近入库", "最近出库");
     Drug* p = drugList->next;
     while (p) {
-        printf("%-5d %-20s %-10d %-8.2f %-12s %-12s %-20s %-20s\n",
+        printf("%-5d %-20s %-10d %-8.2f %-12s %-12s %-20s %-30s\n",
             p->id, p->name, p->stock, p->price, p->batch, p->expiry,
             p->last_in, p->last_out);
         p = p->next;
@@ -160,10 +160,12 @@ static void displayAllDrugs() {
 // ---------------------------------------------------------
 static void drugStockQuery() {
     int choice;
-    printf("\n药品库存查询:\n1-按ID查询\n2-按名称模糊查询\n3-查看所有药品\n请选择: ");
+    printf("\n药品库存查询:\n1-按ID查询\n2-按名称模糊查询\n3-查看所有药品\n0-返回上一步\n请选择: ");
     if (scanf("%d", &choice) != 1)
         choice = -1;
-    if (choice == 1) {
+    if (choice == 0)
+        return;
+    else if (choice == 1) {
         int id; printf("请输入药品ID: "); 
         while (scanf("%d", &id) != 1||choice<0) {
 			while (getchar() != '\n');
@@ -211,9 +213,9 @@ static void viewStockRecords() {
     printf("\n--- 库存变动记录 ---\n");
     DrugHistory* h = drugHistoryList->next;
     if (!h) { printf("暂无记录。\n"); return; }
-    printf("%-8s %-6s %-8s %-20s\n", "药品ID", "类型", "数量", "时间");
+    printf("%-8s %-6s %-8s %-30s\n", "药品ID", "类型", "数量", "时间");
     while (h) {
-        printf("%-8d %-6s %-8d %-20s\n", h->drug_id,
+        printf("%-8d %-6s %-8d %-30s\n", h->drug_id,
             (h->type == 1) ? "入库" : "出库", h->quantity, h->time);
         h = h->next;
     }
