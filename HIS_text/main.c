@@ -36,6 +36,7 @@ void initLists() {
     doctorList = (Doctor*)malloc(sizeof(Doctor));doctorList->next = NULL;
     scheduleList = (Schedule*)malloc(sizeof(Schedule));scheduleList->next = NULL;
     transactionList = (Transaction*)malloc(sizeof(Transaction));transactionList->next = NULL;
+	personnelReportList = (PersonnelReport*)malloc(sizeof(PersonnelReport));personnelReportList->next = NULL;
 }
 
 int main() {

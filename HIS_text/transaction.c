@@ -13,18 +13,18 @@ PersonnelReport* personnelReportList;
 // 人事报表加载函数
 void parttimereport(char* start, char* end) {
     // ==========先判断链表头是否存在，防止空指针崩溃 ==========
-    if (personnelReportList == NULL) {
+    if (personnelReportList==NULL) {
         return;
     }
     // ==========判断记录链表是否为空 ==========
-    if (recordHead == NULL) {
+    if (recordHead->next== NULL) {
         return;
     }
 
     Record* r = recordHead->next;
     while (r) {
         // 时间范围判断
-        if (strcmp(r->createTime, start) >= 0 && strcmp(r->createTime, end) <= 0) {
+        if (strncmp(r->createTime, start,10) >= 0 && strncmp(r->createTime, end,10) <= 0) {
             int flag = 0;
             PersonnelReport* pr = personnelReportList->next;
             while (pr) {
@@ -46,7 +46,7 @@ void parttimereport(char* start, char* end) {
 
                 // ========== 修复 3：判断员工链表是否为空 ==========
                 if (staffHead != NULL) {
-                    Staff* s = staffHead;
+                    Staff* s = staffHead->next;
                     while (s) {
                         if (strcmp(s->id, r->staffId) == 0) {
                             strcpy(new_pr->department, s->department);
@@ -127,15 +127,22 @@ void saveTransactions() {
 static void showFinancialReport() {
     char start[11], end[11];
     float total_outpatient = 0, total_inpatient = 0, total_drug = 0;
-
-    printf("请输入统计起始日期 (YYYY-MM-DD): "); 
-	judgetime(start);// 验证日期格式;
-    printf("请输入统计结束日期 (YYYY-MM-DD): "); 
-	judgetime(end);// 验证日期格式;
+    while (1) {
+        printf("请输入统计起始日期 (YYYY-MM-DD): ");
+        judgetime(start);// 验证日期格式;
+        printf("请输入统计结束日期 (YYYY-MM-DD): ");
+        judgetime(end);// 验证日期格式;
+		if (strcmp(start, end) > 0) {
+            printf("起始日期不能晚于结束日期，请重新输入。\n");
+        }
+        else {
+            break;
+        }
+    }
     Transaction* t = transactionList->next;
     while (t) {
         // 利用字典序比较时间字符串，筛选在时间区间内的记录
-        if (strcmp(t->time, start) >= 0 && strcmp(t->time, end) <= 0) {
+        if (strncmp(t->time, start,10) >= 0 && strncmp(t->time, end,10) <= 0) {
             // 根据交易类型分别累加金额
             if (t->type == 1) total_outpatient += t->amount;
             else if (t->type == 2) total_inpatient += t->amount;
@@ -156,10 +163,18 @@ static void showFinancialReport() {
 // ---------------------------------------------------------
 static void showPersonnelReport() {
     char start[11], end[11];
-    printf("请输入统计起始日期 (YYYY-MM-DD): ");
-    judgetime(start);
-    printf("请输入统计结束日期 (YYYY-MM-DD): ");
-    judgetime(end);
+    while (1) {
+        printf("请输入统计起始日期 (YYYY-MM-DD): ");
+        judgetime(start);
+        printf("请输入统计结束日期 (YYYY-MM-DD): ");
+        judgetime(end);
+		if (strcmp(start, end) > 0) {
+            printf("起始日期不能晚于结束日期，请重新输入。\n");
+        }
+        else {
+            break;
+        }
+    }
     printf("\n========== 人事报表 (%s 至 %s) ==========\n", start, end);
     printf("%-15s %-12s %-10s\n", "医生姓名", "科室", "接诊量");
 
@@ -206,16 +221,23 @@ static void showBusinessReport() {
             }
             continue;
         }
-        printf("请输入查询起始日期 (YYYY-MM-DD): ");
-		judgetime(start);// 验证日期格式
-        printf("请输入查询结束日期 (YYYY-MM-DD): ");
-		judgetime(end);// 验证日期格式
+        while (1) {
+            printf("请输入查询起始日期 (YYYY-MM-DD): ");
+		    judgetime(start);// 验证日期格式
+            printf("请输入查询结束日期 (YYYY-MM-DD): ");
+		    judgetime(end);// 验证日期格式
+			if (strcmp(start, end) > 0) {
+                printf("起始日期不能晚于结束日期，请重新输入。\n");
+            } else {
+                break;
+            }
+        }
         printf("\n========== 诊疗明细流水 (%s 至 %s) ==========\n", start, end);
         Transaction* t = transactionList->next;
         int found = 0;
         while (t) {
             // 范围检索
-            if (strcmp(t->time, start) >= 0 && strcmp(t->time, end) <= 0) {
+            if (strncmp(t->time, start,10) >= 0 && strncmp(t->time, end,10) <= 0) {
                 // 分类检索 (类型4代表无视类型直接输出全部)
                 if (type == 4 || t->type == type) {
                     printf("%-20s %-12s %-10.2f %s\n", t->time,

@@ -252,6 +252,8 @@ static void drugIn() {
             h->next = drugHistoryList->next;
             drugHistoryList->next = h;
             printf("入库成功，新库存: %d\n", p->stock);
+            saveDrugs();
+            saveDrugHistory();
             return;
         }
         p = p->next;
@@ -291,6 +293,8 @@ static void drugOut() {
             h->next = drugHistoryList->next;
             drugHistoryList->next = h;
             printf("出库成功，现库存: %d\n", p->stock);
+            saveDrugs();
+            saveDrugHistory();
             return;
         }
         p = p->next;
@@ -327,13 +331,7 @@ void addDrug() {
         while (getchar() != '\n');
         printf("输入格式错误，请重新输入药品名称: ");
     }
-    printf("请输入库存数量: ");
-    while (1) {
-        if (scanf("%d", &d->stock) == 1)
-            break;
-        while (getchar() != '\n');
-           printf("输入格式错误，请重新输入: ");
-    }
+    d->stock = 0;//初始库存设为零；
     printf("请输入药品价格： ");
     while (1) {
         if (scanf("%f", &d->price)==1)
@@ -358,7 +356,8 @@ void addDrug() {
         while (p->next) p = p->next;
         p->next = d;
     }
-    printf("药品新增成功\n");
+    saveDrugs();
+    printf("药品新增成功，如要补充数量，请进行入库操作\n");
 }
 
 // ---------------------------------------------------------

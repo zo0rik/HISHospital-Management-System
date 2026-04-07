@@ -17,7 +17,7 @@ static void personnelPrediction() {
 	getCurrentDate(currentTime, 30);
 	getPastDateAccurate(currentTime, start, 14);
 	parttimereport(start, currentTime);
-    if (!personnelReportList ||!(personnelReportList->next)) {
+    if (!personnelReportList||!(personnelReportList->next)) {
         printf(" 在指定时间范围内无接诊数据，无法进行分析。\n");
         return;
     }
