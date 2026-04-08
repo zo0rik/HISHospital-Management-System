@@ -170,6 +170,8 @@ static void deleteDoctor() {
             // 级联删除该医生的所有排班记录
             deleteScheduleByDoctorId(id);
             printf("删除成功。\n");
+			saveDoctors();
+			saveSchedules();
             return;
         }
         prev = curr;

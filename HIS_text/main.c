@@ -25,6 +25,12 @@ void initLists() {
     medicineHead = (MedicineList)malloc(sizeof(Medicine)); medicineHead->next = NULL;
     recordHead = (RecordList)malloc(sizeof(Record)); recordHead->next = NULL;
     bedHead = (BedList)malloc(sizeof(Bed)); bedHead->next = NULL;
+    drugList = (Drug*)malloc(sizeof(Drug));drugList->next = NULL;
+    drugHistoryList = (DrugHistory*)malloc(sizeof(DrugHistory));drugHistoryList->next = NULL;
+    doctorList = (Doctor*)malloc(sizeof(Doctor));doctorList->next = NULL;
+    scheduleList = (Schedule*)malloc(sizeof(Schedule));scheduleList->next = NULL;
+    transactionList = (Transaction*)malloc(sizeof(Transaction));transactionList->next = NULL;
+	personnelReportList = (PersonnelReport*)malloc(sizeof(PersonnelReport));personnelReportList->next = NULL;
 }
 
 void freeAllMemory() {
@@ -93,9 +99,7 @@ int main() {
                 safeGetString(acc, 50);
                 if (strcmp(acc, "0") == 0) break;
 
-                printf("  [?] ÇëÊäÈë¶¯Ì¬¿ÚÁîÃÜÂë (ÊäÈë0·µ»Ø): ");
-                safeGetString(pwd, 50);
-                if (strcmp(pwd, "0") == 0) break;
+                printf("  [?] ÇëÊäÈë¶¯Ì¬¿ÚÁîÃÜÂë: "); safeGetString(pwd, 50);
 
                 if (strcmp(acc, admin.username) == 0 && strcmp(pwd, admin.password) == 0) {
                     adminMenu();
@@ -113,9 +117,7 @@ int main() {
                 safeGetString(acc, 50);
                 if (strcmp(acc, "0") == 0) break;
 
-                printf("  [?] ÇëÊäÈëµÇÂ¼ÃÜÂë (ÊäÈë0·µ»Ø): ");
-                safeGetString(pwd, 50);
-                if (strcmp(pwd, "0") == 0) break;
+                printf("  [?] ÇëÊäÈëµÇÂ¼ÃÜÂë: "); safeGetString(pwd, 50);
 
                 s = staffHead->next;
                 me_staff = NULL;
@@ -151,9 +153,7 @@ int main() {
                     safeGetString(acc, 50);
                     if (strcmp(acc, "0") == 0) break;
 
-                    printf("  [?] ÇëÊäÈë·þÎñÃÜÂë (ÊäÈë0·µ»Ø): ");
-                    safeGetString(pwd, 50);
-                    if (strcmp(pwd, "0") == 0) break;
+                    printf("  [?] ÇëÊäÈë·þÎñÃÜÂë: "); safeGetString(pwd, 50);
 
                     p = patientHead->next;
                     me_patient = NULL;
