@@ -8,7 +8,7 @@
 #include <conio.h>
 
 // √‹¬Î ‰»Î£∫œ‘ æ *
-void safeGetPassword(char pwd[], int maxLen) {
+void safeprintPassword(char pwd[], int maxLen) {
     int i = 0;
     char ch;
     while (1) {

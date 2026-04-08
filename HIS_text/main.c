@@ -6,7 +6,7 @@
 #include "models.h"
 #include "utils.h"
 #include "patient.h"
-#include "staff.h"
+#include "Medical_Staff_Side.h"
 #include "admin.h"
 #include "drug.h"
 #include "doctor.h"

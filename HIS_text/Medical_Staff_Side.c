@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "models.h"
-#include "staff.h"
+#include "Medical_Staff_Side.h"
 #include "utils.h"
 #include "outpatient_department.h"
 #include "inpatient_department.h"

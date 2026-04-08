@@ -24,7 +24,7 @@
     <ClInclude Include="patient.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="staff.h">
+    <ClInclude Include="Medical_Staff_Side.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="admin.h">
@@ -65,7 +65,7 @@
     <ClCompile Include="patient.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="staff.c">
+    <ClCompile Include="Medical_Staff_Side.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="admin.c">

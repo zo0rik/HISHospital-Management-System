@@ -102,6 +102,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -131,7 +132,7 @@
     <ClInclude Include="models.h" />
     <ClInclude Include="outpatient_department.h" />
     <ClInclude Include="schedule.h" />
-    <ClInclude Include="staff.h" />
+    <ClInclude Include="Medical_Staff_Side.h" />
     <ClInclude Include="time_t.h" />
     <ClInclude Include="transaction.h" />
     <ClInclude Include="patient.h" />
@@ -147,7 +148,7 @@
     <ClCompile Include="main.c" />
     <ClCompile Include="outpatient_department.c" />
     <ClCompile Include="schedule.c" />
-    <ClCompile Include="staff.c" />
+    <ClCompile Include="Medical_Staff_Side.c" />
     <ClCompile Include="time_t.c" />
     <ClCompile Include="transaction.c" />
     <ClCompile Include="patient.c" />
