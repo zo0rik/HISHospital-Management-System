@@ -13,18 +13,12 @@
 #include "schedule.h"
 #include "transaction.h"
 
-/*
- * 全局链表头结点初始化。
- * 采用带头结点的单链表结构，目的是在进行节点插入和删除操作时，
- * 保持操作逻辑的一致性，避免对头指针为空的边界情况进行额外判断，提高底层数据操作的稳定性。
- */
 PatientList patientHead = NULL;
 StaffList staffHead = NULL;
 MedicineList medicineHead = NULL;
 RecordList recordHead = NULL;
 BedList bedHead = NULL;
 
-/* 初始化各个业务模块的链表头节点，分配初始内存空间 */
 void initLists() {
     patientHead = (PatientList)malloc(sizeof(Patient)); patientHead->next = NULL;
     staffHead = (StaffList)malloc(sizeof(Staff)); staffHead->next = NULL;
@@ -39,10 +33,29 @@ void initLists() {
 	personnelReportList = (PersonnelReport*)malloc(sizeof(PersonnelReport));personnelReportList->next = NULL;
 }
 
+void freeAllMemory() {
+    Patient* p = patientHead; Patient* nextP;
+    Staff* s = staffHead; Staff* nextS;
+    Medicine* m = medicineHead; Medicine* nextM;
+    Record* r = recordHead; Record* nextR;
+    Bed* b = bedHead; Bed* nextB;
+    Transaction* t = transactionList; Transaction* nextT;
+    Schedule* sch = scheduleList; Schedule* nextSch;
+    Drug* dr = drugList; Drug* nextDr;
+    DrugHistory* dh = drugHistoryList; DrugHistory* nextDh;
+
+    while (p) { nextP = p->next; free(p); p = nextP; }
+    while (s) { nextS = s->next; free(s); s = nextS; }
+    while (m) { nextM = m->next; free(m); m = nextM; }
+    while (r) { nextR = r->next; free(r); r = nextR; }
+    while (b) { nextB = b->next; free(b); b = nextB; }
+    while (t) { nextT = t->next; free(t); t = nextT; }
+    while (sch) { nextSch = sch->next; free(sch); sch = nextSch; }
+    while (dr) { nextDr = dr->next; free(dr); dr = nextDr; }
+    while (dh) { nextDh = dh->next; free(dh); dh = nextDh; }
+}
+
 int main() {
-    /* * 严格遵循 C89 编译标准，将所有局部变量声明集中在代码块最顶部。
-     * 避免在可执行语句之后声明变量引发编译期语法错误。
-     */
     int port;
     char acc[50], pwd[50];
     int pChoice;
@@ -53,11 +66,6 @@ int main() {
 
     initLists();
 
-    /*
-     * 系统启动时的全量数据加载机制：
-     * 将物理磁盘中的本地 TXT 数据一次性反序列化并加载至内存链表中。
-     * 运行时所有增删改查均在内存中完成，以此换取极高的系统响应速度。
-     */
     loadAllDataFromTxt();
     loadDrugs();
     loadDrugHistory();
@@ -67,7 +75,7 @@ int main() {
     loadAdminData();
 
     while (1) {
-        system("cls"); // 刷新控制台缓冲区，保持交互界面的视觉整洁
+        system("cls");
         printf("\n");
         printf("  ========================================================\n");
         printf("  ||                                                    ||\n");
@@ -82,22 +90,17 @@ int main() {
         printf("\n  ========================================================\n");
         printf("  请选择要访问的业务端口: ");
 
-        /* 调用封装的安全输入接口，拦截非法字符及越界输入，防止系统陷入死循环 */
         port = safeGetInt();
 
-        // ------------------ 端口 1: 管理端 ------------------
         if (port == 1) {
             while (1) {
                 printf("\n  >>> 高管身份验证 (输入0返回大厅) <<<\n");
                 printf("  [?] 请输入超级管理账号: ");
                 safeGetString(acc, 50);
-
-                // 提供中断当前操作的条件分支，避免用户在交互流中受困
                 if (strcmp(acc, "0") == 0) break;
 
                 printf("  [?] 请输入动态口令密码: "); safeGetString(pwd, 50);
 
-                // 校验输入的凭证与本地存储的明文/哈希是否匹配
                 if (strcmp(acc, admin.username) == 0 && strcmp(pwd, admin.password) == 0) {
                     adminMenu();
                     break;
@@ -107,7 +110,6 @@ int main() {
                 }
             }
         }
-        // ------------------ 端口 2: 医护端 ------------------
         else if (port == 2) {
             while (1) {
                 printf("\n  >>> 医护端安全门禁 (输入0返回大厅) <<<\n");
@@ -117,7 +119,6 @@ int main() {
 
                 printf("  [?] 请输入登录密码: "); safeGetString(pwd, 50);
 
-                // 遍历医护人员链表查找对应的身份标识
                 s = staffHead->next;
                 me_staff = NULL;
                 while (s) {
@@ -128,7 +129,6 @@ int main() {
                     s = s->next;
                 }
 
-                // 根据鉴权结果分发相应的系统资源控制权
                 if (me_staff) {
                     staffTerminal(me_staff);
                     break;
@@ -138,7 +138,6 @@ int main() {
                 }
             }
         }
-        // ------------------ 端口 3: 患者端 ------------------
         else if (port == 3) {
             printf("\n  --- 患者自助服务总机 ---\n");
             printf("  1. 验证身份证件 (账号登录)\n");
@@ -156,7 +155,6 @@ int main() {
 
                     printf("  [?] 请输入服务密码: "); safeGetString(pwd, 50);
 
-                    // 检索患者基础档案树进行并发认证
                     p = patientHead->next;
                     me_patient = NULL;
                     while (p) {
@@ -180,12 +178,17 @@ int main() {
                 registerPatient();
                 system("pause");
             }
+            else if (pChoice == 0) {
+                /* 空指令分支，系统自动重绘主菜单界面 */
+            }
+            else {
+                printf("  [!] 无效的菜单选项，请正确输入菜单中提供的数字编号！\n");
+                system("pause");
+            }
         }
-        // ------------------ 端口 0: 安全退出与数据持久化 ------------------
         else if (port == 0) {
             printf("\n  [系统广播] 正在将三大终端内存数据强一致性同步至物理磁盘...\n");
 
-            // 在进程终止前，统一调用序列化函数将内存状态刷入本地文件，防止核心业务数据丢失
             saveAllDataToTxt();
             saveDrugs();
             saveDrugHistory();
@@ -194,8 +197,15 @@ int main() {
             saveTransactions();
             saveAdminData();
 
-            printf("  [系统广播] 各模块数据封存完毕，系统已安全关闭！\n");
+            printf("  [系统广播] 各模块数据封存完毕，系统正在安全释放内存碎片...\n");
+            freeAllMemory();
+
+            printf("  [系统广播] 内存释放完毕，系统已安全关闭，感谢使用！\n");
             break;
+        }
+        else {
+            printf("\n  [!] 无效的登录端口，请正确输入菜单中提供的数字编号！\n");
+            system("pause");
         }
     }
     return 0;
