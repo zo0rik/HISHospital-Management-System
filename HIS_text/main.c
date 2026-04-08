@@ -25,12 +25,12 @@ void initLists() {
     medicineHead = (MedicineList)malloc(sizeof(Medicine)); medicineHead->next = NULL;
     recordHead = (RecordList)malloc(sizeof(Record)); recordHead->next = NULL;
     bedHead = (BedList)malloc(sizeof(Bed)); bedHead->next = NULL;
-    drugList = (Drug*)malloc(sizeof(Drug));drugList->next = NULL;
-    drugHistoryList = (DrugHistory*)malloc(sizeof(DrugHistory));drugHistoryList->next = NULL;
-    doctorList = (Doctor*)malloc(sizeof(Doctor));doctorList->next = NULL;
-    scheduleList = (Schedule*)malloc(sizeof(Schedule));scheduleList->next = NULL;
-    transactionList = (Transaction*)malloc(sizeof(Transaction));transactionList->next = NULL;
-	personnelReportList = (PersonnelReport*)malloc(sizeof(PersonnelReport));personnelReportList->next = NULL;
+    drugList = (Drug*)malloc(sizeof(Drug)); drugList->next = NULL;
+    drugHistoryList = (DrugHistory*)malloc(sizeof(DrugHistory)); drugHistoryList->next = NULL;
+    doctorList = (Doctor*)malloc(sizeof(Doctor)); doctorList->next = NULL;
+    scheduleList = (Schedule*)malloc(sizeof(Schedule)); scheduleList->next = NULL;
+    transactionList = (Transaction*)malloc(sizeof(Transaction)); transactionList->next = NULL;
+    personnelReportList = (PersonnelReport*)malloc(sizeof(PersonnelReport)); personnelReportList->next = NULL;
 }
 
 void freeAllMemory() {
@@ -90,7 +90,12 @@ int main() {
         printf("\n  ========================================================\n");
         printf("  请选择要访问的业务端口: ");
 
-        port = safeGetInt();
+        // 【修改点】：严格过滤主端口输入
+        while (1) {
+            port = safeGetInt();
+            if (port == 1 || port == 2 || port == 3 || port == 0) break;
+            printf("  [!] 无效的登录端口，请正确输入菜单中提供的数字编号！\n  请重新选择: ");
+        }
 
         if (port == 1) {
             while (1) {
@@ -145,7 +150,12 @@ int main() {
             printf("  0. 返回控制大厅\n");
             printf("  请选择: ");
 
-            pChoice = safeGetInt();
+            // 【修改点】：严格过滤患者端子菜单输入
+            while (1) {
+                pChoice = safeGetInt();
+                if (pChoice == 1 || pChoice == 2 || pChoice == 0) break;
+                printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n  请重新选择: ");
+            }
 
             if (pChoice == 1) {
                 while (1) {
@@ -178,13 +188,6 @@ int main() {
                 registerPatient();
                 system("pause");
             }
-            else if (pChoice == 0) {
-                /* 空指令分支，系统自动重绘主菜单界面 */
-            }
-            else {
-                printf("  [!] 无效的菜单选项，请正确输入菜单中提供的数字编号！\n");
-                system("pause");
-            }
         }
         else if (port == 0) {
             printf("\n  [系统广播] 正在将三大终端内存数据强一致性同步至物理磁盘...\n");
@@ -202,10 +205,6 @@ int main() {
 
             printf("  [系统广播] 内存释放完毕，系统已安全关闭，感谢使用！\n");
             break;
-        }
-        else {
-            printf("\n  [!] 无效的登录端口，请正确输入菜单中提供的数字编号！\n");
-            system("pause");
         }
     }
     return 0;

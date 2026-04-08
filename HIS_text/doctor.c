@@ -4,15 +4,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include "schedule.h"
+#include "utils.h"  // 【新增】引入通用安全工具模块
 
-// 管理端独立维护的医生人事档案链表，显式赋空防野指针
 Doctor* doctorList = NULL;
 
-// ---------------------------------------------------------
-// 加载医生人事档案
-// ---------------------------------------------------------
 void loadDoctors() {
-    // 【核心修复】：在读取数据前，必须先为链表分配虚拟头结点
     if (doctorList == NULL) {
         doctorList = (Doctor*)malloc(sizeof(Doctor));
         doctorList->next = NULL;
@@ -25,14 +21,13 @@ void loadDoctors() {
     Doctor d;
     Doctor* tail = doctorList;
 
-    // 让 tail 移动到真正的尾部，防止后续重复加载时数据被覆盖
     while (tail->next != NULL) {
         tail = tail->next;
     }
 
     while (fgets(line, sizeof(line), fp)) {
         line[strcspn(line, "\n")] = 0;
-        if (strlen(line) == 0) continue; // 跳过空行
+        if (strlen(line) == 0) continue;
 
         char* token = strtok(line, ",");
         if (token) d.id = atoi(token); else d.id = 0;
@@ -53,21 +48,16 @@ void loadDoctors() {
         *node = d;
         node->next = NULL;
 
-        // 安全地将新节点挂载到链表尾部
         tail->next = node;
         tail = node;
     }
     fclose(fp);
 }
 
-// ---------------------------------------------------------
-// 保存医生人事档案
-// ---------------------------------------------------------
 void saveDoctors() {
     FILE* fp = fopen("doctors.txt", "w");
     if (!fp) return;
 
-    // 同样加上安全校验
     if (doctorList == NULL) {
         fclose(fp);
         return;
@@ -81,9 +71,6 @@ void saveDoctors() {
     fclose(fp);
 }
 
-// ---------------------------------------------------------
-// 内部工具：格式化打印全部医生名单
-// ---------------------------------------------------------
 static void displayAllDoctors() {
     if (doctorList == NULL || doctorList->next == NULL) {
         printf("医生列表为空。\n");
@@ -98,9 +85,6 @@ static void displayAllDoctors() {
     }
 }
 
-// ---------------------------------------------------------
-// 业务一：录入新医生信息
-// ---------------------------------------------------------
 static void addDoctor() {
     Doctor d;
     printf("请输入医生ID: ");
@@ -114,7 +98,6 @@ static void addDoctor() {
         doctorList->next = NULL;
     }
 
-    // ID查重
     Doctor* p = doctorList->next;
     while (p) {
         if (p->id == d.id) {
@@ -146,9 +129,6 @@ static void addDoctor() {
     printf("医生添加成功。\n");
 }
 
-// ---------------------------------------------------------
-// 业务二：删除离职医生
-// ---------------------------------------------------------
 static void deleteDoctor() {
     int id;
     printf("请输入要删除的医生ID: ");
@@ -167,11 +147,10 @@ static void deleteDoctor() {
             prev->next = curr->next;
             free(curr);
             saveDoctors();
-            // 级联删除该医生的所有排班记录
             deleteScheduleByDoctorId(id);
             printf("删除成功。\n");
-			saveDoctors();
-			saveSchedules();
+            saveDoctors();
+            saveSchedules();
             return;
         }
         prev = curr;
@@ -180,9 +159,6 @@ static void deleteDoctor() {
     printf("未找到该医生。\n");
 }
 
-// ---------------------------------------------------------
-// 业务三：修改医生信息
-// ---------------------------------------------------------
 static void updateDoctor() {
     int id;
     printf("请输入要修改的医生ID: ");
@@ -200,52 +176,39 @@ static void updateDoctor() {
             printf("当前医生信息：\n");
             printf("1. 姓名: %s\n2. 科室: %s\n3. 职称: %s\n4. 性别: %s\n",
                 p->name, p->department, p->title, p->sex);
-            printf("请选择要修改的字段(空格分隔，0结束): ");
 
-            int choices[100], cnt = 0, ch;
-            do {
-                while (1) {
-                    if (scanf("%d", &ch) == 1) break;
-                    getchar();
-                }
-                if (ch == 0) break;
-                if (ch < 1 || ch > 4) {
-                    printf("无效选项\n");
-                    return;
-                }
-                choices[cnt++] = ch;
-            } while (getchar() != '\n' && cnt < 10);
+            // 【修改点】：彻底重写修改字段选项，化多选为单选循环
+            printf("请选择要修改的单个字段 (1.姓名 2.科室 3.职称 4.性别 | 0.结束保存): ");
+            int ch;
+            while (1) {
+                ch = safeGetInt();
+                if (ch >= 0 && ch <= 4) break;
+                printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n请重新选择: ");
+            }
 
-            if (cnt == 0) {
-                printf("修改取消。\n");
+            if (ch == 0) {
+                printf("修改已取消或结束。\n");
                 return;
             }
 
-            for (int i = 0; i < cnt; i++) {
-                switch (choices[i]) {
-                case 1:
-                    printf("请输入姓名: ");
-                    scanf("%49s", p->name);
-                    break;
-                case 2:
-                    printf("请输入科室: ");
-                    scanf("%29s", p->department);
-                    break;
-                case 3:
-                    printf("请输入职称: ");
-                    scanf("%19s", p->title);
-                    break;
-                case 4:
-                    printf("请输入性别: ");
-                    while (1) {
-                        scanf("%9s", p->sex);
-                        if (strcmp(p->sex, "男") == 0 || strcmp(p->sex, "女") == 0) break;
-                        printf("无效输入，请输入 '男' 或 '女': ");
-                    }
-                    break;
-                default:
-                    printf("无效选项 %d，跳过\n", choices[i]);
+            switch (ch) {
+            case 1:
+                printf("请输入新姓名: "); scanf("%49s", p->name); while (getchar() != '\n');
+                break;
+            case 2:
+                printf("请输入新科室: "); scanf("%29s", p->department); while (getchar() != '\n');
+                break;
+            case 3:
+                printf("请输入新职称: "); scanf("%19s", p->title); while (getchar() != '\n');
+                break;
+            case 4:
+                printf("请输入新性别(男/女): ");
+                while (1) {
+                    scanf("%9s", p->sex); while (getchar() != '\n');
+                    if (strcmp(p->sex, "男") == 0 || strcmp(p->sex, "女") == 0) break;
+                    printf("无效输入，请输入 '男' 或 '女': ");
                 }
+                break;
             }
             saveDoctors();
             printf("医生信息修改成功。\n");
@@ -256,16 +219,17 @@ static void updateDoctor() {
     printf("未找到该医生。\n");
 }
 
-// ---------------------------------------------------------
-// 业务四：按条件查询检索医生
-// ---------------------------------------------------------
 static void queryDoctor() {
     int choice;
-    printf("查询方式：1-按ID  2-按姓名模糊 3-按职称: ");
-    if (scanf("%d", &choice) != 1) {
-        choice = -1;
-        while (getchar() != '\n');
+    printf("查询方式：1-按ID  2-按姓名模糊 3-按职称 0-返回\n请选择: ");
+
+    // 【修改点】
+    while (1) {
+        choice = safeGetInt();
+        if (choice >= 0 && choice <= 3) break;
+        printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n请重新选择: ");
     }
+    if (choice == 0) return;
 
     if (doctorList == NULL) return;
 
@@ -321,14 +285,8 @@ static void queryDoctor() {
         }
         if (!found) printf("未找到。\n");
     }
-    else {
-        printf("无效选项\n");
-    }
 }
 
-// ---------------------------------------------------------
-// 管理端：医生人事管理子路由
-// ---------------------------------------------------------
 void doctorMenu() {
     int choice;
     do {
@@ -341,9 +299,11 @@ void doctorMenu() {
         printf("0. 返回主菜单\n");
         printf("请选择: ");
 
-        if (scanf("%d", &choice) != 1) {
-            while (getchar() != '\n');
-            choice = -1;
+        // 【修改点】
+        while (1) {
+            choice = safeGetInt();
+            if (choice >= 0 && choice <= 5) break;
+            printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n请重新选择: ");
         }
 
         switch (choice) {
@@ -353,7 +313,6 @@ void doctorMenu() {
         case 4: updateDoctor(); break;
         case 5: queryDoctor(); break;
         case 0: break;
-        default: printf("无效选项。\n");
         }
     } while (choice != 0);
 }

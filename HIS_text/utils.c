@@ -150,68 +150,161 @@ void getCurrentTimeStr(char* buffer, int size) {
 
 void loadAllDataFromTxt() {
     FILE* fp;
-    Patient* p_tail; Patient p_temp; Patient* p_node;
-    Medicine* m_tail; Medicine m_temp; Medicine* m_node;
-    Staff* s_tail; Staff s_temp; Staff* s_node;
-    Record* r_tail; Record r_temp; Record* r_node;
-    Bed* b_tail; Bed b_temp; Bed* b_node;
 
+    // ---------------------------------------------------------
+    // 1. 加载患者信息 (Patients)
+    // ---------------------------------------------------------
     fp = fopen("patients.txt", "r");
     if (fp) {
-        p_tail = patientHead;
-        while (fscanf(fp, "%19s %49s %99s %99s %d %99s %d %lf",
-            p_temp.id, p_temp.password, p_temp.name, p_temp.gender, &p_temp.age, p_temp.allergy, &p_temp.isEmergency, &p_temp.balance) == 8) {
-            p_node = (Patient*)malloc(sizeof(Patient));
-            *p_node = p_temp; p_node->next = NULL;
-            p_tail->next = p_node; p_tail = p_node;
+        char line[1024];
+        Patient* p_tail = patientHead;
+        while (p_tail->next != NULL) p_tail = p_tail->next; // 寻找真实尾节点
+
+        while (fgets(line, sizeof(line), fp)) {
+            line[strcspn(line, "\n")] = 0; // 去除行末换行符
+            if (strlen(line) == 0) continue; // 跳过空行
+
+            Patient p_temp = { 0 }; // 初始化清空
+            char* token = strtok(line, ",");
+            if (token) strcpy(p_temp.id, token);
+            token = strtok(NULL, ","); if (token) strcpy(p_temp.password, token);
+            token = strtok(NULL, ","); if (token) strcpy(p_temp.name, token);
+            token = strtok(NULL, ","); if (token) strcpy(p_temp.gender, token);
+            token = strtok(NULL, ","); if (token) p_temp.age = atoi(token);
+            token = strtok(NULL, ","); if (token) strcpy(p_temp.allergy, token);
+            token = strtok(NULL, ","); if (token) p_temp.isEmergency = atoi(token);
+            token = strtok(NULL, ","); if (token) p_temp.balance = atof(token);
+
+            Patient* p_node = (Patient*)malloc(sizeof(Patient));
+            *p_node = p_temp;
+            p_node->next = NULL;
+            p_tail->next = p_node;
+            p_tail = p_node;
         }
         fclose(fp);
     }
 
+    // ---------------------------------------------------------
+    // 2. 加载药品信息 (Medicines)
+    // ---------------------------------------------------------
     fp = fopen("medicines.txt", "r");
     if (fp) {
-        m_tail = medicineHead;
-        while (fscanf(fp, "%19s %99s %d %lf %99s",
-            m_temp.id, m_temp.name, &m_temp.stock, &m_temp.price, m_temp.expiryDate) == 5) {
-            m_node = (Medicine*)malloc(sizeof(Medicine));
-            *m_node = m_temp; m_node->next = NULL;
-            m_tail->next = m_node; m_tail = m_node;
+        char line[512];
+        Medicine* m_tail = medicineHead;
+        while (m_tail->next != NULL) m_tail = m_tail->next;
+
+        while (fgets(line, sizeof(line), fp)) {
+            line[strcspn(line, "\n")] = 0;
+            if (strlen(line) == 0) continue;
+
+            Medicine m_temp = { 0 };
+            char* token = strtok(line, ",");
+            if (token) strcpy(m_temp.id, token);
+            token = strtok(NULL, ","); if (token) strcpy(m_temp.name, token);
+            token = strtok(NULL, ","); if (token) m_temp.stock = atoi(token);
+            token = strtok(NULL, ","); if (token) m_temp.price = atof(token);
+            token = strtok(NULL, ","); if (token) strcpy(m_temp.expiryDate, token);
+
+            Medicine* m_node = (Medicine*)malloc(sizeof(Medicine));
+            *m_node = m_temp;
+            m_node->next = NULL;
+            m_tail->next = m_node;
+            m_tail = m_node;
         }
         fclose(fp);
     }
 
+    // ---------------------------------------------------------
+    // 3. 加载医护信息 (Staff)
+    // ---------------------------------------------------------
     fp = fopen("staff.txt", "r");
     if (fp) {
-        s_tail = staffHead;
-        while (fscanf(fp, "%19s %49s %99s %99s %99s",
-            s_temp.id, s_temp.password, s_temp.name, s_temp.department, s_temp.level) == 5) {
-            s_node = (Staff*)malloc(sizeof(Staff));
-            *s_node = s_temp; s_node->next = NULL;
-            s_tail->next = s_node; s_tail = s_node;
+        char line[512];
+        Staff* s_tail = staffHead;
+        while (s_tail->next != NULL) s_tail = s_tail->next;
+
+        while (fgets(line, sizeof(line), fp)) {
+            line[strcspn(line, "\n")] = 0;
+            if (strlen(line) == 0) continue;
+
+            Staff s_temp = { 0 };
+            char* token = strtok(line, ",");
+            if (token) strcpy(s_temp.id, token);
+            token = strtok(NULL, ","); if (token) strcpy(s_temp.password, token);
+            token = strtok(NULL, ","); if (token) strcpy(s_temp.name, token);
+            token = strtok(NULL, ","); if (token) strcpy(s_temp.department, token);
+            token = strtok(NULL, ","); if (token) strcpy(s_temp.level, token);
+
+            Staff* s_node = (Staff*)malloc(sizeof(Staff));
+            *s_node = s_temp;
+            s_node->next = NULL;
+            s_tail->next = s_node;
+            s_tail = s_node;
         }
         fclose(fp);
     }
 
+    // ---------------------------------------------------------
+    // 4. 加载业务流水记录 (Records)
+    // ---------------------------------------------------------
     fp = fopen("records.txt", "r");
     if (fp) {
-        r_tail = recordHead;
-        while (fscanf(fp, "%29s %d %19s %19s %lf %d %299s %29s",
-            r_temp.recordId, &r_temp.type, r_temp.patientId, r_temp.staffId, &r_temp.cost, &r_temp.isPaid, r_temp.description, r_temp.createTime) == 8) {
-            r_node = (Record*)malloc(sizeof(Record));
-            *r_node = r_temp; r_node->next = NULL;
-            r_tail->next = r_node; r_tail = r_node;
+        char line[1024];
+        Record* r_tail = recordHead;
+        while (r_tail->next != NULL) r_tail = r_tail->next;
+
+        while (fgets(line, sizeof(line), fp)) {
+            line[strcspn(line, "\n")] = 0;
+            if (strlen(line) == 0) continue;
+
+            Record r_temp = { 0 };
+            char* token = strtok(line, ",");
+            if (token) strcpy(r_temp.recordId, token);
+            token = strtok(NULL, ","); if (token) r_temp.type = atoi(token);
+            token = strtok(NULL, ","); if (token) strcpy(r_temp.patientId, token);
+            token = strtok(NULL, ","); if (token) strcpy(r_temp.staffId, token);
+            token = strtok(NULL, ","); if (token) r_temp.cost = atof(token);
+            token = strtok(NULL, ","); if (token) r_temp.isPaid = atoi(token);
+            token = strtok(NULL, ","); if (token) strcpy(r_temp.description, token);
+            token = strtok(NULL, ","); if (token) strcpy(r_temp.createTime, token);
+
+            Record* r_node = (Record*)malloc(sizeof(Record));
+            *r_node = r_temp;
+            r_node->next = NULL;
+            r_tail->next = r_node;
+            r_tail = r_node;
         }
         fclose(fp);
     }
 
+    // ---------------------------------------------------------
+    // 5. 加载病床信息 (Beds)
+    // ---------------------------------------------------------
     fp = fopen("beds.txt", "r");
     if (fp) {
-        b_tail = bedHead;
-        while (fscanf(fp, "%19s %d %19s %49s %49s %lf %d",
-            b_temp.bedId, &b_temp.isOccupied, b_temp.patientId, b_temp.wardType, b_temp.bedType, &b_temp.price, &b_temp.isRoundsDone) == 7) {
-            b_node = (Bed*)malloc(sizeof(Bed));
-            *b_node = b_temp; b_node->next = NULL;
-            b_tail->next = b_node; b_tail = b_node;
+        char line[512];
+        Bed* b_tail = bedHead;
+        while (b_tail->next != NULL) b_tail = b_tail->next;
+
+        while (fgets(line, sizeof(line), fp)) {
+            line[strcspn(line, "\n")] = 0;
+            if (strlen(line) == 0) continue;
+
+            Bed b_temp = { 0 };
+            char* token = strtok(line, ",");
+            if (token) strcpy(b_temp.bedId, token);
+            token = strtok(NULL, ","); if (token) b_temp.isOccupied = atoi(token);
+            token = strtok(NULL, ","); if (token) strcpy(b_temp.patientId, token);
+            token = strtok(NULL, ","); if (token) strcpy(b_temp.wardType, token);
+            token = strtok(NULL, ","); if (token) strcpy(b_temp.bedType, token);
+            token = strtok(NULL, ","); if (token) b_temp.price = atof(token);
+            token = strtok(NULL, ","); if (token) b_temp.isRoundsDone = atoi(token);
+
+            Bed* b_node = (Bed*)malloc(sizeof(Bed));
+            *b_node = b_temp;
+            b_node->next = NULL;
+            b_tail->next = b_node;
+            b_tail = b_node;
         }
         fclose(fp);
     }
@@ -219,53 +312,86 @@ void loadAllDataFromTxt() {
 
 void saveAllDataToTxt() {
     FILE* fp;
-    Patient* p; Medicine* m; Staff* s; Record* r; Bed* b;
 
+    // ---------------------------------------------------------
+    // 1. 保存患者信息 (Patients)
+    // ---------------------------------------------------------
     fp = fopen("patients.txt", "w");
     if (fp) {
-        p = patientHead->next;
+        Patient* p = patientHead->next;
         while (p) {
-            fprintf(fp, "%s %s %s %s %d %s %d %.2f\n", p->id, p->password, p->name, p->gender, p->age, p->allergy, p->isEmergency, p->balance);
+            // 【修改点】：全部采用企业级 CSV 的逗号分隔符格式
+            fprintf(fp, "%s,%s,%s,%s,%d,%s,%d,%.2f\n",
+                p->id, p->password, p->name, p->gender,
+                p->age, p->allergy, p->isEmergency, p->balance);
             p = p->next;
         }
         fclose(fp);
     }
 
+    // ---------------------------------------------------------
+    // 2. 保存药品信息 (Medicines)
+    // ---------------------------------------------------------
     fp = fopen("medicines.txt", "w");
     if (fp) {
-        m = medicineHead->next;
+        Medicine* m = medicineHead->next;
         while (m) {
-            fprintf(fp, "%s %s %d %.2f %s\n", m->id, m->name, m->stock, m->price, m->expiryDate);
+            fprintf(fp, "%s,%s,%d,%.2f,%s\n",
+                m->id, m->name, m->stock, m->price, m->expiryDate);
             m = m->next;
         }
         fclose(fp);
     }
 
+    // ---------------------------------------------------------
+    // 3. 保存医护信息 (Staff)
+    // ---------------------------------------------------------
     fp = fopen("staff.txt", "w");
     if (fp) {
-        s = staffHead->next;
+        Staff* s = staffHead->next;
         while (s) {
-            fprintf(fp, "%s %s %s %s %s\n", s->id, s->password, s->name, s->department, s->level);
+            fprintf(fp, "%s,%s,%s,%s,%s\n",
+                s->id, s->password, s->name, s->department, s->level);
             s = s->next;
         }
         fclose(fp);
     }
 
+    // ---------------------------------------------------------
+    // 4. 保存业务流水记录 (Records)
+    // ---------------------------------------------------------
     fp = fopen("records.txt", "w");
     if (fp) {
-        r = recordHead->next;
+        Record* r = recordHead->next;
         while (r) {
-            fprintf(fp, "%s %d %s %s %.2f %d %s %s\n", r->recordId, r->type, r->patientId, r->staffId, r->cost, r->isPaid, r->description, r->createTime);
+            fprintf(fp, "%s,%d,%s,%s,%.2f,%d,%s,%s\n",
+                r->recordId, r->type, r->patientId, r->staffId,
+                r->cost, r->isPaid, r->description, r->createTime);
             r = r->next;
         }
         fclose(fp);
     }
 
+    // ---------------------------------------------------------
+    // 5. 保存病床信息 (Beds)
+    // ---------------------------------------------------------
     fp = fopen("beds.txt", "w");
     if (fp) {
-        b = bedHead->next;
+        Bed* b = bedHead->next;
         while (b) {
-            fprintf(fp, "%s %d %s %s %s %.2f %d\n", b->bedId, b->isOccupied, strlen(b->patientId) > 0 ? b->patientId : "none", b->wardType, b->bedType, b->price, b->isRoundsDone);
+            // 【核心防崩保护】：如果病床为空（没有患者ID），必须填入占位符"无"
+            // 防止生成连续逗号 ",," 导致下次读取时 strtok 错位！
+            char safePatientId[30];
+            if (strlen(b->patientId) == 0) {
+                strcpy(safePatientId, "无");
+            }
+            else {
+                strcpy(safePatientId, b->patientId);
+            }
+
+            fprintf(fp, "%s,%d,%s,%s,%s,%.2f,%d\n",
+                b->bedId, b->isOccupied, safePatientId,
+                b->wardType, b->bedType, b->price, b->isRoundsDone);
             b = b->next;
         }
         fclose(fp);

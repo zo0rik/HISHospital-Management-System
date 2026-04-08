@@ -51,7 +51,6 @@ void staffTerminal(Staff* me) {
         system("cls");
         strcpy(currentCallingPatientId, "");
 
-        // 菜单界面对齐优化，使用占位符控制宽度
         printf("\n================================================\n");
         printf("   临床医生工作台 [所属: %-10s 医师: %s]   \n", me->department, me->name);
         printf("================================================\n");
@@ -63,16 +62,18 @@ void staffTerminal(Staff* me) {
         printf("------------------------------------------------\n");
         printf("  请选择业务: ");
 
-        // 统一使用封装的输入函数，防止输入字母导致的死循环崩溃
-        int c = safeGetInt();
+        // 【修改点】严格校验医护端入口
+        while (1) {
+            c = safeGetInt();
+            if (c >= 0 && c <= 4) break;
+            printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n  请重新选择业务: ");
+        }
 
         if (c == 1) {
-            // 进入门诊专属子菜单
             while (1) {
                 system("cls");
                 printf("\n========== 门诊门前接诊业务中心 ==========\n");
 
-                // 动态显示当前是否正在接诊某位患者，体验更好
                 printf("  [当前会话锁定患者]: %s\n", strlen(currentCallingPatientId) > 0 ? currentCallingPatientId : "【暂无接诊】");
                 printf("------------------------------------------\n");
                 printf("  [1] 候诊列队预览与叫号\n");
@@ -83,7 +84,12 @@ void staffTerminal(Staff* me) {
                 printf("------------------------------------------\n");
                 printf("  操作指令: ");
 
-                int sc = safeGetInt();
+                // 【修改点】严格校验看诊内页入口
+                while (1) {
+                    sc = safeGetInt();
+                    if (sc >= 0 && sc <= 4) break;
+                    printf("  [!] 输入格式不合法或该端口不存在，请正确输入菜单中提供的数字编号！\n  请重新下达操作指令: ");
+                }
 
                 if (sc == 1) {
                     callPatient(me->id);
@@ -104,10 +110,6 @@ void staffTerminal(Staff* me) {
                 else if (sc == 0) {
                     break;
                 }
-                else {
-                    printf("  [!] 无效的菜单选项，请正确输入菜单中提供的数字编号！\n");
-                    system("pause");
-                }
             }
         }
         else if (c == 2) {
@@ -121,10 +123,6 @@ void staffTerminal(Staff* me) {
         }
         else if (c == 0) {
             return;
-        }
-        else {
-            printf("  [!] 无效的菜单选项，请正确输入菜单中提供的数字编号！\n");
-            system("pause");
         }
     }
 }
