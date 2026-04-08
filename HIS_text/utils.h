@@ -3,6 +3,7 @@
 #define UTILS_H
 
 void safeGetString(char* buffer, int size);
+void safeGetPassword(char* buffer, int size);
 int safeGetInt();
 double safeGetDouble();
 int safeGetPositiveInt();
