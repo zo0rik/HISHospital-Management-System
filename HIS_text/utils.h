@@ -8,7 +8,7 @@ int safeGetInt();
 double safeGetDouble();
 int safeGetPositiveInt();
 void safeGetGender(char* buffer, int size);
-void safeGetPassword(char* buffer, int size); // ĞÂÔöµÄÃÜÂë°²È«Ğ£Ñé×é¼ş
+void safeGetPassword(char* buffer, int size); // æ–°å¢çš„å¯†ç å®‰å…¨æ ¡éªŒç»„ä»¶
 
 void getCurrentTimeStr(char* buffer, int size);
 void getCurrentTime(char* buffer, int size);

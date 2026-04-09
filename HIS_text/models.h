@@ -49,13 +49,13 @@ typedef struct Record {
 } Record, * RecordList;
 
 typedef struct Bed {
-    char bedId[20];         // ¡¾ĞŞ¸Ä¡¿²¡·¿ºÅ-´²Î»ºÅ (Èç 1-3)
-    int isOccupied;         // 0:¿ÕÏĞ 1:Õ¼ÓÃ
+    char bedId[20];         // ã€ä¿®æ”¹ã€‘ç—…æˆ¿å·-åºŠä½å· (å¦‚ 1-3)
+    int isOccupied;         // 0:ç©ºé—² 1:å ç”¨
     char patientId[20];
     char wardType[50];
     char bedType[50];
     double price;
-    int isRoundsDone;       // ¡¾ĞÂÔö¡¿µ±ÈÕÊÇ·ñÒÑ²é·¿ (0:Î´²é, 1:ÒÑ²é)
+    int isRoundsDone;       // ã€æ–°å¢ã€‘å½“æ—¥æ˜¯å¦å·²æŸ¥æˆ¿ (0:æœªæŸ¥, 1:å·²æŸ¥)
     struct Bed* next;
 } Bed, * BedList;
 

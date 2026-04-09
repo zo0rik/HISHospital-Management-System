@@ -101,5 +101,8 @@
     <ClCompile Include="work_management.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="fileio.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

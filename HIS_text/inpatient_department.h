@@ -2,7 +2,7 @@
 #ifndef INPATIENT_DEPARTMENT_H
 #define INPATIENT_DEPARTMENT_H
 
-// ×¡Ôº²¿Íø¹ØÂ·ÓÉ
+// ä½é™¢éƒ¨ç½‘å…³è·¯ç”±
 void inpatientMenu(const char* docId);
 
 #endif
