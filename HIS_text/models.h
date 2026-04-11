@@ -51,7 +51,7 @@ typedef struct Record {
 } Record, * RecordList;
 
 typedef struct Bed {
-    char bedId[20];
+    char bedId[30];
     int isOccupied;
     char patientId[20];
     char wardType[50];

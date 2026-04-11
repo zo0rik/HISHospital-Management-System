@@ -7,6 +7,7 @@
 #include "models.h"
 #include "fileio.h"
 #include "utils.h" // 【核心】引入安全输入工具库
+#include "time_t.h"
 
 // 独立维护的全局业务流水与财务链表指针
 Transaction* transactionList;

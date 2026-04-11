@@ -44,7 +44,6 @@ void loadAllDataFromTxt() {
         fclose(fp);
     }
 
-    // ----- 统一加载职工和医生信息 -----
     fp = fopen("doctor_information.txt", "r");
     if (fp) {
         char line[512];
@@ -62,7 +61,7 @@ void loadAllDataFromTxt() {
             token = strtok(NULL, ","); if (token) strcpy(s_temp.name, token);
             token = strtok(NULL, ","); if (token) strcpy(s_temp.department, token);
             token = strtok(NULL, ","); if (token) strcpy(s_temp.level, token);
-            token = strtok(NULL, ","); if (token) strcpy(s_temp.sex, token); // 增加读取性别
+            token = strtok(NULL, ","); if (token) strcpy(s_temp.sex, token);
 
             Staff* s_node = (Staff*)malloc(sizeof(Staff));
             *s_node = s_temp; s_node->next = NULL;
@@ -71,7 +70,6 @@ void loadAllDataFromTxt() {
         fclose(fp);
     }
 
-    // 加载业务流水记录
     fp = fopen("records.txt", "r");
     if (fp) {
         char line[1024];
@@ -100,7 +98,6 @@ void loadAllDataFromTxt() {
         fclose(fp);
     }
 
-    // 加载病床信息
     fp = fopen("beds.txt", "r");
     if (fp) {
         char line[512];
@@ -132,7 +129,6 @@ void loadAllDataFromTxt() {
 void saveAllDataToTxt() {
     FILE* fp;
 
-    // 保存患者信息
     fp = fopen("patients.txt", "w");
     if (fp) {
         Patient* p = patientHead->next;
@@ -145,7 +141,6 @@ void saveAllDataToTxt() {
         fclose(fp);
     }
 
-    // ----- 保存职工和医生信息 -----
     fp = fopen("doctor_information.txt", "w");
     if (fp) {
         Staff* s = staffHead->next;
@@ -157,7 +152,6 @@ void saveAllDataToTxt() {
         fclose(fp);
     }
 
-    // 保存业务流水记录
     fp = fopen("records.txt", "w");
     if (fp) {
         Record* r = recordHead->next;
@@ -170,7 +164,6 @@ void saveAllDataToTxt() {
         fclose(fp);
     }
 
-    // 保存病床信息
     fp = fopen("beds.txt", "w");
     if (fp) {
         Bed* b = bedHead->next;
@@ -198,7 +191,10 @@ void loadDrugs() {
 
     char line[512];
     Drug d;
-    Drug* tail = NULL;
+    /* 【核心修复】初始化tail为链表末尾，而非NULL。
+       原代码tail=NULL，若drugList->next非空则else分支解引用NULL导致崩溃 */
+    Drug* tail = drugList;
+    while (tail->next != NULL) tail = tail->next;
 
     while (fgets(line, sizeof(line), fp)) {
         line[strcspn(line, "\n")] = 0;
@@ -213,11 +209,12 @@ void loadDrugs() {
         token = strtok(NULL, ","); if (token) strcpy(d.last_out, token); else d.last_out[0] = '\0';
 
         Drug* node = (Drug*)malloc(sizeof(Drug));
+        if (!node) break;
         *node = d;
-        if (drugList->next == NULL) { drugList->next = node; tail = node; }
-        else { tail->next = node; tail = node; }
+        node->next = NULL;
+        tail->next = node;
+        tail = node;
     }
-    tail->next = NULL;
     fclose(fp);
 }
 
@@ -240,7 +237,10 @@ void loadDrugHistory() {
 
     char line[512];
     DrugHistory h;
-    DrugHistory* tail = NULL;
+    /* 【修复】同loadDrugs，初始化tail为链表末尾 */
+    DrugHistory* tail = drugHistoryList;
+    while (tail->next != NULL) tail = tail->next;
+
     while (fgets(line, sizeof(line), fp)) {
         line[strcspn(line, "\n")] = 0;
         char* token = strtok(line, ",");
@@ -250,11 +250,12 @@ void loadDrugHistory() {
         token = strtok(NULL, ","); if (token) strcpy(h.time, token); else h.time[0] = '\0';
 
         DrugHistory* node = (DrugHistory*)malloc(sizeof(DrugHistory));
-        *node = h; node->next = NULL;
-        if (drugHistoryList->next == NULL) { drugHistoryList->next = node; tail = node; }
-        else { tail->next = node; tail = node; }
+        if (!node) break;
+        *node = h;
+        node->next = NULL;
+        tail->next = node;
+        tail = node;
     }
-    tail->next = NULL;
     fclose(fp);
 }
 
@@ -310,13 +311,16 @@ void loadSchedules() {
 
     char line[256];
     Schedule s;
-    Schedule* tail = NULL;
+    /* 【修复】同loadDrugs，初始化tail为链表末尾 */
+    Schedule* tail = scheduleList;
+    while (tail->next != NULL) tail = tail->next;
+
     while (fgets(line, sizeof(line), fp)) {
         line[strcspn(line, "\n")] = 0;
         char* token = strtok(line, ",");
         if (token) s.schedule_id = atoi(token); else s.schedule_id = 0;
         token = strtok(NULL, ",");
-        if (token) s.doctor_id = atoi(token); else s.doctor_id = 0;
+        if (token) strncpy(s.doctor_id, token, sizeof(s.doctor_id) - 1); else s.doctor_id[0] = '\0';
         token = strtok(NULL, ",");
         if (token) strcpy(s.date, token); else s.date[0] = '\0';
         token = strtok(NULL, ",");
@@ -325,42 +329,38 @@ void loadSchedules() {
         Schedule* node = (Schedule*)malloc(sizeof(Schedule));
         *node = s;
         node->next = NULL;
-        if (!(scheduleList->next)) { scheduleList->next = node; tail = node; }
-        else { tail->next = node; tail = node; }
+        tail->next = node;
+        tail = node;
     }
     fclose(fp);
 }
 
-//----------------------------------------------------------------------
-// 保存排班
-//----------------------------------------------------------------------
 void saveSchedules() {
     FILE* fp = fopen("schedules.txt", "w");
     if (!fp) return;
     Schedule* p = scheduleList->next;
     while (p) {
-        fprintf(fp, "%d,%d,%s,%s\n", p->schedule_id, p->doctor_id, p->date, p->shift);
+        fprintf(fp, "%d,%s,%s,%s\n", p->schedule_id, p->doctor_id, p->date, p->shift);
         p = p->next;
     }
     fclose(fp);
 }
 
-// ---------------------------------------------------------
-// 加载本地财务交易记录
-// ---------------------------------------------------------
 void loadTransactions() {
     FILE* fp = fopen("transactions.txt", "r");
     if (!fp) return;
 
     char line[512];
     Transaction t;
-    Transaction* tail = NULL;
+    /* 【修复】同loadDrugs，初始化tail为链表末尾 */
+    Transaction* tail = transactionList;
+    while (tail->next != NULL) tail = tail->next;
+
     while (fgets(line, sizeof(line), fp)) {
         line[strcspn(line, "\n")] = 0;
         char* token = strtok(line, ",");
         if (token) t.id = atoi(token); else t.id = 0;
         token = strtok(NULL, ",");
-        // type: 1=门诊收入, 2=住院收入, 3=药品收入
         if (token) t.type = atoi(token); else t.type = 0;
         token = strtok(NULL, ",");
         if (token) t.amount = atof(token); else t.amount = 0.0;
@@ -372,24 +372,12 @@ void loadTransactions() {
         Transaction* node = (Transaction*)malloc(sizeof(Transaction));
         *node = t;
         node->next = NULL;
-
-        // 尾插法挂载节点
-        // 尾插法挂载节点
-        if (transactionList->next == NULL) {
-            transactionList->next = node;
-            tail = node;
-        }
-        else {
-            tail->next = node;
-            tail = node;
-        }
+        tail->next = node;
+        tail = node;
     }
     fclose(fp);
 }
 
-// ---------------------------------------------------------
-// 财务交易记录持久化保存
-// ---------------------------------------------------------
 void saveTransactions() {
     FILE* fp = fopen("transactions.txt", "w");
     if (!fp) return;

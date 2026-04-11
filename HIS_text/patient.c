@@ -202,8 +202,8 @@ void bookAppointment(const char* currentPatientId) {
             }
 
             if (match && strcmp(s->shift, "休息") != 0) {
-                char docDisp[50];
-                sprintf(docDisp, "%s(%s)", matchedDoc->name, matchedDoc->id);
+                char docDisp[130];
+                snprintf(docDisp, sizeof(docDisp), "%s(%s)", matchedDoc->name, matchedDoc->id);
                 printf(" [%-6d] | %-12s | %-8s | %-16s | %-10s | %-10s\n", s->schedule_id, s->date, s->shift, docDisp, matchedDoc->department, matchedDoc->level);
                 found++;
             }
@@ -229,8 +229,8 @@ void bookAppointment(const char* currentPatientId) {
         }
         if (!targetDoc) { printf("  [!] 底层数据异常：医生档案关联引用失败。\n"); system("pause"); continue; }
 
-        char staffIdStr[20];
-        sprintf(staffIdStr, "D%s", targetDoc->id);
+        char staffIdStr[22];
+        snprintf(staffIdStr, sizeof(staffIdStr), "D%s", targetDoc->id);
 
         int patientDailyActive = 0, patientDeptDailyActive = 0, sameDocSameDay = 0, docDailyCount = 0, hospitalDailyCount = 0;
 
@@ -242,8 +242,8 @@ void bookAppointment(const char* currentPatientId) {
                 if (strcmp(rec->patientId, currentPatientId) == 0 && rec->isPaid != 2) {
                     patientDailyActive++;
                     for (Staff* recDoc = staffHead->next; recDoc != NULL; recDoc = recDoc->next) {
-                        char tempDId[20];
-                        sprintf(tempDId, "D%s", recDoc->id);
+                        char tempDId[22];
+                        snprintf(tempDId, sizeof(tempDId), "D%s", recDoc->id);
                         if (strcmp(tempDId, rec->staffId) == 0) {
                             if (strcmp(recDoc->department, targetDoc->department) == 0) patientDeptDailyActive++;
                             if (strcmp(tempDId, staffIdStr) == 0) sameDocSameDay = 1;

@@ -21,16 +21,17 @@ RecordList recordHead = NULL;
 BedList bedHead = NULL;
 
 void initLists() {
-    patientHead = (PatientList)malloc(sizeof(Patient)); patientHead->next = NULL;
-    staffHead = (StaffList)malloc(sizeof(Staff)); staffHead->next = NULL;
-    medicineHead = (MedicineList)malloc(sizeof(Medicine)); medicineHead->next = NULL;
-    recordHead = (RecordList)malloc(sizeof(Record)); recordHead->next = NULL;
-    bedHead = (BedList)malloc(sizeof(Bed)); bedHead->next = NULL;
-    drugList = (Drug*)malloc(sizeof(Drug)); drugList->next = NULL;
-    drugHistoryList = (DrugHistory*)malloc(sizeof(DrugHistory)); drugHistoryList->next = NULL;
-    scheduleList = (Schedule*)malloc(sizeof(Schedule)); scheduleList->next = NULL;
-    transactionList = (Transaction*)malloc(sizeof(Transaction)); transactionList->next = NULL;
-    personnelReportList = (PersonnelReport*)malloc(sizeof(PersonnelReport)); personnelReportList->next = NULL;
+    /* 【修复】使用calloc确保哨兵节点全部清零 */
+    patientHead = (PatientList)calloc(1, sizeof(Patient)); patientHead->next = NULL;
+    staffHead = (StaffList)calloc(1, sizeof(Staff)); staffHead->next = NULL;
+    medicineHead = (MedicineList)calloc(1, sizeof(Medicine)); medicineHead->next = NULL;
+    recordHead = (RecordList)calloc(1, sizeof(Record)); recordHead->next = NULL;
+    bedHead = (BedList)calloc(1, sizeof(Bed)); bedHead->next = NULL;
+    drugList = (Drug*)calloc(1, sizeof(Drug)); drugList->next = NULL;
+    drugHistoryList = (DrugHistory*)calloc(1, sizeof(DrugHistory)); drugHistoryList->next = NULL;
+    scheduleList = (Schedule*)calloc(1, sizeof(Schedule)); scheduleList->next = NULL;
+    transactionList = (Transaction*)calloc(1, sizeof(Transaction)); transactionList->next = NULL;
+    personnelReportList = (PersonnelReport*)calloc(1, sizeof(PersonnelReport)); personnelReportList->next = NULL;
 }
 
 void freeAllMemory() {
@@ -73,6 +74,16 @@ int main() {
     loadTransactions();
     loadAdminData();
 
+    /* 【新增】启动时输出加载诊断信息，帮助定位数据文件问题 */
+    {
+        int pc = 0, sc2 = 0, dc = 0;
+        Patient* pp = patientHead->next; while (pp) { pc++; pp = pp->next; }
+        Staff* ss = staffHead->next; while (ss) { sc2++; ss = ss->next; }
+        Drug* dd = drugList->next; while (dd) { dc++; dd = dd->next; }
+        printf("  [系统启动诊断] 已加载患者:%d 医生:%d 药品:%d\n", pc, sc2, dc);
+        if (pc == 0) printf("  [严重警告] 患者数据为0！请确认patients.txt在程序运行目录下！\n");
+    }
+
     while (1) {
         system("cls");
         printf("\n");
@@ -89,7 +100,6 @@ int main() {
         printf("\n  ========================================================\n");
         printf("  请选择要访问的业务端口: ");
 
-        // 【修改点】：严格过滤主端口输入
         while (1) {
             port = safeGetInt();
             if (port == 1 || port == 2 || port == 3 || port == 0) break;
@@ -149,7 +159,6 @@ int main() {
             printf("  0. 返回控制大厅\n");
             printf("  请选择: ");
 
-            // 【修改点】：严格过滤患者端子菜单输入
             while (1) {
                 pChoice = safeGetInt();
                 if (pChoice == 1 || pChoice == 2 || pChoice == 0) break;

@@ -5,6 +5,7 @@
 #include <string.h>
 #include "utils.h" 
 #include "fileio.h"
+#include "time_t.h"
 
 Drug* drugList;
 DrugHistory* drugHistoryList;

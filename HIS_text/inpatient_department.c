@@ -145,7 +145,12 @@ void checkAndAdjustBedTension(const char* targetDept) {
 
                 Bed* extra = (Bed*)malloc(sizeof(Bed));
                 *extra = *b;
-                sprintf(extra->bedId, "%sA", b->bedId);
+                /* 安全拼接：先复制最多N-2个字符，再追加'A'，保证不溢出 */
+                strncpy(extra->bedId, b->bedId, sizeof(extra->bedId) - 2);
+                extra->bedId[sizeof(extra->bedId) - 2] = '\0';
+                size_t blen = strlen(extra->bedId);
+                extra->bedId[blen] = 'A';
+                extra->bedId[blen + 1] = '\0';
                 extra->next = bedHead->next;
                 bedHead->next = extra;
                 converted++;
@@ -584,10 +589,11 @@ void wardRounds(const char* docId) {
 
                 for (Record* cur = recordHead->next; cur != NULL; cur = cur->next) {
                     if (cur->type == 3 && strcmp(cur->patientId, pId) == 0 && cur->isPaid == 0) {
-                        char tempDesc[300];
+                        char tempDesc[320];
                         cur->isPaid = 4;
-                        sprintf(tempDesc, "[住院记账]%s", cur->description);
-                        strcpy(cur->description, tempDesc);
+                        snprintf(tempDesc, sizeof(tempDesc), "[住院记账]%s", cur->description);
+                        strncpy(cur->description, tempDesc, sizeof(cur->description) - 1);
+                        cur->description[sizeof(cur->description) - 1] = '\0';
                     }
                 }
 

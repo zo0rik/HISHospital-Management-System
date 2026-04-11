@@ -5,7 +5,6 @@
 #include <time.h>
 #include "models.h"
 #include "utils.h"
-#include <conio.h>
 #include "fileio.h"
 
 // 密码输入：显示 *
@@ -46,7 +45,7 @@ void safeGetString(char* buffer, int size) {
         // 【核心修复】：不仅要处理空格，还必须消灭英文逗号！
         for (int i = 0; buffer[i] != '\0'; i++) {
             if (buffer[i] == ' ') buffer[i] = '_';  // 空格转下划线
-            if (buffer[i] == ',') buffer[i] = '，'; // 英文逗号强制转为中文逗号
+            if (buffer[i] == ',') buffer[i] = ';';  // 英文逗号转换为分号，避免CSV解析冲突
         }
     }
     else {
