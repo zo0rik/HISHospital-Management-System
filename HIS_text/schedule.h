@@ -3,8 +3,8 @@
 #define SCHEDULE_H
 
 typedef struct Schedule {
-    int schedule_id;    // 【新增】排班流水唯一ID (用于唯一确定某天的某个班次)
-    int doctor_id;      // 医生工号
+    int schedule_id;    // 排班流水唯一ID
+    char doctor_id[20]; // 【修改】医生工号改成字符串数组，与 Staff 结构体对齐
     char date[11];      // 日期
     char shift[10];     // 班次
     struct Schedule* next;

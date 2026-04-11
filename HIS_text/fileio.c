@@ -16,7 +16,6 @@
 void loadAllDataFromTxt() {
     FILE* fp;
 
-    // 加载患者信息
     fp = fopen("patients.txt", "r");
     if (fp) {
         char line[1024];
@@ -45,7 +44,7 @@ void loadAllDataFromTxt() {
         fclose(fp);
     }
 
-    // 统一从 doctor_information.txt 提取 Staff 账号
+    // ----- 统一加载职工和医生信息 -----
     fp = fopen("doctor_information.txt", "r");
     if (fp) {
         char line[512];
@@ -63,6 +62,7 @@ void loadAllDataFromTxt() {
             token = strtok(NULL, ","); if (token) strcpy(s_temp.name, token);
             token = strtok(NULL, ","); if (token) strcpy(s_temp.department, token);
             token = strtok(NULL, ","); if (token) strcpy(s_temp.level, token);
+            token = strtok(NULL, ","); if (token) strcpy(s_temp.sex, token); // 增加读取性别
 
             Staff* s_node = (Staff*)malloc(sizeof(Staff));
             *s_node = s_temp; s_node->next = NULL;
@@ -141,6 +141,18 @@ void saveAllDataToTxt() {
                 p->id, p->password, p->name, p->gender,
                 p->age, p->allergy, p->isEmergency, p->balance);
             p = p->next;
+        }
+        fclose(fp);
+    }
+
+    // ----- 保存职工和医生信息 -----
+    fp = fopen("doctor_information.txt", "w");
+    if (fp) {
+        Staff* s = staffHead->next;
+        while (s) {
+            fprintf(fp, "%s,%s,%s,%s,%s,%s\n",
+                s->id, s->password, s->name, s->department, s->level, s->sex);
+            s = s->next;
         }
         fclose(fp);
     }
@@ -259,82 +271,7 @@ void saveDrugHistory() {
 
 
 // =========================================================================
-// 3. 医生档案读写 (转移自 doctor.c)
-// =========================================================================
-void loadDoctors() {
-    if (doctorList == NULL) {
-        doctorList = (Doctor*)malloc(sizeof(Doctor));
-        doctorList->next = NULL;
-    }
-
-    FILE* fp = fopen("doctor_information.txt", "r");
-    if (!fp) return;
-
-    char line[256];
-    Doctor d;
-    Doctor* tail = doctorList;
-
-    while (tail->next != NULL) tail = tail->next;
-
-    while (fgets(line, sizeof(line), fp)) {
-        line[strcspn(line, "\n")] = 0;
-        if (strlen(line) == 0) continue;
-
-        char* token = strtok(line, ",");
-        if (token) d.id = atoi(token); else d.id = 0;
-
-        token = strtok(NULL, ","); // 略过提取密码
-
-        token = strtok(NULL, ",");
-        if (token) strcpy(d.name, token); else d.name[0] = '\0';
-
-        token = strtok(NULL, ",");
-        if (token) strcpy(d.department, token); else d.department[0] = '\0';
-
-        token = strtok(NULL, ",");
-        if (token) strcpy(d.title, token); else d.title[0] = '\0';
-
-        token = strtok(NULL, ",");
-        if (token) strcpy(d.sex, token); else d.sex[0] = '\0';
-
-        Doctor* node = (Doctor*)malloc(sizeof(Doctor));
-        *node = d;
-        node->next = NULL;
-        tail->next = node;
-        tail = node;
-    }
-    fclose(fp);
-}
-
-void saveDoctors() {
-    FILE* fp = fopen("doctor_information.txt", "w");
-    if (!fp) return;
-
-    if (doctorList == NULL) { fclose(fp); return; }
-
-    Doctor* p = doctorList->next;
-    while (p) {
-        char pwd[50] = "123456";
-        char idStr[20];
-        sprintf(idStr, "%d", p->id);
-
-        Staff* s = staffHead->next;
-        while (s) {
-            if (strcmp(s->id, idStr) == 0) {
-                strcpy(pwd, s->password);
-                break;
-            }
-            s = s->next;
-        }
-        fprintf(fp, "%d,%s,%s,%s,%s,%s\n", p->id, pwd, p->name, p->department, p->title, p->sex);
-        p = p->next;
-    }
-    fclose(fp);
-}
-
-
-// =========================================================================
-// 4. 管理员数据读写 (转移自 admin.c)
+// 4. 管理员数据读写 
 // =========================================================================
 void loadAdminData(void) {
     FILE* fp = fopen("admin.txt", "r");
@@ -367,8 +304,6 @@ void saveAdminData(void) {
 // 5. 排班与流水读写 
 // =========================================================================
 
-// 从文件加载排班
-//---------------------------------------------------------
 void loadSchedules() {
     FILE* fp = fopen("schedules.txt", "r");
     if (!fp) return;

@@ -9,7 +9,7 @@
 #include "fileio.h"
 
 // 密码输入：显示 *
-void safeprintPassword(char pwd[], int maxLen) {
+/*void safeprintPassword(char pwd[], int maxLen) {
     int i = 0;
     char ch;
     while (1) {
@@ -31,29 +31,26 @@ void safeprintPassword(char pwd[], int maxLen) {
     pwd[i] = '\0';
     printf("\n");
 }
-
+*/
 
 void safeGetString(char* buffer, int size) {
-    int i;
-
     if (fgets(buffer, size, stdin) != NULL) {
-        if (strchr(buffer, '\n') == NULL) {
+        size_t len = strlen(buffer);
+        if (len > 0 && buffer[len - 1] == '\n') {
+            buffer[len - 1] = '\0';
+        }
+        else {
             int c;
             while ((c = getchar()) != '\n' && c != EOF);
         }
-        else {
-            buffer[strcspn(buffer, "\n")] = '\0';
-        }
-
-        for (i = 0; buffer[i] != '\0'; i++) {
-            if (buffer[i] == ' ') {
-                buffer[i] = '_';
-            }
+        // 【核心修复】：不仅要处理空格，还必须消灭英文逗号！
+        for (int i = 0; buffer[i] != '\0'; i++) {
+            if (buffer[i] == ' ') buffer[i] = '_';  // 空格转下划线
+            if (buffer[i] == ',') buffer[i] = '，'; // 英文逗号强制转为中文逗号
         }
     }
     else {
         buffer[0] = '\0';
-        clearerr(stdin);
     }
 }
 

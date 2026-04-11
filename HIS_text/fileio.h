@@ -12,9 +12,6 @@ void saveDrugs();
 void loadDrugHistory();
 void saveDrugHistory();
 
-// 3. 医生档案读写 
-void loadDoctors();
-void saveDoctors();
 
 // 4. 管理员数据读写 
 void loadAdminData();

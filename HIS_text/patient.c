@@ -185,27 +185,26 @@ void bookAppointment(const char* currentPatientId) {
             }
         }
 
-        for (Schedule* s = scheduleList; s != NULL; s = s->next) {
+        for (Schedule* s = scheduleList->next; s != NULL; s = s->next) {
             if (strcmp(s->date, today) < 0 || strcmp(s->date, nextWeek) > 0) continue;
 
-            Doctor* matchedDoc = NULL;
-            for (Doctor* d = doctorList; d != NULL; d = d->next) {
-                if (d->id == s->doctor_id) { matchedDoc = d; break; }
+            Staff* matchedDoc = NULL;
+            for (Staff* d = staffHead->next; d != NULL; d = d->next) {
+                // 【修改点】：直接字符串比对
+                if (strcmp(d->id, s->doctor_id) == 0) { matchedDoc = d; break; }
             }
             if (!matchedDoc) continue;
 
             int match = 0;
-            if (choice == 1 && strcmp(matchedDoc->department, keyword) == 0) match = 1; // 修正为精准匹配
+            if (choice == 1 && strcmp(matchedDoc->department, keyword) == 0) match = 1;
             if (choice == 2) {
-                char docIdStr[20];
-                sprintf(docIdStr, "%d", matchedDoc->id);
-                if (strstr(matchedDoc->name, keyword) || strcmp(docIdStr, keyword) == 0) match = 1;
+                if (strstr(matchedDoc->name, keyword) || strcmp(matchedDoc->id, keyword) == 0) match = 1;
             }
 
             if (match && strcmp(s->shift, "休息") != 0) {
                 char docDisp[50];
-                sprintf(docDisp, "%s(%d)", matchedDoc->name, matchedDoc->id);
-                printf(" [%-6d] | %-12s | %-8s | %-16s | %-10s | %-10s\n", s->schedule_id, s->date, s->shift, docDisp, matchedDoc->department, matchedDoc->title);
+                sprintf(docDisp, "%s(%s)", matchedDoc->name, matchedDoc->id);
+                printf(" [%-6d] | %-12s | %-8s | %-16s | %-10s | %-10s\n", s->schedule_id, s->date, s->shift, docDisp, matchedDoc->department, matchedDoc->level);
                 found++;
             }
         }
@@ -218,19 +217,20 @@ void bookAppointment(const char* currentPatientId) {
         if (targetSchId == 0) continue;
 
         Schedule* targetSch = NULL;
-        for (Schedule* s = scheduleList; s != NULL; s = s->next) {
+        for (Schedule* s = scheduleList->next; s != NULL; s = s->next) {
             if (s->schedule_id == targetSchId) { targetSch = s; break; }
         }
         if (!targetSch) { printf("  [!] 参数越界：排班ID不属于有效集合。\n"); system("pause"); continue; }
 
-        Doctor* targetDoc = NULL;
-        for (Doctor* d = doctorList; d != NULL; d = d->next) {
-            if (d->id == targetSch->doctor_id) { targetDoc = d; break; }
+        Staff* targetDoc = NULL;
+        for (Staff* d = staffHead->next; d != NULL; d = d->next) {
+            // 【修改点】：直接字符串比对
+            if (strcmp(d->id, targetSch->doctor_id) == 0) { targetDoc = d; break; }
         }
         if (!targetDoc) { printf("  [!] 底层数据异常：医生档案关联引用失败。\n"); system("pause"); continue; }
 
         char staffIdStr[20];
-        sprintf(staffIdStr, "D%d", targetDoc->id);
+        sprintf(staffIdStr, "D%s", targetDoc->id);
 
         int patientDailyActive = 0, patientDeptDailyActive = 0, sameDocSameDay = 0, docDailyCount = 0, hospitalDailyCount = 0;
 
@@ -241,9 +241,9 @@ void bookAppointment(const char* currentPatientId) {
 
                 if (strcmp(rec->patientId, currentPatientId) == 0 && rec->isPaid != 2) {
                     patientDailyActive++;
-                    for (Doctor* recDoc = doctorList; recDoc != NULL; recDoc = recDoc->next) {
+                    for (Staff* recDoc = staffHead->next; recDoc != NULL; recDoc = recDoc->next) {
                         char tempDId[20];
-                        sprintf(tempDId, "D%d", recDoc->id);
+                        sprintf(tempDId, "D%s", recDoc->id);
                         if (strcmp(tempDId, rec->staffId) == 0) {
                             if (strcmp(recDoc->department, targetDoc->department) == 0) patientDeptDailyActive++;
                             if (strcmp(tempDId, staffIdStr) == 0) sameDocSameDay = 1;
@@ -265,17 +265,20 @@ void bookAppointment(const char* currentPatientId) {
             printf("  >>> 调度系统为您推荐以下相似接诊资源 <<<\n");
 
             printf("\n  [分支一：该医师的其他接诊时段]\n");
-            for (Schedule* altS = scheduleList; altS != NULL; altS = altS->next) {
-                if (altS->doctor_id == targetDoc->id && strcmp(altS->date, targetSch->date) != 0 && strcmp(altS->shift, "休息") != 0 && strcmp(altS->date, today) >= 0 && strcmp(altS->date, nextWeek) <= 0) {
+            for (Schedule* altS = scheduleList->next; altS != NULL; altS = altS->next) {
+                // 【修改点】：直接字符串比对
+                if (strcmp(altS->doctor_id, targetDoc->id) == 0 && strcmp(altS->date, targetSch->date) != 0 && strcmp(altS->shift, "休息") != 0 && strcmp(altS->date, today) >= 0 && strcmp(altS->date, nextWeek) <= 0) {
                     printf("    -> 资源索引 [%d] 日期: %s 班次: %s\n", altS->schedule_id, altS->date, altS->shift); recCount++;
                 }
             }
 
             printf("\n  [分支二：同日同科室的出诊医师]\n");
-            for (Schedule* altS = scheduleList; altS != NULL; altS = altS->next) {
-                if (strcmp(altS->date, targetSch->date) == 0 && altS->doctor_id != targetDoc->id && strcmp(altS->shift, "休息") != 0) {
-                    for (Doctor* altD = doctorList; altD != NULL; altD = altD->next) {
-                        if (altD->id == altS->doctor_id && strcmp(altD->department, targetDoc->department) == 0) {
+            for (Schedule* altS = scheduleList->next; altS != NULL; altS = altS->next) {
+                // 【修改点】：直接字符串比对
+                if (strcmp(altS->date, targetSch->date) == 0 && strcmp(altS->doctor_id, targetDoc->id) != 0 && strcmp(altS->shift, "休息") != 0) {
+                    for (Staff* altD = staffHead->next; altD != NULL; altD = altD->next) {
+                        // 【修改点】：直接字符串比对
+                        if (strcmp(altD->id, altS->doctor_id) == 0 && strcmp(altD->department, targetDoc->department) == 0) {
                             printf("    -> 资源索引 [%d] 医生: %s 班次: %s\n", altS->schedule_id, altD->name, altS->shift);
                             recCount++; break;
                         }
@@ -287,7 +290,7 @@ void bookAppointment(const char* currentPatientId) {
         }
 
         int seqNum = docDailyCount + 1;
-        double regFee = strstr(targetDoc->title, "主任") != NULL ? 50.0 : 15.0;
+        double regFee = strstr(targetDoc->level, "主任") != NULL ? 50.0 : 15.0;
 
         Record* newRecord = (Record*)malloc(sizeof(Record));
         sprintf(newRecord->recordId, "REG2025%04d", maxRegId + 1);

@@ -1,23 +1,25 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include "schedule.h"
-#include "doctor.h"
+#include "models.h" 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "time_t.h"
 #include "fileio.h"
-#include "utils.h" // 【核心】引入安全工具库
+#include "utils.h"
 
 Schedule* scheduleList;
 
 //---------------------------------------------------------
 // 删除医生排班，当医生被删除时调用
 //---------------------------------------------------------
-void deleteScheduleByDoctorId(int doctorId) {
+// 【修改点】：参数改为 const char* doctorId
+void deleteScheduleByDoctorId(const char* doctorId) {
     Schedule* prev = NULL;
     Schedule* curr = scheduleList->next;
     while (curr != NULL) {
-        if (curr->doctor_id == doctorId) {
+        // 【修改点】：使用 strcmp 比较字符串
+        if (strcmp(curr->doctor_id, doctorId) == 0) {
             Schedule* temp = curr;
             if (prev == NULL) {
                 scheduleList->next = curr->next;
@@ -39,10 +41,12 @@ void deleteScheduleByDoctorId(int doctorId) {
 //--------------------------------------------------------------
 // 检查排班是否冲突
 //--------------------------------------------------------------
-static int checkConflict(int doctor_id, char* date) {
+// 【修改点】：doctor_id 改为 const char*
+static int checkConflict(const char* doctor_id, char* date) {
     Schedule* s = scheduleList->next;
     while (s) {
-        if (s->doctor_id == doctor_id && strcmp(s->date, date) == 0) return 1;
+        // 【修改点】：使用 strcmp
+        if (strcmp(s->doctor_id, doctor_id) == 0 && strcmp(s->date, date) == 0) return 1;
         s = s->next;
     }
     return 0;
@@ -69,11 +73,12 @@ static void viewSchedule() {
     int found = 0;
     while (s) {
         if (strcmp(s->date, start) >= 0 && strcmp(s->date, end) <= 0) {
-            Doctor* d = doctorList->next;
+            Staff* d = staffHead->next;
             char docName[50] = "未知";
             char docDept[30] = "未知";
             while (d) {
-                if (d->id == s->doctor_id) {
+                // 【修改点】：字符串匹配
+                if (strcmp(d->id, s->doctor_id) == 0) {
                     strcpy(docName, d->name);
                     strcpy(docDept, d->department);
                     break;
@@ -93,22 +98,22 @@ static void viewSchedule() {
 // 添加排班
 //-------------------------------------------------------------------------------
 static void addSchedule() {
-    int doc_id;
+    char doc_id[20]; // 【修改点】：改为字符串数组
     char date[20], shift[20];
 
     printf("请输入要排班的医生ID (输入0取消): ");
-    doc_id = safeGetPositiveInt();
-    if (doc_id == 0) return;
+    safeGetString(doc_id, 20); // 【修改点】：使用安全字符串读取
+    if (strcmp(doc_id, "0") == 0) return;
 
     // 校验医生是否存在
-    Doctor* d = doctorList->next;
+    Staff* d = staffHead->next;
     int exists = 0;
     while (d) {
-        if (d->id == doc_id) { exists = 1; break; }
+        if (strcmp(d->id, doc_id) == 0) { exists = 1; break; }
         d = d->next;
     }
     if (!exists) {
-        printf("  [!] 错误：医生ID [%d] 在系统中不存在！\n", doc_id);
+        printf("  [!] 错误：医生ID [%s] 在系统中不存在！\n", doc_id);
         system("pause");
         return;
     }
@@ -122,7 +127,6 @@ static void addSchedule() {
         return;
     }
 
-    // 【修改点】：强制校验班次输入
     while (1) {
         printf("请输入班次 (早班/晚班/休息): ");
         safeGetString(shift, 20);
@@ -141,12 +145,11 @@ static void addSchedule() {
     }
 
     node->schedule_id = max_id + 1;
-    node->doctor_id = doc_id;
+    strcpy(node->doctor_id, doc_id); // 【修改点】：使用 strcpy 赋值
     strcpy(node->date, date);
     strcpy(node->shift, shift);
     node->next = NULL;
 
-    // 挂载到链表尾部
     Schedule* p = scheduleList;
     while (p->next) p = p->next;
     p->next = node;
@@ -194,19 +197,19 @@ static void modifySchedule() {
     while (p) {
         if (p->schedule_id == sid) {
             printf("\n--- 原始排班信息 ---\n");
-            printf("医生ID: %d | 日期: %s | 班次: %s\n", p->doctor_id, p->date, p->shift);
+            printf("医生ID: %s | 日期: %s | 班次: %s\n", p->doctor_id, p->date, p->shift); // 【修改点】%d 改 %s
             printf("--------------------\n");
 
-            int new_id;
+            char new_id[20]; // 【修改点】
             char new_date[20], new_shift[20];
 
             printf("请输入新的医生ID: ");
             while (1) {
-                new_id = safeGetPositiveInt();
-                Doctor* doc = doctorList->next;
+                safeGetString(new_id, 20); // 【修改点】
+                Staff* doc = staffHead->next;
                 int doc_exist = 0;
                 while (doc) {
-                    if (doc->id == new_id) { doc_exist = 1; break; }
+                    if (strcmp(doc->id, new_id) == 0) { doc_exist = 1; break; } // 【修改点】
                     doc = doc->next;
                 }
                 if (doc_exist) break;
@@ -216,11 +219,10 @@ static void modifySchedule() {
             printf("请输入新的日期 (YYYY-MM-DD): ");
             judgetime(new_date);
 
-            // 排班冲突检查（排除当前正在修改的这一条）
             int conflict = 0;
             Schedule* s_check = scheduleList->next;
             while (s_check) {
-                if (s_check != p && s_check->doctor_id == new_id && strcmp(s_check->date, new_date) == 0) {
+                if (s_check != p && strcmp(s_check->doctor_id, new_id) == 0 && strcmp(s_check->date, new_date) == 0) {
                     conflict = 1; break;
                 }
                 s_check = s_check->next;
@@ -240,8 +242,7 @@ static void modifySchedule() {
                 printf("  [!] 输入无效，请重新输入正确的班次名称。\n");
             }
 
-            // 应用修改
-            p->doctor_id = new_id;
+            strcpy(p->doctor_id, new_id); // 【修改点】
             strcpy(p->date, new_date);
             strcpy(p->shift, new_shift);
 
@@ -272,7 +273,6 @@ void scheduleMenu() {
         printf("----------------------------------------------\n");
         printf("  请选择业务: ");
 
-        // 【核心点】：使用 safeGetInt 并强制循环拦截
         while (1) {
             choice = safeGetInt();
             if (choice >= 0 && choice <= 4) break;

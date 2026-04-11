@@ -18,12 +18,14 @@ typedef struct Patient {
     struct Patient* next;
 } Patient, * PatientList;
 
+// 【修改点】：统一使用 Staff 结构体管理所有医生与职工
 typedef struct Staff {
     char id[20];
     char password[50];
     char name[100];
     char department[100];
-    char level[100];
+    char level[100]; // 对应医生的“职称”
+    char sex[10];    // 【新增】性别字段
     struct Staff* next;
 } Staff, * StaffList;
 
@@ -49,17 +51,15 @@ typedef struct Record {
 } Record, * RecordList;
 
 typedef struct Bed {
-    char bedId[20];         // 【修改】病房号-床位号 (如 1-3)
-    int isOccupied;         // 0:空闲 1:占用
+    char bedId[20];
+    int isOccupied;
     char patientId[20];
     char wardType[50];
     char bedType[50];
     double price;
-    int isRoundsDone;       // 【新增】当日是否已查房 (0:未查, 1:已查)
+    int isRoundsDone;
     struct Bed* next;
 } Bed, * BedList;
-
-
 
 extern PatientList patientHead;
 extern StaffList staffHead;
