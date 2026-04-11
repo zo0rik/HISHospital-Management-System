@@ -9,71 +9,105 @@
 #include "schedule.h"
 #include "transaction.h"
 #include "utils.h"
-#include "fileio.h"
 
 Admin admin;
 
+// ---------------------------------------------------------
+// 读取高管配置数据
+// ---------------------------------------------------------
+void loadAdminData(void) {
+    FILE* fp = fopen("admin.txt", "r");
+    if (!fp) return;
+    char line[256];
+    while (fgets(line, sizeof(line), fp)) {
+        line[strcspn(line, "\n")] = 0;
+        char* token = strtok(line, ",");
+        if (token) strcpy(admin.username, token); else admin.username[0] = '\0';
+        token = strtok(NULL, ",");
+        if (token) strcpy(admin.password, token); else admin.password[0] = '\0';
+        token = strtok(NULL, ",");
+        if (token) strcpy(admin.phone, token); else admin.phone[0] = '\0';
+        token = strtok(NULL, ",");
+        if (token) strcpy(admin.email, token); else admin.email[0] = '\0';
+    }
+    fclose(fp);
+}
+
+// ---------------------------------------------------------
+// 保存高管配置数据
+// ---------------------------------------------------------
+void saveAdminData(void) {
+    FILE* fp = fopen("admin.txt", "w");
+    fprintf(fp, "%s,%s,%s,%s\n", admin.username, admin.password, admin.phone, admin.email);
+    fclose(fp);
+}
+
+// ---------------------------------------------------------
+// 修改密码模块
+// ---------------------------------------------------------
 void changePassword(void) {
-    char old[50] = { '\0' }, new1[50] = { '\0' }, new2[50] = { '\0' };
-    printf("请输入旧密码 (输入0取消): "); safeGetString(old, 50);
-    if (strcmp(old, "0") == 0) return;
-    if (strcmp(old, admin.password) != 0) { printf("  [!] 旧密码错误！\n"); system("pause"); return; }
-
-    printf("请输入新密码 (仅限字母或数字): "); safeGetPassword(new1, 50);
-    if (strcmp(new1, "0") == 0) return;
-
-    printf("请确认新密码: "); safeGetString(new2, 50);
-    if (strcmp(new1, new2) != 0) { printf("  [!] 两次输入不一致！\n"); system("pause"); return; }
-
+    char old[20] = { '\0' }, new1[20] = { '\0' }, new2[20] = { '\0' };
+    printf("请输入旧密码: "); safeGetPassword(old, 20);
+    if (old[19] != '\0' || strcmp(old, admin.password) != 0) { printf("旧密码错误！\n"); return; }
+    printf("请输入新密码: "); safeGetPassword(new1, 20);
+    if (strcmp(old, new1) == 0) { printf("新密码不能与旧密码相同！\n"); return; }
+    if (new1[19] != '\0' || strlen(new1) == 0) { printf("新密码格式错误！\n"); return; }
+    printf("请确认新密码: "); safeGetPassword(new2, 20);
+    if (new2[19] != '\0' || strcmp(new1, new2) != 0) { printf("两次输入不一致！\n"); return; }
     strcpy(admin.password, new1);
-    printf("  [√] 密码修改成功！\n");
+    printf("密码修改成功！\n");
     saveAdminData();
-    system("pause");
 }
 
+// ---------------------------------------------------------
+// 修改联系方式模块
+// ---------------------------------------------------------
 void editPersonalInfo(void) {
-    printf("\n当前信息：\n用户名: %s\n手机号: %s\n邮箱: %s\n", admin.username, admin.phone, admin.email);
+    while (getchar() != '\n'); // 清空输入缓冲区
+    printf("当前信息：\n用户名: %s\n手机号: %s\n邮箱: %s\n", admin.username, admin.phone, admin.email);
 
-    char buffer[100];
+    printf("请输入新用户名（直接回车保留原值）: ");
+    char newUsername[20];
+    fgets(newUsername, sizeof(newUsername), stdin);
+    newUsername[strcspn(newUsername, "\n")] = '\0'; // 去除末尾换行	
+    if (newUsername[0] != '\0') { strcpy(admin.username, newUsername); }
 
-    printf("\n请输入新用户名 (直接输入0保留原值): ");
-    safeGetString(buffer, 50);
-    if (strcmp(buffer, "0") != 0 && strlen(buffer) > 0) strcpy(admin.username, buffer);
+    printf("请输入新手机号（直接回车保留原值）: ");
+    char newPhone[12];
+    fgets(newPhone, sizeof(newPhone), stdin);
+    newPhone[strcspn(newPhone, "\n")] = '\0';
+    if (newPhone[0] != '\0') { strcpy(admin.phone, newPhone); }
 
-    printf("请输入新手机号 (直接输入0保留原值): ");
-    safeGetString(buffer, 20);
-    if (strcmp(buffer, "0") != 0 && strlen(buffer) > 0) strcpy(admin.phone, buffer);
+    printf("请输入新邮箱（直接回车保留原值）: ");
+    char newEmail[30];
+    fgets(newEmail, sizeof(newEmail), stdin);
+    newEmail[strcspn(newEmail, "\n")] = '\0';
+    if (newEmail[0] != '\0') { strcpy(admin.email, newEmail); }
 
-    printf("请输入新邮箱 (直接输入0保留原值): ");
-    safeGetString(buffer, 50);
-    if (strcmp(buffer, "0") != 0 && strlen(buffer) > 0) strcpy(admin.email, buffer);
-
-    printf("  [√] 个人信息更新成功！\n");
-    saveAdminData();
-    system("pause");
+    printf("个人信息更新成功！\n");
 }
 
+// ---------------------------------------------------------
+// 管理员个人设置菜单
+// ---------------------------------------------------------
 void personalMenu() {
     int choice;
     do {
-        system("cls");
         printf("\n========== 个人设置 ==========\n");
         printf("1. 修改密码\n2. 个人信息编辑\n0. 返回主菜单\n请选择: ");
-
-        while (1) {
-            choice = safeGetInt();
-            if (choice == 1 || choice == 2 || choice == 0) break;
-            printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n请重新选择: ");
-        }
-
+        if (scanf("%d", &choice) != 1) { while (getchar() != '\n'); choice = -1; }
         switch (choice) {
         case 1: changePassword(); break;
         case 2: editPersonalInfo(); break;
         case 0: break;
+        default: printf("无效选项。\n");
         }
     } while (choice != 0);
 }
 
+// ---------------------------------------------------------
+// 管理端核心总路由 (完全按照流程图定制，只做跳转，不涉加载)
+// ---------------------------------------------------------
 void adminMenu(void) {
     int choice;
     do {
@@ -90,29 +124,31 @@ void adminMenu(void) {
         printf("-----------------------------------------\n");
         printf("请下达管理指令: ");
 
-        while (1) {
-            choice = safeGetInt();
-            if (choice >= 0 && choice <= 5) break;
-            printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n请重新下达管理指令: ");
+        if (scanf("%d", &choice) != 1) {
+            while (getchar() != '\n');
+            choice = -1;
         }
 
         switch (choice) {
         case 1: drugMenu(); break;
         case 2: decisionMenu(); break;
         case 3:
-            printf("\n-- 医生与排班管理 --\n1. 医生信息管理\n2. 门诊排班管理\n0. 取消返回\n选择: ");
+            // 医生与排班管理的二级菜单
+            printf("\n-- 医生与排班管理 --\n1. 医生信息管理\n2. 门诊排班管理\n选择: ");
             int sub;
-            while (1) {
-                sub = safeGetInt();
-                if (sub == 1 || sub == 2 || sub == 0) break;
-                printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n请重新选择: ");
+            if (scanf("%d", &sub) == 1) {
+                if (sub == 1) doctorMenu();
+                else if (sub == 2) scheduleMenu();
             }
-            if (sub == 1) doctorMenu();
-            else if (sub == 2) scheduleMenu();
+            else {
+                while (getchar() != '\n');
+                printf("无效选择。\n");
+            }
             break;
         case 4: reportMenu(); break;
         case 5: personalMenu(); break;
         case 0: break;
+        default: printf("无效指令。\n"); system("pause"); break;
         }
     } while (choice != 0);
 }

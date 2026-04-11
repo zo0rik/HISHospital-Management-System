@@ -7,7 +7,6 @@
 #include <time.h>
 #include "transaction.h"
 #include "time_t.h"
-#include "utils.h" // 【新增】引入安全输入工具库
 
 // ---------------------------------------------------------
 // 业务一：基于历史数据人员异常与风险预测模型
@@ -132,7 +131,6 @@ static void personnelPrediction() {
     }
     personnelReportList->next = NULL;
 }
-
 // ---------------------------------------------------------
 // 业务二：分拣仓库效率监控与异常处理策略
 // ---------------------------------------------------------
@@ -165,7 +163,7 @@ static void warehouseStrategy() {
     }
 
     // 计算单品平均出库周转率
-    double avg_out = (double)total_out / drug_count;
+    float avg_out = (float)total_out / drug_count;
     printf("全院药品单品平均出库流转量：%.2f\n", avg_out);
 
     // 根据流转阈值分级给出 AI 决策策略
@@ -221,8 +219,6 @@ static void drugProportionAdvice() {
             if (h->drug_id == p->id && h->type == 2) out_qty += h->quantity;
             h = h->next;
         }
-        /* 修复Bug：加越界检查，防止药品数量超过100时数组越界写入 */
-        if (count >= 100) { printf("  [!] 药品种类超过统计上限(100)，部分数据已截断。\n"); break; }
         strcpy(stats[count].name, p->name);
         stats[count].total_out = out_qty;
         stats[count].stock = p->stock;
@@ -243,7 +239,7 @@ static void drugProportionAdvice() {
     printf("%-20s %-10s %-10s %-15s\n", "药品名称", "累计消耗", "消耗占率", "当前库存");
 
     for (int i = 0; i < count; i++) {
-        double ratio = (double)stats[i].total_out / total_out * 100; // 消耗占率百分比
+        float ratio = (float)stats[i].total_out / total_out * 100; // 消耗占率百分比
         printf("%-20s %-10d %-10.2f%% %-15d ", stats[i].name, stats[i].total_out, ratio, stats[i].stock);
 
         // AI 策略判定阈值
@@ -270,7 +266,6 @@ static void drugProportionAdvice() {
 void decisionMenu() {
     int choice;
     do {
-        system("cls"); // 清屏，保证界面整洁
         printf("\n========== 智能辅助决策控制台 ==========\n");
         printf("1. 人事效能与异常预测\n");
         printf("2. 分拣与药房负载分析\n");
@@ -278,35 +273,21 @@ void decisionMenu() {
         printf("4. 一键执行全景分析\n");
         printf("0. 返回高管主菜单\n");
         printf("请选择功能: ");
-
-        // 【修改点】：全局替换为安全输入死循环拦截
-        while (1) {
-            choice = safeGetInt();
-            if (choice >= 0 && choice <= 4) break;
-            printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n请重新选择功能: ");
+        if (scanf("%d", &choice) != 1) {
+            choice = -1;
+            while (getchar() != '\n');
         }
-
         switch (choice) {
-        case 1:
-            personnelPrediction();
-            system("pause"); // 添加暂停，防止内容一闪而过
-            break;
-        case 2:
-            warehouseStrategy();
-            system("pause");
-            break;
-        case 3:
-            drugProportionAdvice();
-            system("pause");
-            break;
+        case 1: personnelPrediction(); break;
+        case 2: warehouseStrategy(); break;
+        case 3: drugProportionAdvice(); break;
         case 4:
             personnelPrediction();
             warehouseStrategy();
             drugProportionAdvice();
-            system("pause");
             break;
-        case 0:
-            break;
+        case 0: break;
+        default: printf("无效选项。\n");
         }
     } while (choice != 0);
 }

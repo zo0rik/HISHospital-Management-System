@@ -8,7 +8,7 @@
 #include "fileio.h"
 
 // 密码输入：显示 *
-/*void safeprintPassword(char pwd[], int maxLen) {
+void safeprintPassword(char pwd[], int maxLen) {
     int i = 0;
     char ch;
     while (1) {
@@ -30,7 +30,6 @@
     pwd[i] = '\0';
     printf("\n");
 }
-*/
 
 void safeGetString(char* buffer, int size) {
     if (fgets(buffer, size, stdin) != NULL) {
