@@ -11,9 +11,9 @@
 
 // ---------------------------------------------------------
 // 全局状态缓冲：接诊会话保持
-// ---------------------------------------------------------
 // 缓存当前正在接诊的患者ID。通过建立全局上下文，后续的开具处方、
 // 录入病历、开具检查单等业务均可自动映射该患者，极大提升了系统的交互效率。
+// ---------------------------------------------------------
 char currentCallingPatientId[20] = "";
 
 // ---------------------------------------------------------
@@ -73,7 +73,7 @@ void callPatient(const char* docId) {
     char* targetDate = availableDates[dChoice - 1];
 
     // 3. 渲染当日候诊患者视图 (采用固定宽度占位符确保格式化输出绝对对齐)
-    printf("\n========== [%s] 候诊大厅鱼骨图 ==========\n", targetDate);
+    printf("\n========== [%s] 候诊大厅 ==========\n", targetDate);
     printf(" %-8s | %-14s | %-12s | %-12s | %-10s\n", "系统位次", "挂号流转凭证", "患者全局ID", "档案署名", "当前生命周期");
     printf("------------------------------------------------------------------------\n");
     int count = 0; Record* r = recordHead->next;
@@ -124,7 +124,7 @@ void callPatient(const char* docId) {
             }
             r = r->next;
         }
-        if (!found) printf("  [提示] 您的鱼骨图上已无任何存活且已缴费的排队病患！\n");
+        if (!found) printf("  [提示] 您当日的预约病人已全部接诊完毕！\n");
     }
 }
 
@@ -161,13 +161,13 @@ void diagnoseAndTest(const char* docId) {
     printf("  [√] 核心看诊数据入库封存。\n");
 
     // 辅助检验项目关联模块
-    printf("\n  需延伸生化/影像仪器的辅助验证吗？(1.开单 0.放弃): ");
+    printf("\n  需延伸生化/影像仪器的辅助检查吗？(1.开单 0.放弃): ");
 
     // 严格的安全整型转换输入，阻断无效字母干扰
     if (safeGetInt() == 1) {
         char testName[50];
         while (1) { printf("  指令项目全称(如颅脑CT): "); safeGetString(testName, 50); if (strlen(testName) > 0) break; }
-        printf("  该物料使用耗损费定价: ");
+        printf("  该项目检测费定价: ");
         double tCost = safeGetDouble();
 
         // 生成 Type 4 检查单流转记录
@@ -187,7 +187,7 @@ void diagnoseAndTest(const char* docId) {
 void prescribeMedicine(const char* docId) {
     char pId[20];
     if (strlen(currentCallingPatientId) > 0) { strcpy(pId, currentCallingPatientId); printf("\n  [自动挂载处方对象]: %s\n", pId); }
-    else { printf("\n  请输入孤立患者ID (0终止): "); safeGetString(pId, 20); if (strcmp(pId, "0") == 0) return; }
+    else { printf("\n  请输入当前接诊患者ID (0终止): "); safeGetString(pId, 20); if (strcmp(pId, "0") == 0) return; }
 
     while (1) {
         char key[50];
@@ -198,7 +198,7 @@ void prescribeMedicine(const char* docId) {
         // 实现了对全院大药房真实物理库存的实时镜像检索与后续扣除，消除数据冗余孤岛。
         Drug* d = drugList; Drug* matched[100] = { NULL }; int mCount = 0;
 
-        printf("\n  ========== 药品中央储备池 镜像匹配 ==========\n");
+        printf("\n  ========== 药品储备库 ==========\n");
         printf("  %-4s | %-8s | %-16s | %-8s | %-8s\n", "映射", "系统内码", "国家标准药名", "单价", "物理库存");
         printf("-----------------------------------------------------------\n");
 
@@ -216,7 +216,7 @@ void prescribeMedicine(const char* docId) {
             d = d->next;
         }
 
-        if (mCount == 0) { printf("  [!] 检索库穿透，查无此药，请换词再试。\n"); continue; }
+        if (mCount == 0) { printf("  [!] 检索库中查无此药，请换词再试。\n"); continue; }
 
         char mChoiceStr[50];
         printf("-----------------------------------------------------------\n");
@@ -236,8 +236,8 @@ void prescribeMedicine(const char* docId) {
             qty = safeGetPositiveInt(); // 提供正整数过滤保护
 
             // 业务复合约束：行政处方限制与当前物理库存双重拦截网
-            if (qty > 10) { printf("  [越权预警] 卫健委指令：处方药单次过载(超10盒)！打回重填。\n"); }
-            else if (qty > selectedMed->stock) { printf("  [缺货熔断] 中央仓库存穿透！当前最高只能开: %d 盒\n", selectedMed->stock); }
+            if (qty > 10) { printf("  [越权预警] 系统默认指令：处方药单次过载(超10盒)！打回重填。\n"); }
+            else if (qty > selectedMed->stock) { printf("  [缺货熔断] 中央仓库存不足！当前最高只能开: %d 盒\n", selectedMed->stock); }
             else { break; }
         }
 

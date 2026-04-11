@@ -503,11 +503,11 @@ void medicalRecords(const char* currentPatientId) {
     while (1) {
         system("cls");
         printf("\n========== 个人医疗时序档案检索平台 ==========\n");
-        printf("  [1] ① 调取门诊与排号时序表\n");
+        printf("  [1] ① 调取门诊与排号记录表\n");
         printf("  [2] ② 调取临床诊疗与医嘱报告\n");
-        printf("  [3] ③ 调取门诊处方与耗材划扣清单\n");
+        printf("  [3] ③ 调取门诊处方扣费清单\n");
         printf("  [4] ④ 调取辅助生化与影像开单记录\n");
-        printf("  [5] ⑤ 进入住院生命周期数据沙盘\n");
+        printf("  [5] ⑤ 调取住院与押金账单记录\n");
         printf("  [6] 汇总终身财务进出流水总账\n");
         printf("  [0] 退出检索平台\n");
         printf("----------------------------------------\n");
