@@ -8,7 +8,7 @@ typedef struct Drug {
     int id;
     char name[50];
     int stock;
-    double price;    // 修复：float精度不足，改为double
+    double price;
     char batch[30];
     char expiry[30];
     char last_in[30];
@@ -18,9 +18,9 @@ typedef struct Drug {
 
 typedef struct DrugHistory {
     int drug_id;
-    int type;           
+    int type;
     int quantity;
-    char time[15];
+    char time[30];  /* 【修复】原time[15]不够放"YYYY-MM-DD_HH:MM:SS"(20字节)，改为30 */
     struct DrugHistory* next;
 } DrugHistory;
 
@@ -31,4 +31,3 @@ void drugMenu(void);
 void initDrugList();
 
 #endif
-

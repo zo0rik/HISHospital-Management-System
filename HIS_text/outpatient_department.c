@@ -16,9 +16,6 @@
 // ---------------------------------------------------------
 char currentCallingPatientId[20] = "";
 
-// ---------------------------------------------------------
-// 内部工具：动态主键生成器 (持久化防冲突版)
-// ---------------------------------------------------------
 void generateRecordID(char* buffer) {
     int maxId = 1999;
     Record* r = recordHead->next;
@@ -89,9 +86,16 @@ void callPatient(const char* docId) {
             else if (r->isPaid == 1) strcpy(status, "[活跃]候诊");
             else strcpy(status, "[完结]离室");
 
-            // 通过字符串正则匹配，逆向提取当时挂号写入的排队序列号
-            int seqNum = 0; char* seqPtr = strstr(r->description, "排号:");
-            if (seqPtr) sscanf(seqPtr, "排号:%d", &seqNum);
+            /* 【修复】兼容"排号:"和"队列号:"两种格式 */
+            int seqNum = 0;
+            char* seqPtr = strstr(r->description, "排号:");
+            if (!seqPtr) seqPtr = strstr(r->description, "队列号:");
+            if (seqPtr) {
+                if (strncmp(seqPtr, "排号:", strlen("排号:")) == 0)
+                    sscanf(seqPtr, "排号:%d", &seqNum);
+                else
+                    sscanf(seqPtr, "队列号:%d", &seqNum);
+            }
 
             printf("  %-7d | %-14s | %-12s | %-12s | %-10s\n", seqNum, r->recordId, r->patientId, pName, status);
             count++;
@@ -106,7 +110,6 @@ void callPatient(const char* docId) {
     if (safeGetInt() == 1) {
         r = recordHead->next; int found = 0;
         while (r) {
-            // 业务状态机逻辑校验：严格过滤未缴费患者，仅提取状态为已缴款(1)且未接诊的数据
             if (strcmp(r->staffId, docId) == 0 && r->type == 1 && r->isPaid == 1 && strstr(r->description, targetDate)) {
                 Patient* p = patientHead->next; char pName[100] = "未知";
                 while (p) { if (strcmp(p->id, r->patientId) == 0) { strcpy(pName, p->name); break; } p = p->next; }
