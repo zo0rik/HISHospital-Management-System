@@ -69,13 +69,13 @@ static void showFinancialReport() {
     double total_outpatient = 0, total_inpatient = 0, total_drug = 0;
 
     while (1) {
-        printf("\n请输入财务统计起始日期 (YYYY-MM-DD, 输入0取消): ");
+        printf("\n请输入财务统计起始日期 (YYYY-MM-DD, 输入-1取消): ");
         judgetime(start);
-        if (strcmp(start, "0") == 0) return;
+        if (strcmp(start, "-1") == 0) return;
 
-        printf("请输入财务统计结束日期 (YYYY-MM-DD, 输入0取消): ");
+        printf("请输入财务统计结束日期 (YYYY-MM-DD, 输入-1取消): ");
         judgetime(end);
-        if (strcmp(end, "0") == 0) return;
+        if (strcmp(end, "-1") == 0) return;
 
         if (strcmp(start, end) > 0) {
             printf("  [!] 逻辑错误：起始日期不能晚于结束日期，请重新输入。\n");
@@ -111,13 +111,13 @@ static void showFinancialReport() {
 static void showPersonnelReport() {
     char start[20], end[20];
     while (1) {
-        printf("\n请输入人事考核起始日期 (YYYY-MM-DD, 输入0取消): ");
+        printf("\n请输入人事考核起始日期 (YYYY-MM-DD, 输入-1取消): ");
         judgetime(start);
-        if (strcmp(start, "0") == 0) return;
+        if (strcmp(start, "-1") == 0) return;
 
-        printf("请输入人事考核结束日期 (YYYY-MM-DD, 输入0取消): ");
+        printf("请输入人事考核结束日期 (YYYY-MM-DD, 输入-1取消): ");
         judgetime(end);
-        if (strcmp(end, "0") == 0) return;
+        if (strcmp(end, "-1") == 0) return;
 
         if (strcmp(start, end) > 0) {
             printf("  [!] 逻辑错误：起始日期不能晚于结束日期，请重新输入。\n");
@@ -169,17 +169,17 @@ static void showBusinessReport() {
         printf("  [2] 仅看住院流水\n");
         printf("  [3] 仅看药品流水\n");
         printf("  [4] 全院业务混合流水\n");
-        printf("  [0] 返回上级菜单\n");
+        printf("  [-1] 返回上级菜单\n");
         printf("------------------------------------------\n");
         printf("  请选择查询类型: ");
 
         while (1) {
             type = safeGetInt();
-            if (type >= 0 && type <= 4) break;
+            if ((type >= 1 && type <= 4) || type == -1) break;
             printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n  请重新选择: ");
         }
 
-        if (type == 0) return;
+        if (type == -1) return;
 
         char start[20], end[20];
         while (1) {
@@ -232,14 +232,14 @@ void reportMenu() {
         printf("  [1] 财务报表 (全院收入分类汇总)\n");
         printf("  [2] 人事报表 (临床医师接诊量考核)\n");
         printf("  [3] 业务报表 (诊疗项目明细流水)\n");
-        printf("  [0] 返回高管控制大厅\n");
+        printf("  [-1] 返回高管控制大厅\n");
         printf("----------------------------------------------\n");
         printf("  请下达提取指令: ");
 
         // 【核心拦截】：使用 safeGetInt 并拦截非法菜单项
         while (1) {
             choice = safeGetInt();
-            if (choice >= 0 && choice <= 3) break;
+            if ((choice >= 1 && choice <= 3) || choice == -1) break;
             printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n  请重新下达指令: ");
         }
 
@@ -247,7 +247,7 @@ void reportMenu() {
         case 1: showFinancialReport(); break;
         case 2: showPersonnelReport(); break;
         case 3: showBusinessReport(); break;
-        case 0: break;
+        case -1: break;
         }
-    } while (choice != 0);
+    } while (choice != -1);
 }

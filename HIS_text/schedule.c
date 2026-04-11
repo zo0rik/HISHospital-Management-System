@@ -57,13 +57,13 @@ static int checkConflict(const char* doctor_id, char* date) {
 //-----------------------------------------------------------------
 static void viewSchedule() {
     char start[20], end[20];
-    printf("请输入开始日期 (YYYY-MM-DD, 输入0取消): ");
+    printf("请输入开始日期 (YYYY-MM-DD, 输入-1取消): ");
     judgetime(start);
-    if (strcmp(start, "0") == 0) return;
+    if (strcmp(start, "-1") == 0) return;
 
-    printf("请输入结束日期 (YYYY-MM-DD, 输入0取消): ");
+    printf("请输入结束日期 (YYYY-MM-DD, 输入-1取消): ");
     judgetime(end);
-    if (strcmp(end, "0") == 0) return;
+    if (strcmp(end, "-1") == 0) return;
 
     printf("\n--- 排班表 (%s 至 %s) ---\n", start, end);
     printf("%-8s | %-12s | %-15s | %-12s | %-10s\n", "排班ID", "日期", "医生姓名", "科室", "班次");
@@ -101,9 +101,9 @@ static void addSchedule() {
     char doc_id[20]; // 【修改点】：改为字符串数组
     char date[20], shift[20];
 
-    printf("请输入要排班的医生ID (输入0取消): ");
+    printf("请输入要排班的医生ID (输入-1取消): ");
     safeGetString(doc_id, 20); // 【修改点】：使用安全字符串读取
-    if (strcmp(doc_id, "0") == 0) return;
+    if (strcmp(doc_id, "-1") == 0) return;
 
     // 校验医生是否存在
     Staff* d = staffHead->next;
@@ -163,9 +163,9 @@ static void addSchedule() {
 // 删除排班
 //-------------------------------------------------------------------------------
 static void deleteSchedule() {
-    printf("请输入要删除的排班ID (输入0取消): ");
+    printf("请输入要删除的排班ID (输入-1取消): ");
     int sid = safeGetPositiveInt();
-    if (sid == 0) return;
+    if (sid == -1) return;
 
     Schedule* prev = scheduleList;
     Schedule* curr = scheduleList->next;
@@ -189,9 +189,9 @@ static void deleteSchedule() {
 // 修改排班
 //-------------------------------------------------------------------------------
 static void modifySchedule() {
-    printf("请输入需调整的排班ID (输入0取消): ");
+    printf("请输入需调整的排班ID (输入-1取消): ");
     int sid = safeGetPositiveInt();
-    if (sid == 0) return;
+    if (sid == -1) return;
 
     Schedule* p = scheduleList->next;
     while (p) {
@@ -269,13 +269,13 @@ void scheduleMenu() {
         printf("  [2] 发布新排班计划\n");
         printf("  [3] 撤回已发布排班\n");
         printf("  [4] 调整现有排班明细\n");
-        printf("  [0] 返回高管业务大厅\n");
+        printf("  [-1] 返回高管业务大厅\n");
         printf("----------------------------------------------\n");
         printf("  请选择业务: ");
 
         while (1) {
             choice = safeGetInt();
-            if (choice >= 0 && choice <= 4) break;
+            if ((choice >= 1 && choice <= 4) || choice == -1) break;
             printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n  请重新选择业务: ");
         }
 
@@ -284,7 +284,7 @@ void scheduleMenu() {
         case 2: addSchedule(); break;
         case 3: deleteSchedule(); break;
         case 4: modifySchedule(); break;
-        case 0: break;
+        case -1: break;
         }
-    } while (choice != 0);
+    } while (choice != -1);
 }

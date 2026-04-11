@@ -7,11 +7,8 @@
 #include <time.h>
 #include "transaction.h"
 #include "time_t.h"
-#include "utils.h" // 【新增】引入安全输入工具库
+#include "utils.h"
 
-// ---------------------------------------------------------
-// 业务一：基于历史数据人员异常与风险预测模型
-// ---------------------------------------------------------
 static void personnelPrediction() {
     printf("\n========== 人员异常预测预警 ==========\n");
     char start[30], currentTime[30];
@@ -133,9 +130,6 @@ static void personnelPrediction() {
     personnelReportList->next = NULL;
 }
 
-// ---------------------------------------------------------
-// 业务二：分拣仓库效率监控与异常处理策略
-// ---------------------------------------------------------
 static void warehouseStrategy() {
     printf("\n========== 药房分拣仓库效能评估 ==========\n");
     if (!(drugList->next)) {
@@ -146,12 +140,10 @@ static void warehouseStrategy() {
     int total_out = 0, drug_count = 0;
     Drug* p = drugList->next;
 
-    // 遍历整个药品字典，统计历史上所有药品的总出库量
     while (p) {
-        drug_count++; // 统计药品品类总数
+        drug_count++;
         int out_qty = 0;
         DrugHistory* h = drugHistoryList->next;
-        // 遍历历史流水寻找匹配的药品出库记录(type=2)
         while (h) {
             if (h->drug_id == p->id && h->type == 2) out_qty += h->quantity;
             h = h->next;
@@ -164,11 +156,9 @@ static void warehouseStrategy() {
         return;
     }
 
-    // 计算单品平均出库周转率
     double avg_out = (double)total_out / drug_count;
     printf("全院药品单品平均出库流转量：%.2f\n", avg_out);
 
-    // 根据流转阈值分级给出 AI 决策策略
     if (avg_out > 100) {
         printf("【诊断】分拣仓库极度繁忙，属于高负载运作，建议：\n");
         printf("  - 增加药房夜班排班或延长自动化设备作业时间\n");
@@ -192,9 +182,6 @@ static void warehouseStrategy() {
     printf("\n");
 }
 
-// ---------------------------------------------------------
-// 业务三：根据历史出库量大数据，提供智能采购及库存配比建议
-// ---------------------------------------------------------
 static void drugProportionAdvice() {
     printf("\n========== 供应链库存配比 AI 优化建议 ==========\n");
     if (!(drugList->next)) {
@@ -202,11 +189,10 @@ static void drugProportionAdvice() {
         return;
     }
 
-    // 建立结构体数组用于对数据进行聚合统计
     typedef struct {
         char name[50];
-        int total_out; // 总消耗
-        int stock;     // 现存量
+        int total_out;
+        int stock;
     } DrugStat;
 
     DrugStat stats[100];
@@ -216,12 +202,10 @@ static void drugProportionAdvice() {
     while (p) {
         int out_qty = 0;
         DrugHistory* h = drugHistoryList->next;
-        // 累加单一药品的出库消耗
         while (h) {
             if (h->drug_id == p->id && h->type == 2) out_qty += h->quantity;
             h = h->next;
         }
-        /* 修复Bug：加越界检查，防止药品数量超过100时数组越界写入 */
         if (count >= 100) { printf("  [!] 药品种类超过统计上限(100)，部分数据已截断。\n"); break; }
         strcpy(stats[count].name, p->name);
         stats[count].total_out = out_qty;
@@ -230,7 +214,6 @@ static void drugProportionAdvice() {
         p = p->next;
     }
 
-    // 汇总大盘总消耗量用于计算占率
     int total_out = 0;
     for (int i = 0; i < count; i++) total_out += stats[i].total_out;
 
@@ -243,10 +226,9 @@ static void drugProportionAdvice() {
     printf("%-20s %-10s %-10s %-15s\n", "药品名称", "累计消耗", "消耗占率", "当前库存");
 
     for (int i = 0; i < count; i++) {
-        double ratio = (double)stats[i].total_out / total_out * 100; // 消耗占率百分比
+        double ratio = (double)stats[i].total_out / total_out * 100;
         printf("%-20s %-10d %-10.2f%% %-15d ", stats[i].name, stats[i].total_out, ratio, stats[i].stock);
 
-        // AI 策略判定阈值
         if (stats[i].stock < stats[i].total_out * 0.5) {
             printf("【高危短缺】应紧急采购补充，建议将常态占率拉升至 %.1f%%\n", ratio * 1.2);
         }
@@ -264,32 +246,28 @@ static void drugProportionAdvice() {
     printf("\n");
 }
 
-// ---------------------------------------------------------
-// 智能决策引擎菜单子路由
-// ---------------------------------------------------------
 void decisionMenu() {
     int choice;
     do {
-        system("cls"); // 清屏，保证界面整洁
+        system("cls");
         printf("\n========== 智能辅助决策控制台 ==========\n");
         printf("1. 人事效能与异常预测\n");
         printf("2. 分拣与药房负载分析\n");
         printf("3. 供应链采销配比优化建议\n");
         printf("4. 一键执行全景分析\n");
-        printf("0. 返回高管主菜单\n");
+        printf("-1. 返回高管主菜单\n"); /* 【规则A】0→-1 */
         printf("请选择功能: ");
 
-        // 【修改点】：全局替换为安全输入死循环拦截
         while (1) {
             choice = safeGetInt();
-            if (choice >= 0 && choice <= 4) break;
+            if (choice == -1 || (choice >= 1 && choice <= 4)) break; /* 【规则B】0→-1 */
             printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n请重新选择功能: ");
         }
 
         switch (choice) {
         case 1:
             personnelPrediction();
-            system("pause"); // 添加暂停，防止内容一闪而过
+            system("pause");
             break;
         case 2:
             warehouseStrategy();
@@ -305,8 +283,8 @@ void decisionMenu() {
             drugProportionAdvice();
             system("pause");
             break;
-        case 0:
+        case -1: /* 【规则B】 */
             break;
         }
-    } while (choice != 0);
+    } while (choice != -1); /* 【规则B】 */
 }

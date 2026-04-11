@@ -13,14 +13,10 @@
 extern void generateRecordID(char* buffer);
 extern Bed* bedHead;
 
-// =========================================================================
-// 【新增】动态科室全局缓存池
-// =========================================================================
 static char hospitalDepts[50][50];
 static int hospitalDeptCount = 0;
 static int isDeptsInitialized = 0;
 
-// 【新增】从医生档案中实时抓取并生成全院科室清单
 static void initHospitalDepts() {
     if (isDeptsInitialized) return;
 
@@ -41,7 +37,6 @@ static void initHospitalDepts() {
         }
     }
 
-    // 容错处理：如果当前没有任何医生档案，给个默认保底
     if (hospitalDeptCount == 0) {
         strcpy(hospitalDepts[0], "综合科");
         hospitalDeptCount = 1;
@@ -69,11 +64,9 @@ void getResponsibleDept(const char* patientId, char* deptBuffer) {
     }
 }
 
-// 【修改】动态按需生成病床
 void initBedsIfEmpty() {
     if (bedHead->next) return;
 
-    // 初始化前先动态抓取全院科室数量
     initHospitalDepts();
 
     char types[5][50] = { "单人病房", "双人病房", "三人病房", "单人陪护病房", "单人陪护疗养病房" };
@@ -83,7 +76,6 @@ void initBedsIfEmpty() {
     Bed* tail = bedHead;
     int roomNum = 1;
 
-    // 【核心变化】不再固定5个科室，而是根据动态科室数量(hospitalDeptCount)循环分配，每个科室分5个房间
     for (int d = 0; d < hospitalDeptCount; d++) {
         for (int i = 0; i < 5; i++) {
             for (int j = 1; j <= 4; j++) {
@@ -104,14 +96,12 @@ void initBedsIfEmpty() {
     }
 }
 
-// 【修改】废除硬编码，动态映射科室归属
 const char* getRoomDepartment(const char* bedId) {
-    initHospitalDepts(); // 确保科室映射表已加载
+    initHospitalDepts();
 
     int roomNum;
     if (sscanf(bedId, "%d-", &roomNum) != 1) return "未知科室";
 
-    // 算法：每5个房间属于一个科室。房号26 -> (26-1)/5 = 5 -> 指向数组第6个科室
     int deptIdx = (roomNum - 1) / 5;
 
     if (deptIdx >= 0 && deptIdx < hospitalDeptCount) {
@@ -145,7 +135,6 @@ void checkAndAdjustBedTension(const char* targetDept) {
 
                 Bed* extra = (Bed*)malloc(sizeof(Bed));
                 *extra = *b;
-                /* 安全拼接：先复制最多N-2个字符，再追加'A'，保证不溢出 */
                 strncpy(extra->bedId, b->bedId, sizeof(extra->bedId) - 2);
                 extra->bedId[sizeof(extra->bedId) - 2] = '\0';
                 size_t blen = strlen(extra->bedId);
@@ -199,18 +188,18 @@ void viewAllBeds() {
         printf("========================================================================================\n");
 
         getDynamicDeptPrompt(deptStr);
-        printf("当前活跃科室有: (%s)\n请输入要查看的科室 (输0返回): ", deptStr);
+        printf("当前活跃科室有: (%s)\n请输入要查看的科室 (输-1返回): ", deptStr); /* 【规则C】0→-1 */
 
         while (1) {
             safeGetString(targetDept, 50);
-            if (strcmp(targetDept, "0") == 0) return;
+            if (strcmp(targetDept, "-1") == 0) return; /* 【规则C】 */
 
             int isValidDept = 0;
             for (Staff* stf = staffHead->next; stf != NULL; stf = stf->next) {
                 if (strcmp(stf->department, targetDept) == 0) { isValidDept = 1; break; }
             }
             if (isValidDept) break;
-            printf("  [!] 输入的科室不存在，请从上方列表中选择并重新输入！\n请输入要查看的科室 (输0返回): ");
+            printf("  [!] 输入的科室不存在，请从上方列表中选择并重新输入！\n请输入要查看的科室 (输-1返回): "); /* 【规则C】 */
         }
 
         printf("\n>>> 【%s】 专属住院病区动态 <<<\n", targetDept);
@@ -292,9 +281,9 @@ void admitPatient(const char* docId) {
     Patient* targetPat = NULL;
 
     while (1) {
-        printf("\n请输入需办理入院的患者ID (输0返回): ");
+        printf("\n请输入需办理入院的患者ID (输-1返回): "); /* 【规则C】0→-1 */
         safeGetString(pId, 20);
-        if (strcmp(pId, "0") == 0) return;
+        if (strcmp(pId, "-1") == 0) return; /* 【规则C】 */
 
         targetNotice = NULL;
         for (Record* r = recordHead->next; r != NULL; r = r->next) {
@@ -365,9 +354,9 @@ void admitPatient(const char* docId) {
     Bed* finalBed = NULL;
 
     while (1) {
-        printf("\n请输入系统拟分配的床位号 (如 1-3) (输入0取消): ");
+        printf("\n请输入系统拟分配的床位号 (如 1-3) (输入-1取消): "); /* 【规则C】0→-1 */
         safeGetString(selectBed, 20);
-        if (strcmp(selectBed, "0") == 0) return;
+        if (strcmp(selectBed, "-1") == 0) return; /* 【规则C】 */
 
         finalBed = NULL;
         for (Bed* b = bedHead->next; b != NULL; b = b->next) {
@@ -388,6 +377,7 @@ void admitPatient(const char* docId) {
     printf("\n  [√] 资源 [%s] 分配锁定成功！\n", finalBed->bedId);
     printf("请输入拟定住院周期(天): ");
     int days = safeGetPositiveInt();
+    if (days == -1) return; /* 【规则E】 */
 
     int baseDeposit = 200 * days;
     if (baseDeposit < 1000) baseDeposit = 1000;
@@ -487,18 +477,18 @@ void wardRounds(const char* docId) {
         printf("\n========== 住院病区日常巡检与查房 ==========\n");
 
         getDynamicDeptPrompt(deptStr);
-        printf("调取目标科室域 (%s, 输入0返回): ", deptStr);
+        printf("调取目标科室域 (%s, 输入-1返回): ", deptStr); /* 【规则C】0→-1 */
 
         while (1) {
             safeGetString(targetDept, 50);
-            if (strcmp(targetDept, "0") == 0) return;
+            if (strcmp(targetDept, "-1") == 0) return; /* 【规则C】 */
 
             int isValidDept = 0;
             for (Staff* stf = staffHead->next; stf != NULL; stf = stf->next) {
                 if (strcmp(stf->department, targetDept) == 0) { isValidDept = 1; break; }
             }
             if (isValidDept) break;
-            printf("  [!] 输入的科室不存在，请从上方列表中选择并重新输入！\n调取目标科室域 (输0返回): ");
+            printf("  [!] 输入的科室不存在，请从上方列表中选择并重新输入！\n调取目标科室域 (输-1返回): "); /* 【规则C】 */
         }
 
         printf("\n--- 【%s】 当前住院受管名单 ---\n", targetDept);
@@ -533,9 +523,9 @@ void wardRounds(const char* docId) {
         Bed* targetBed = NULL;
 
         while (1) {
-            printf("\n检索需建立查房会话的患者ID (输入0退回科室层级): ");
+            printf("\n检索需建立查房会话的患者ID (输入-1退回科室层级): "); /* 【规则C】0→-1 */
             safeGetString(pId, 20);
-            if (strcmp(pId, "0") == 0) break;
+            if (strcmp(pId, "-1") == 0) break; /* 【规则C】 */
 
             targetBed = NULL;
             for (Bed* b = bedHead->next; b != NULL; b = b->next) {
@@ -547,26 +537,26 @@ void wardRounds(const char* docId) {
             if (targetBed) break;
             printf("  [!] 定位失败：未在 %s 的管辖范畴内检索到对应人员，请重新输入！\n", targetDept);
         }
-        if (strcmp(pId, "0") == 0) continue;
+        if (strcmp(pId, "-1") == 0) continue; /* 【规则C】 */
 
         while (1) {
             system("cls");
             printf("\n========== 针对患者实体 [%s] 的查房干预面板 ==========\n", pId);
-            printf("  [1] 录入基础观察医嘱\n  [2] 调用内部药房系统配发治疗耗材\n  [0] 结束当前查房会话\n---------------------------------------\n下达操作指令: ");
+            printf("  [1] 录入基础观察医嘱\n  [2] 调用内部药房系统配发治疗耗材\n  [-1] 结束当前查房会话\n---------------------------------------\n下达操作指令: "); /* 【规则A】0→-1 */
 
             int choice;
             while (1) {
                 choice = safeGetInt();
-                if (choice >= 0 && choice <= 2) break;
+                if (choice == -1 || (choice >= 1 && choice <= 2)) break; /* 【规则B】0→-1 */
                 printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n下达操作指令: ");
             }
-            if (choice == 0) break;
+            if (choice == -1) break; /* 【规则B】 */
 
             if (choice == 1) {
                 char note[200];
-                printf("输入实时医嘱指令内容(避免非法空格切断字符, 输入0取消): ");
+                printf("输入实时医嘱指令内容(避免非法空格切断字符, 输入-1取消): "); /* 【规则C】0→-1 */
                 safeGetString(note, 200);
-                if (strcmp(note, "0") == 0) continue;
+                if (strcmp(note, "-1") == 0) continue; /* 【规则C】 */
 
                 Record* rx = (Record*)malloc(sizeof(Record));
                 generateRecordID(rx->recordId);
@@ -614,18 +604,18 @@ void dischargePatient() {
         printf("\n========== 离院综合清算办理控制台 ==========\n");
 
         getDynamicDeptPrompt(deptStr);
-        printf("锁定业务作用域科室 (%s, 输入0放弃办理): ", deptStr);
+        printf("锁定业务作用域科室 (%s, 输入-1放弃办理): ", deptStr); /* 【规则C】0→-1 */
 
         while (1) {
             safeGetString(targetDept, 50);
-            if (strcmp(targetDept, "0") == 0) return;
+            if (strcmp(targetDept, "-1") == 0) return; /* 【规则C】 */
 
             int isValidDept = 0;
             for (Staff* stf = staffHead->next; stf != NULL; stf = stf->next) {
                 if (strcmp(stf->department, targetDept) == 0) { isValidDept = 1; break; }
             }
             if (isValidDept) break;
-            printf("  [!] 输入的科室不存在，请从上方列表中选择并重新输入！\n锁定业务作用域科室 (输0放弃办理): ");
+            printf("  [!] 输入的科室不存在，请从上方列表中选择并重新输入！\n锁定业务作用域科室 (输-1放弃办理): "); /* 【规则C】 */
         }
 
         printf("\n--- 【%s】 等待出院审批名册 ---\n", targetDept);
@@ -649,9 +639,9 @@ void dischargePatient() {
         Bed* targetBed = NULL;
 
         while (1) {
-            printf("\n确立清算实体的患者ID (输入0终止当前操作): ");
+            printf("\n确立清算实体的患者ID (输入-1终止当前操作): "); /* 【规则C】0→-1 */
             safeGetString(pId, 20);
-            if (strcmp(pId, "0") == 0) break;
+            if (strcmp(pId, "-1") == 0) break; /* 【规则C】 */
 
             targetBed = NULL;
             for (Bed* b = bedHead->next; b != NULL; b = b->next) {
@@ -663,7 +653,7 @@ void dischargePatient() {
             if (targetBed) break;
             printf("  [!] 校验异常：所选区域中无此患者实体记录，请重新输入！\n");
         }
-        if (strcmp(pId, "0") == 0) continue;
+        if (strcmp(pId, "-1") == 0) continue; /* 【规则C】 */
 
         int pendingPayment = 0;
         for (Record* r_check = recordHead->next; r_check != NULL; r_check = r_check->next) {
@@ -683,6 +673,7 @@ void dischargePatient() {
 
         printf("\n键入供财务审核的最终驻留计费天数: ");
         int actualDays = safeGetPositiveInt();
+        if (actualDays == -1) continue; /* 【规则E】 */
 
         int billableDays = actualDays;
         if (currentHour >= 0 && currentHour < 8) {
@@ -744,7 +735,6 @@ void dischargePatient() {
                     r->isPaid = 2;
                     char summary[200];
                     sprintf(summary, " [出院结算:床费%.2f 药费%.2f 总消费%.2f]", totalBedFee, totalDrugFee, totalHospitalCost);
-                    /* 修复Bug：原strcat可能溢出description[300]，改用strncat限制追加长度 */
                     strncat(r->description, summary, sizeof(r->description) - strlen(r->description) - 1);
                 }
             }
@@ -789,14 +779,14 @@ void inpatientMenu(const char* docId) {
         printf("  [3] 执行每日早8点查床扣费\n");
         printf("  [4] 日常查房与下达医嘱记录\n");
         printf("  [5] 办理患者出院 (特惠与统账流转)\n");
-        printf("  [0] 返回上级医生大厅\n");
+        printf("  [-1] 返回上级医生大厅\n"); /* 【规则A】0→-1 */
         printf("--------------------------------------------------\n");
         printf("调拨系统功能执行器: ");
 
         int choice;
         while (1) {
             choice = safeGetInt();
-            if (choice >= 0 && choice <= 5) break;
+            if (choice == -1 || (choice >= 1 && choice <= 5)) break; /* 【规则B】0→-1 */
             printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n请重新选择: ");
         }
 
@@ -806,7 +796,7 @@ void inpatientMenu(const char* docId) {
         case 3: dailyDeductionSimulation(); system("pause"); break;
         case 4: wardRounds(docId); break;
         case 5: dischargePatient(); break;
-        case 0: return;
+        case -1: return; /* 【规则B】 */
         }
     }
 }

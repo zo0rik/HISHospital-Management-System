@@ -38,19 +38,20 @@ static void displayAllDrugs() {
 
 static void drugStockQuery() {
     int choice;
-    printf("\n药品库存查询:\n1-按ID查询\n2-按名称模糊查询\n3-查看所有药品\n0-返回上一步\n请选择: ");
+    printf("\n药品库存查询:\n1-按ID查询\n2-按名称模糊查询\n3-查看所有药品\n-1-返回上一步\n请选择: "); /* 【规则A】0→-1 */
 
     while (1) {
         choice = safeGetInt();
-        if (choice >= 0 && choice <= 3) break;
+        if (choice == -1 || (choice >= 1 && choice <= 3)) break; /* 【规则B】0→-1 */
         printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n请重新选择: ");
     }
 
-    if (choice == 0) return;
+    if (choice == -1) return; /* 【规则B】 */
 
     if (choice == 1) {
-        printf("请输入药品ID: ");
+        printf("请输入药品ID (输入-1取消): "); /* 【规则C】 */
         int id = safeGetPositiveInt();
+        if (id == -1) return; /* 【规则E】0→-1 */
         int found = 0;
         Drug* p = drugList->next;
         while (p != NULL) {
@@ -100,9 +101,9 @@ static void viewStockRecords() {
 }
 
 static void drugIn() {
-    printf("请输入药品ID (输入0取消): ");
+    printf("请输入药品ID (输入-1取消): "); /* 【规则C】 */
     int id = safeGetPositiveInt();
-    if (id == 0) return;
+    if (id == -1) return; /* 【规则E】0→-1 */
 
     Drug* p = drugList->next;
     while (p) {
@@ -110,6 +111,7 @@ static void drugIn() {
             printf("当前库存: %d\n", p->stock);
             printf("请输入入库数量: ");
             int quantity = safeGetPositiveInt();
+            if (quantity == -1) return; /* 【规则E】 */
             if (quantity <= 0) return;
 
             p->stock += quantity;
@@ -131,9 +133,9 @@ static void drugIn() {
 }
 
 static void drugOut() {
-    printf("请输入药品ID (输入0取消): ");
+    printf("请输入药品ID (输入-1取消): "); /* 【规则C】 */
     int id = safeGetPositiveInt();
-    if (id == 0) return;
+    if (id == -1) return; /* 【规则E】0→-1 */
 
     Drug* p = drugList->next;
     while (p) {
@@ -141,6 +143,7 @@ static void drugOut() {
             printf("当前库存: %d\n", p->stock);
             printf("请输入出库数量: ");
             int quantity = safeGetPositiveInt();
+            if (quantity == -1) return; /* 【规则E】 */
             if (quantity <= 0) return;
 
             if (p->stock < quantity) { printf("  [!] 库存不足！\n"); system("pause"); return; }
@@ -164,13 +167,12 @@ static void drugOut() {
 
 void addDrug() {
     Drug* d = malloc(sizeof(Drug));
-    /* 修复Bug：malloc失败时d为NULL，直接解引用会崩溃 */
     if (!d) { printf("  [!] 内存分配失败，无法新增药品。\n"); return; }
 
     while (1) {
-        printf("请输入新药品ID (输入0取消): ");
+        printf("请输入新药品ID (输入-1取消): "); /* 【规则C】 */
         d->id = safeGetPositiveInt();
-        if (d->id == 0) { free(d); return; }
+        if (d->id == -1) { free(d); return; } /* 【规则E】0→-1 */
 
         if (isDrugIdExists(d->id)) {
             printf("  [!] ID已存在，请重新输入！\n");
@@ -190,7 +192,7 @@ void addDrug() {
     printf("请输入药品有效期,输入格式为(XXXX-YY-ZZ): "); judgetime(d->expiry);
 
     getCurrentTimeStr(d->last_in, 30);
-    strcpy(d->last_out, "无"); // 修复写入空字符串引发塌方的Bug
+    strcpy(d->last_out, "无");
 
     d->next = NULL;
     Drug* p = drugList->next;
@@ -212,12 +214,12 @@ void drugMenu() {
         printf("3. 药品出库\n");
         printf("4. 查看库存变动记录\n");
         printf("5. 新增药品种类\n");
-        printf("0. 返回主菜单\n");
+        printf("-1. 返回主菜单\n"); /* 【规则A】0→-1 */
         printf("请选择: ");
 
         while (1) {
             choice = safeGetInt();
-            if (choice >= 0 && choice <= 5) break;
+            if (choice == -1 || (choice >= 1 && choice <= 5)) break; /* 【规则B】0→-1 */
             printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n请重新选择: ");
         }
 
@@ -227,7 +229,7 @@ void drugMenu() {
         case 3: drugOut(); break;
         case 4: viewStockRecords(); break;
         case 5: addDrug(); break;
-        case 0: break;
+        case -1: break; /* 【规则B】 */
         }
-    } while (choice != 0);
+    } while (choice != -1); /* 【规则B】 */
 }

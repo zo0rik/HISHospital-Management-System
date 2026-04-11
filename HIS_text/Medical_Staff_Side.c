@@ -15,9 +15,9 @@ void changeStaffPassword(Staff* me) {
     char oldPwd[50], newPwd[50], confirmPwd[50];
 
     printf("\n========== 修改个人登录密码 ==========\n");
-    printf("请输入当前原密码 (输入0取消): ");
+    printf("请输入当前原密码 (输入-1取消): ");
     safeGetString(oldPwd, 50);
-    if (strcmp(oldPwd, "0") == 0) return;
+    if (strcmp(oldPwd, "-1") == 0) return;
 
     if (strcmp(me->password, oldPwd) != 0) {
         printf("  [!] 安全警告：原密码验证失败！\n");
@@ -25,9 +25,9 @@ void changeStaffPassword(Staff* me) {
         return;
     }
 
-    printf("请输入新的登录密码 (仅限字母或数字组合, 输入0取消): ");
+    printf("请输入新的登录密码 (至少6位，仅限字母或数字组合, 输入-1取消): ");
     safeGetPassword(newPwd, 50);
-    if (strcmp(newPwd, "0") == 0) return;
+    if (strcmp(newPwd, "-1") == 0) return;
 
     printf("请再次确认新密码: ");
     safeGetString(confirmPwd, 50);
@@ -58,14 +58,14 @@ void staffTerminal(Staff* me) {
         printf("  [2] 住院业务中心 (住院部专网及查房)\n");
         printf("  [3] 工作管理模块 (患者追踪与记录修改)\n");
         printf("  [4] 账户安全设置 (修改登录密码)\n");
-        printf("  [0] 注销当前会话并退出\n");
+        printf("  [-1] 注销当前会话并退出\n");
         printf("------------------------------------------------\n");
         printf("  请选择业务: ");
 
         // 【修改点】严格校验医护端入口
         while (1) {
             c = safeGetInt();
-            if (c >= 0 && c <= 4) break;
+            if ((c >= 1 && c <= 4) || c == -1) break;
             printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n  请重新选择业务: ");
         }
 
@@ -80,14 +80,14 @@ void staffTerminal(Staff* me) {
                 printf("  [2] 录入看诊诊断与辅助检查单\n");
                 printf("  [3] 开具电子处方(直连大药房库)\n");
                 printf("  [4] 下发住院收治通知单\n");
-                printf("  [0] 挂起当前业务并返回工作台\n");
+                printf("  [-1] 挂起当前业务并返回工作台\n");
                 printf("------------------------------------------\n");
                 printf("  操作指令: ");
 
                 // 【修改点】严格校验看诊内页入口
                 while (1) {
                     sc = safeGetInt();
-                    if (sc >= 0 && sc <= 4) break;
+                    if ((sc >= 1 && sc <= 4) || sc == -1) break;
                     printf("  [!] 输入格式不合法或该端口不存在，请正确输入菜单中提供的数字编号！\n  请重新下达操作指令: ");
                 }
 
@@ -107,7 +107,7 @@ void staffTerminal(Staff* me) {
                     issueAdmissionNotice(me->id);
                     system("pause");
                 }
-                else if (sc == 0) {
+                else if (sc == -1) {
                     break;
                 }
             }
@@ -121,7 +121,7 @@ void staffTerminal(Staff* me) {
         else if (c == 4) {
             changeStaffPassword(me);
         }
-        else if (c == 0) {
+        else if (c == -1) {
             return;
         }
     }

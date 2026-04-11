@@ -33,9 +33,9 @@ void workManagementMenu(const char* docId) {
 
         printf("--- 您曾接诊过的患者列表 ---\n");
         for (int i = 0; i < pCount; i++) printf("[%d] 患者ID: %s | 姓名: %s\n", i + 1, pats[i].id, pats[i].name);
-        printf("[0] 返回上级菜单\n请输入患者对应编号进行操作: ");
+        printf("[-1] 返回上级菜单\n请输入患者对应编号进行操作: ");
         int pChoice = safeGetInt();
-        if (pChoice == 0) return;
+        if (pChoice == -1) return;
         if (pChoice < 1 || pChoice > pCount) continue;
 
         char* targetPid = pats[pChoice - 1].id;
@@ -73,9 +73,9 @@ void workManagementMenu(const char* docId) {
                 printf("[%d] %s | 流水号: %s | 详情: %s\n", i + 1, tName, recs[i].recId, recs[i].desc);
             }
 
-            printf("\n操作: 1.修改记录 2.删除记录 0.返回重选患者\n请选择: ");
+            printf("\n操作: 1.修改记录 2.删除记录 -1.返回重选患者\n请选择: ");
             int op = safeGetInt();
-            if (op == 0) break;
+            if (op == -1) break;
             if (op == 1 || op == 2) {
                 printf("请输入要操作的【记录编号】: ");
                 int rChoice = safeGetInt();

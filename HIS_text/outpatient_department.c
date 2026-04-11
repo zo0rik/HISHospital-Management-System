@@ -60,10 +60,10 @@ void callPatient(const char* docId) {
     // 2. 构建排班日期选择视图
     printf("  [授权排班日期选择树]:\n");
     for (int i = 0; i < sCount; i++) { printf("   [%d] %s\n", i + 1, availableDates[i]); }
-    printf("   [0] 脱离排班中心\n----------------------------------------\n  选择检索索引号: ");
+    printf("   [-1] 脱离排班中心\n----------------------------------------\n  选择检索索引号: ");
 
     int dChoice = safeGetInt();
-    if (dChoice == 0) return;
+    if (dChoice == -1) return;
 
     // 边界条件拦截：防止非法的超额索引号导致数组越界引发内存异常
     if (dChoice < 0 || dChoice > sCount) {
@@ -140,8 +140,8 @@ void diagnoseAndTest(const char* docId) {
         printf("\n  [系统自动提取当前病患ID]: %s\n", pId);
     }
     else {
-        printf("\n  [无关联病患] 请手动键入要下达诊断的病患ID (0终止): "); safeGetString(pId, 20);
-        if (strcmp(pId, "0") == 0) return;
+        printf("\n  [无关联病患] 请手动键入要下达诊断的病患ID (-1终止): "); safeGetString(pId, 20);
+        if (strcmp(pId, "-1") == 0) return;
     }
 
     char symptoms[100], diag[100];
@@ -187,12 +187,12 @@ void diagnoseAndTest(const char* docId) {
 void prescribeMedicine(const char* docId) {
     char pId[20];
     if (strlen(currentCallingPatientId) > 0) { strcpy(pId, currentCallingPatientId); printf("\n  [自动挂载处方对象]: %s\n", pId); }
-    else { printf("\n  请输入当前接诊患者ID (0终止): "); safeGetString(pId, 20); if (strcmp(pId, "0") == 0) return; }
+    else { printf("\n  请输入当前接诊患者ID (-1终止): "); safeGetString(pId, 20); if (strcmp(pId, "-1") == 0) return; }
 
     while (1) {
         char key[50];
-        printf("\n  请检索大药房物资库字典 (拼音/编号/药名，输0退出配药): "); safeGetString(key, 50);
-        if (strcmp(key, "0") == 0) break;
+        printf("\n  请检索大药房物资库字典 (拼音/编号/药名，输-1退出配药): "); safeGetString(key, 50);
+        if (strcmp(key, "-1") == 0) break;
 
         // 跨模块数据强一致性校验：通过直接读取核心物资单链表(drugList)，
         // 实现了对全院大药房真实物理库存的实时镜像检索与后续扣除，消除数据冗余孤岛。
@@ -220,8 +220,8 @@ void prescribeMedicine(const char* docId) {
 
         char mChoiceStr[50];
         printf("-----------------------------------------------------------\n");
-        printf("  击打左侧【映射号】或直接敲【系统内码】定位药品 (0取消): ");
-        safeGetString(mChoiceStr, 50); if (strcmp(mChoiceStr, "0") == 0) continue;
+        printf("  击打左侧【映射号】或直接敲【系统内码】定位药品 (-1取消): ");
+        safeGetString(mChoiceStr, 50); if (strcmp(mChoiceStr, "-1") == 0) continue;
 
         // 复合型交互支持：同步兼容序号映射选择与精确编码定位
         Drug* selectedMed = NULL; int isNum = 1;
@@ -267,7 +267,7 @@ void prescribeMedicine(const char* docId) {
 void issueAdmissionNotice(const char* docId) {
     char pId[20];
     if (strlen(currentCallingPatientId) > 0) { strcpy(pId, currentCallingPatientId); printf("\n  [接诊关联]: %s\n", pId); }
-    else { printf("\n  键入需强制收容的患者识别码 (0返回): "); safeGetString(pId, 20); if (strcmp(pId, "0") == 0) return; }
+    else { printf("\n  键入需强制收容的患者识别码 (-1返回): "); safeGetString(pId, 20); if (strcmp(pId, "-1") == 0) return; }
 
     printf("  是否开启危重高优先通道越级抢床位？(1.重症直达 0.普通常规): ");
     int isSevere;

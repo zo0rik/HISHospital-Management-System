@@ -33,9 +33,9 @@ void judgetime(char* end) {
         // 【修改点】：使用安全输入函数，彻底替代 fflush(stdin) 和 scanf
         safeGetString(temp, sizeof(temp));
 
-        // 【修改点】：增加取消机制，允许输入 0 返回
-        if (strcmp(temp, "0") == 0) {
-            strcpy(end, "0");
+        // 【修改点】：增加取消机制，允许输入 -1 返回
+        if (strcmp(temp, "-1") == 0) {
+            strcpy(end, "-1");
             return;
         }
 

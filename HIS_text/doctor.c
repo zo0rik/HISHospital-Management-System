@@ -26,10 +26,10 @@ static void addDoctor() {
     Staff s;
     memset(&s, 0, sizeof(Staff));
 
-    printf("请输入医生工号 (如数字或字母): ");
+    printf("请输入医生工号 (如数字或字母, 输入-1取消): "); /* 【规则C】 */
     while (1) {
         safeGetString(s.id, 20);
-        if (strcmp(s.id, "0") == 0) return; // 0代表取消
+        if (strcmp(s.id, "-1") == 0) return; /* 【规则C】0→-1 */
 
         int exists = 0;
         for (Staff* p = staffHead->next; p != NULL; p = p->next) {
@@ -39,13 +39,12 @@ static void addDoctor() {
         printf("  [!] 该工号已存在！请重新输入新的工号: ");
     }
 
-    strcpy(s.password, "123456"); // 默认密码
+    strcpy(s.password, "123456"); /* 默认密码保持不变 */
     printf("请输入姓名: "); safeGetString(s.name, 100);
     printf("请输入科室: "); safeGetString(s.department, 100);
     printf("请输入职称: "); safeGetString(s.level, 100);
     printf("请输入性别（男/女）: "); safeGetGender(s.sex, 10);
 
-    // 挂载到统一链表
     Staff* node = (Staff*)malloc(sizeof(Staff));
     *node = s;
     node->next = staffHead->next;
@@ -58,9 +57,9 @@ static void addDoctor() {
 
 static void deleteDoctor() {
     char id[20];
-    printf("请输入要删除的医生工号 (输入0取消): ");
+    printf("请输入要删除的医生工号 (输入-1取消): "); /* 【规则C】 */
     safeGetString(id, 20);
-    if (strcmp(id, "0") == 0 || staffHead == NULL) return;
+    if (strcmp(id, "-1") == 0 || staffHead == NULL) return; /* 【规则C】 */
 
     Staff* prev = staffHead;
     Staff* curr = staffHead->next;
@@ -69,11 +68,9 @@ static void deleteDoctor() {
             prev->next = curr->next;
             free(curr);
 
-            // 【修改点】：直接传入字符串 ID 进行排班清理
             deleteScheduleByDoctorId(id);
 
             saveAllDataToTxt();
-            // saveSchedules() 会在 deleteScheduleByDoctorId 内部被调用
             printf("  [√] 档案及登录权限删除成功。\n");
             system("pause");
             return;
@@ -86,24 +83,24 @@ static void deleteDoctor() {
 
 static void updateDoctor() {
     char id[20];
-    printf("请输入要修改的医生工号 (输入0取消): ");
+    printf("请输入要修改的医生工号 (输入-1取消): "); /* 【规则C】 */
     safeGetString(id, 20);
-    if (strcmp(id, "0") == 0 || staffHead == NULL) return;
+    if (strcmp(id, "-1") == 0 || staffHead == NULL) return; /* 【规则C】 */
 
     Staff* p = staffHead->next;
     while (p) {
         if (strcmp(p->id, id) == 0) {
             printf("当前医生信息：\n");
             printf("1. 姓名: %s\n2. 科室: %s\n3. 职称: %s\n4. 性别: %s\n", p->name, p->department, p->level, p->sex);
-            printf("请选择要修改的单个字段 (1.姓名 2.科室 3.职称 4.性别 | 0.结束保存): ");
+            printf("请选择要修改的单个字段 (1.姓名 2.科室 3.职称 4.性别 | -1.结束保存): "); /* 【规则A】0→-1 */
 
             int ch;
             while (1) {
                 ch = safeGetInt();
-                if (ch >= 0 && ch <= 4) break;
+                if (ch == -1 || (ch >= 1 && ch <= 4)) break; /* 【规则B】0→-1 */
                 printf("  [!] 输入格式不合法，请重新选择: ");
             }
-            if (ch == 0) return;
+            if (ch == -1) return; /* 【规则B】 */
 
             switch (ch) {
             case 1:
@@ -132,14 +129,14 @@ static void updateDoctor() {
 
 static void queryDoctor() {
     int choice;
-    printf("\n查询方式：1-按工号  2-按姓名模糊 3-按职称 0-返回\n请选择: ");
+    printf("\n查询方式：1-按工号  2-按姓名模糊 3-按职称 -1-返回\n请选择: "); /* 【规则A】0→-1 */
 
     while (1) {
         choice = safeGetInt();
-        if (choice >= 0 && choice <= 3) break;
+        if (choice == -1 || (choice >= 1 && choice <= 3)) break; /* 【规则B】0→-1 */
         printf("  [!] 输入格式不合法，请重新选择: ");
     }
-    if (choice == 0) return;
+    if (choice == -1) return; /* 【规则B】 */
     if (staffHead == NULL) return;
 
     if (choice == 1) {
@@ -203,12 +200,12 @@ void doctorMenu() {
         printf("3. 删除医生\n");
         printf("4. 修改医生信息\n");
         printf("5. 查询医生\n");
-        printf("0. 返回主菜单\n");
+        printf("-1. 返回主菜单\n"); /* 【规则A】0→-1 */
         printf("请选择: ");
 
         while (1) {
             choice = safeGetInt();
-            if (choice >= 0 && choice <= 5) break;
+            if (choice == -1 || (choice >= 1 && choice <= 5)) break; /* 【规则B】0→-1 */
             printf("  [!] 输入格式不合法，请重新选择: ");
         }
 
@@ -218,7 +215,7 @@ void doctorMenu() {
         case 3: deleteDoctor(); break;
         case 4: updateDoctor(); break;
         case 5: queryDoctor(); break;
-        case 0: break;
+        case -1: break; /* 【规则B】 */
         }
-    } while (choice != 0);
+    } while (choice != -1); /* 【规则B】 */
 }
