@@ -164,6 +164,8 @@ static void drugOut() {
 
 void addDrug() {
     Drug* d = malloc(sizeof(Drug));
+    /* 修复Bug：malloc失败时d为NULL，直接解引用会崩溃 */
+    if (!d) { printf("  [!] 内存分配失败，无法新增药品。\n"); return; }
 
     while (1) {
         printf("请输入新药品ID (输入0取消): ");

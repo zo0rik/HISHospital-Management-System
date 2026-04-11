@@ -6,7 +6,7 @@
 typedef struct Transaction {
     int id;                 // 交易流水号
     int type;               // 交易类型: 1=门诊, 2=住院, 3=药品
-    float amount;           // 交易金额
+    double amount;          // 交易金额（修复：float精度不足，改为double）
     char time[30];          // 交易时间 (如 2026-03-24)
     char description[200];  // 交易描述明细
     struct Transaction* next; // 指向下一条记录的指针

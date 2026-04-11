@@ -138,7 +138,7 @@ void safeGetPassword(char* buffer, int size) {
     }
 }
 
-void getCurrentTimeStr(char* buffer, int size) {
+void getCurrentTimeStr(char* buffer, size_t size) {
     time_t t;
     struct tm* tm_info;
     t = time(NULL);

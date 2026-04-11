@@ -66,7 +66,7 @@ void parttimereport(char* start, char* end) {
 // ---------------------------------------------------------
 static void showFinancialReport() {
     char start[20], end[20];
-    float total_outpatient = 0, total_inpatient = 0, total_drug = 0;
+    double total_outpatient = 0, total_inpatient = 0, total_drug = 0;
 
     while (1) {
         printf("\n请输入财务统计起始日期 (YYYY-MM-DD, 输入0取消): ");
@@ -88,9 +88,9 @@ static void showFinancialReport() {
     Transaction* t = transactionList->next;
     while (t) {
         if (strncmp(t->time, start, 10) >= 0 && strncmp(t->time, end, 10) <= 0) {
-            if (t->type == 1) total_outpatient += (float)t->amount;
-            else if (t->type == 2) total_inpatient += (float)t->amount;
-            else if (t->type == 3) total_drug += (float)t->amount;
+            if (t->type == 1) total_outpatient += t->amount;
+            else if (t->type == 2) total_inpatient += t->amount;
+            else if (t->type == 3) total_drug += t->amount;
         }
         t = t->next;
     }

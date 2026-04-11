@@ -8,7 +8,7 @@
 // ---------------------------------------------------------
 // 获取当前系统日期，格式：YYYY-MM-DD
 // ---------------------------------------------------------
-void getCurrentTime(char* buffer, int size) {
+void getCurrentTime(char* buffer, size_t size) {
     time_t t = time(NULL);
     struct tm* tm_info = localtime(&t);
     strftime(buffer, size, "%Y-%m-%d", tm_info);
@@ -17,7 +17,7 @@ void getCurrentTime(char* buffer, int size) {
 // ---------------------------------------------------------
 // 获取当前系统日期，格式：YYYY-MM-DD_HH:MM:SS
 // ---------------------------------------------------------
-void getCurrentDate(char* buffer, int size) {
+void getCurrentDate(char* buffer, size_t size) {
     time_t t = time(NULL);
     struct tm* tm_info = localtime(&t);
     strftime(buffer, size, "%Y-%m-%d_%H:%M:%S", tm_info);

@@ -165,7 +165,7 @@ static void warehouseStrategy() {
     }
 
     // 计算单品平均出库周转率
-    float avg_out = (float)total_out / drug_count;
+    double avg_out = (double)total_out / drug_count;
     printf("全院药品单品平均出库流转量：%.2f\n", avg_out);
 
     // 根据流转阈值分级给出 AI 决策策略
@@ -221,6 +221,8 @@ static void drugProportionAdvice() {
             if (h->drug_id == p->id && h->type == 2) out_qty += h->quantity;
             h = h->next;
         }
+        /* 修复Bug：加越界检查，防止药品数量超过100时数组越界写入 */
+        if (count >= 100) { printf("  [!] 药品种类超过统计上限(100)，部分数据已截断。\n"); break; }
         strcpy(stats[count].name, p->name);
         stats[count].total_out = out_qty;
         stats[count].stock = p->stock;
@@ -241,7 +243,7 @@ static void drugProportionAdvice() {
     printf("%-20s %-10s %-10s %-15s\n", "药品名称", "累计消耗", "消耗占率", "当前库存");
 
     for (int i = 0; i < count; i++) {
-        float ratio = (float)stats[i].total_out / total_out * 100; // 消耗占率百分比
+        double ratio = (double)stats[i].total_out / total_out * 100; // 消耗占率百分比
         printf("%-20s %-10d %-10.2f%% %-15d ", stats[i].name, stats[i].total_out, ratio, stats[i].stock);
 
         // AI 策略判定阈值

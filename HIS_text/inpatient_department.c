@@ -130,7 +130,7 @@ void checkAndAdjustBedTension(const char* targetDept) {
         }
     }
 
-    if (total > 0 && ((float)empty / total) < 0.2f) {
+    if (total > 0 && ((double)empty / total) < 0.2) {
         printf("\n  [系统动态调度] %s 专属空床率不足 20%%！触发紧急扩容机制...\n", targetDept);
         printf("  >>> 正在将【%s】内的单人陪护疗养病房临时调整为双人病房 <<<\n", targetDept);
 
@@ -409,7 +409,7 @@ void admitPatient(const char* docId) {
 
         newTrans->id = maxId + 1;
         newTrans->type = 2;
-        newTrans->amount = finalDeposit;
+        newTrans->amount = (double)finalDeposit;
         getCurrentTimeStr(newTrans->time, 30);
         sprintf(newTrans->description, "住院押金收取(患者:%s)", targetPat->name);
         newTrans->next = NULL;
@@ -744,7 +744,8 @@ void dischargePatient() {
                     r->isPaid = 2;
                     char summary[200];
                     sprintf(summary, " [出院结算:床费%.2f 药费%.2f 总消费%.2f]", totalBedFee, totalDrugFee, totalHospitalCost);
-                    strcat(r->description, summary);
+                    /* 修复Bug：原strcat可能溢出description[300]，改用strncat限制追加长度 */
+                    strncat(r->description, summary, sizeof(r->description) - strlen(r->description) - 1);
                 }
             }
             targetBed->isOccupied = 0;

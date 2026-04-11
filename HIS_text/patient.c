@@ -48,6 +48,7 @@ void registerPatient() {
     }
 
     Patient* newPatient = (Patient*)malloc(sizeof(Patient));
+    if (!newPatient) { printf("  [!] 内存分配失败，无法注册患者。\n"); return; }
     newPatient->next = NULL;
     newPatient->isEmergency = (type == 2) ? 1 : 0;
 
@@ -293,6 +294,7 @@ void bookAppointment(const char* currentPatientId) {
         double regFee = strstr(targetDoc->level, "主任") != NULL ? 50.0 : 15.0;
 
         Record* newRecord = (Record*)malloc(sizeof(Record));
+        if (!newRecord) { printf("  [!] 内存分配失败。\n"); return; }
         sprintf(newRecord->recordId, "REG2025%04d", maxRegId + 1);
         newRecord->type = 1;
         strcpy(newRecord->patientId, currentPatientId);
@@ -370,6 +372,7 @@ void financeCenter(const char* currentPatientId) {
             if (money > 0) {
                 p->balance += money;
                 Record* r7 = (Record*)malloc(sizeof(Record));
+                if (!r7) { printf("  [!] 内存分配失败。\n"); return; }
                 extern void generateRecordID(char* buffer);
                 generateRecordID(r7->recordId);
                 r7->type = 7; strcpy(r7->patientId, currentPatientId); strcpy(r7->staffId, "SYS");
@@ -425,6 +428,7 @@ void financeCenter(const char* currentPatientId) {
                                 p->balance -= rec->cost; rec->isPaid = 1;
 
                                 Transaction* newTrans = (Transaction*)malloc(sizeof(Transaction));
+                                if (!newTrans) { printf("  [!] 内存分配失败，交易记录未生成。\n"); continue; }
                                 for (Transaction* curr = transactionList; curr != NULL; curr = curr->next) {
                                     if (curr->id > maxId) maxId = curr->id;
                                 }
