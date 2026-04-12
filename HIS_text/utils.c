@@ -3,11 +3,43 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <ctype.h>
+#include <errno.h>
+#include <math.h>
 #include "models.h"
 #include "utils.h"
 #include "fileio.h"
 
+static void trimSpaces(char* s) {
+    char* start;
+    char* end;
+    if (!s) return;
+    start = s;
+    while (*start && isspace((unsigned char)*start)) start++;
+    if (start != s) memmove(s, start, strlen(start) + 1);
+    end = s + strlen(s);
+    while (end > s && isspace((unsigned char)*(end - 1))) {
+        *(end - 1) = '\0';
+        end--;
+    }
+}
+
+static int hasAtMostTwoDecimals(const char* s) {
+    const char* dot = strchr(s, '.');
+    int decimals = 0;
+    if (!dot) return 1;
+    dot++;
+    while (*dot) {
+        if (!isdigit((unsigned char)*dot)) return 0;
+        decimals++;
+        dot++;
+    }
+    return decimals <= 2;
+}
+
 void safeGetString(char* buffer, int size) {
+    if (!buffer || size <= 0) return;
+
     if (fgets(buffer, size, stdin) != NULL) {
         size_t len = strlen(buffer);
         if (len > 0 && buffer[len - 1] == '\n') {
@@ -15,64 +47,57 @@ void safeGetString(char* buffer, int size) {
         }
         else {
             int c;
-            while ((c = getchar()) != '\n' && c != EOF);
+            while ((c = getchar()) != '\n' && c != EOF) {}
         }
+
+        trimSpaces(buffer);
         for (int i = 0; buffer[i] != '\0'; i++) {
-            if (buffer[i] == ' ') buffer[i] = '_';
             if (buffer[i] == ',') buffer[i] = ';';
         }
     }
     else {
         buffer[0] = '\0';
+        clearerr(stdin);
     }
 }
 
-/* 【修改】空输入时循环重新提示，不返回0 */
-int safeGetInt() {
-    char buffer[100];
+static int tryParseIntStrict(const char* buffer, int* outValue) {
+    char* endptr;
+    long value;
+    if (!buffer || !outValue) return 0;
+    errno = 0;
+    value = strtol(buffer, &endptr, 10);
+    if (buffer == endptr || *endptr != '\0' || errno == ERANGE) return 0;
+    if (value < -2147483647L - 1L || value > 2147483647L) return 0;
+    *outValue = (int)value;
+    return 1;
+}
+
+int safeGetInt(void) {
+    char buffer[SAFE_INPUT_BUFFER_SIZE];
     int value;
-    char extra;
     while (1) {
-        value = 0;
         safeGetString(buffer, sizeof(buffer));
         if (strlen(buffer) == 0) {
             printf("  [!] 输入不能为空，请重新输入: ");
             continue;
         }
-        if (sscanf(buffer, "%d%c", &value, &extra) == 1) {
-            return value;
-        }
+        if (tryParseIntStrict(buffer, &value)) return value;
         printf("  [!] 输入格式不合法，请重新输入一个有效的整数: ");
     }
 }
 
-/* 【修改】空输入时循环重新提示 */
-double safeGetDouble() {
-    char buffer[100];
-    double value;
-    char extra;
+int safeGetIntInRange(int minValue, int maxValue, const char* promptOnError) {
+    int value;
     while (1) {
-        value = 0.0;
-        safeGetString(buffer, sizeof(buffer));
-        if (strlen(buffer) == 0) {
-            printf("  [!] 输入不能为空，请重新输入: ");
-            continue;
-        }
-        if (strcmp(buffer, "-1") == 0) return -1.0; /* 【修改】-1取消 */
-        if (strcmp(buffer, "0") == 0 || strcmp(buffer, "0.0") == 0) return 0.0;
-        if (sscanf(buffer, "%lf%c", &value, &extra) == 1) {
-            if (value < 0) {
-                printf("  [!] 金额不能为负数，请重新输入 (输入-1取消): ");
-                continue;
-            }
-            return value;
-        }
-        printf("  [!] 输入格式不合法，请输入有效的金额数值 (输入-1取消): ");
+        value = safeGetInt();
+        if (value >= minValue && value <= maxValue) return value;
+        if (promptOnError && strlen(promptOnError) > 0) printf("%s", promptOnError);
+        else printf("  [!] 输入超出允许范围，请重新输入: ");
     }
 }
 
-/* 【修改】-1为取消信号 */
-int safeGetPositiveInt() {
+int safeGetPositiveInt(void) {
     int val;
     while (1) {
         val = safeGetInt();
@@ -82,10 +107,88 @@ int safeGetPositiveInt() {
     }
 }
 
+int safeGetDrugQuantity(void) {
+    int quantity;
+    while (1) {
+        quantity = safeGetInt();
+        if (quantity == -1) return -1;
+        if (quantity <= 0) {
+            printf("  [!] 药品数量必须为正整数，请重新输入 (输入-1返回): ");
+            continue;
+        }
+        if (quantity > DEFAULT_DRUG_QUANTITY_MAX) {
+            printf("  [!] 药品数量超出允许范围，请重新输入 (最大%d，输入-1返回): ", DEFAULT_DRUG_QUANTITY_MAX);
+            continue;
+        }
+        return quantity;
+    }
+}
+
+static int tryParseMoneyStrict(const char* buffer, double* outValue) {
+    char* endptr;
+    double value;
+    if (!buffer || !outValue) return 0;
+    if (!hasAtMostTwoDecimals(buffer)) return 0;
+    errno = 0;
+    value = strtod(buffer, &endptr);
+    if (buffer == endptr || *endptr != '\0' || errno == ERANGE) return 0;
+    if (!isfinite(value)) return 0;
+    *outValue = value;
+    return 1;
+}
+
+double safeGetMoney(void) {
+    char buffer[SAFE_INPUT_BUFFER_SIZE];
+    double value;
+    while (1) {
+        safeGetString(buffer, sizeof(buffer));
+        if (strlen(buffer) == 0) {
+            printf("  [!] 输入不能为空，请重新输入: ");
+            continue;
+        }
+        if (strcmp(buffer, "-1") == 0) return -1.0;
+        if (!tryParseMoneyStrict(buffer, &value)) {
+            printf("请输入正确的金额格式，金额最多保留两位小数。\n");
+            continue;
+        }
+        return value;
+    }
+}
+
+double safeGetMoneyInRange(double minValue, double maxValue) {
+    double value;
+    while (1) {
+        value = safeGetMoney();
+        if (value == -1.0) return -1.0;
+        if (value < minValue || value > maxValue) {
+            if (fabs(minValue) < 1e-9 && fabs(maxValue - 10000.0) < 1e-9) {
+                printf("单次充值金额不能超过10000元。\n");
+            }
+            else {
+                char minBuf[32], maxBuf[32];
+                formatMoney(minValue, minBuf, sizeof(minBuf));
+                formatMoney(maxValue, maxBuf, sizeof(maxBuf));
+                printf("  [!] 金额超出允许范围，请输入 %s ~ %s 之间的金额。\n", minBuf, maxBuf);
+            }
+            continue;
+        }
+        return value;
+    }
+}
+
+double safeGetDouble(void) {
+    return safeGetMoney();
+}
+
+void formatMoney(double amount, char* buffer, size_t size) {
+    if (!buffer || size == 0) return;
+    snprintf(buffer, size, "%.2f元", amount);
+}
+
 void safeGetGender(char* buffer, int size) {
     while (1) {
         safeGetString(buffer, size);
-        if (strcmp(buffer, "-1") == 0) return; /* 【修改】-1取消 */
+        if (strcmp(buffer, "-1") == 0) return;
         if (strcmp(buffer, "男性") == 0 || strcmp(buffer, "女性") == 0) return;
         if (strcmp(buffer, "男") == 0) { strcpy(buffer, "男性"); return; }
         if (strcmp(buffer, "女") == 0) { strcpy(buffer, "女性"); return; }
@@ -97,17 +200,15 @@ void safeGetGender(char* buffer, int size) {
     }
 }
 
-/* 【修改】密码规则：至少6位 + 仅限字母数字 + -1取消 */
 void safeGetPassword(char* buffer, int size) {
     int i, valid;
     while (1) {
         safeGetString(buffer, size);
-        if (strcmp(buffer, "-1") == 0) return; /* 【修改】-1取消 */
+        if (strcmp(buffer, "-1") == 0) return;
         if (strlen(buffer) == 0) {
             printf("  [!] 输入不能为空，请重新输入: ");
             continue;
         }
-        /* 【新增】密码长度不能少于6位 */
         if (strlen(buffer) < 6) {
             printf("  [!] 密码长度不能少于6位，请重新输入: ");
             continue;

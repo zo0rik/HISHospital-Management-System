@@ -12,52 +12,104 @@
 #include "fileio.h"
 
 Admin admin;
+Admin* adminHead = NULL;
+Admin* currentAdminNode = NULL;
+
+Admin* findAdminByCredentials(const char* username, const char* password) {
+    Admin* p = adminHead ? adminHead->next : NULL;
+    while (p) {
+        if (strcmp(p->username, username) == 0 && strcmp(p->password, password) == 0) {
+            return p;
+        }
+        p = p->next;
+    }
+    return NULL;
+}
+
+void setCurrentAdminNode(Admin* node) {
+    if (!node) return;
+    currentAdminNode = node;
+    admin = *node;
+    admin.next = NULL;
+}
+
+void freeAdminList(void) {
+    Admin* p = adminHead;
+    while (p) {
+        Admin* next = p->next;
+        free(p);
+        p = next;
+    }
+    adminHead = NULL;
+    currentAdminNode = NULL;
+    memset(&admin, 0, sizeof(admin));
+}
+
+static void syncCurrentAdminBackToNode(void) {
+    if (!currentAdminNode) return;
+    strncpy(currentAdminNode->username, admin.username, sizeof(currentAdminNode->username) - 1);
+    currentAdminNode->username[sizeof(currentAdminNode->username) - 1] = '\0';
+    strncpy(currentAdminNode->password, admin.password, sizeof(currentAdminNode->password) - 1);
+    currentAdminNode->password[sizeof(currentAdminNode->password) - 1] = '\0';
+    strncpy(currentAdminNode->phone, admin.phone, sizeof(currentAdminNode->phone) - 1);
+    currentAdminNode->phone[sizeof(currentAdminNode->phone) - 1] = '\0';
+    strncpy(currentAdminNode->email, admin.email, sizeof(currentAdminNode->email) - 1);
+    currentAdminNode->email[sizeof(currentAdminNode->email) - 1] = '\0';
+}
 
 void changePassword(void) {
     char old[50] = { '\0' }, new1[50] = { '\0' }, new2[50] = { '\0' };
-    printf("请输入旧密码 (输入-1取消): "); safeGetString(old, 50);
+    printf("请输入旧密码 (输入-1取消): ");
+    safeGetString(old, 50);
     if (strcmp(old, "-1") == 0) return;
-    if (strcmp(old, admin.password) != 0) { printf("  [!] 旧密码错误！\n"); system("pause"); return; }
+    if (strcmp(old, admin.password) != 0) {
+        printf("  [!] 旧密码错误！\n");
+        system("pause");
+        return;
+    }
 
-    /* 【BUG修复】原为 safeGetPassword(new1, 50)，但 admin.password 仅 char[20]，改为 20 防止溢出 */
-    printf("请输入新密码 (至少6位，仅限字母或数字): "); safeGetPassword(new1, 20);
+    printf("请输入新密码 (至少6位，仅限字母或数字): ");
+    safeGetPassword(new1, 20);
     if (strcmp(new1, "-1") == 0) return;
 
-    printf("请确认新密码: "); safeGetString(new2, 20);
-    if (strcmp(new1, new2) != 0) { printf("  [!] 两次输入不一致！\n"); system("pause"); return; }
+    printf("请确认新密码: ");
+    safeGetString(new2, 20);
+    if (strcmp(new1, new2) != 0) {
+        printf("  [!] 两次输入不一致！\n");
+        system("pause");
+        return;
+    }
 
     strcpy(admin.password, new1);
+    syncCurrentAdminBackToNode();
     printf("  [√] 密码修改成功！\n");
     saveAdminData();
     system("pause");
 }
 
 void editPersonalInfo(void) {
+    char buffer[100];
     printf("\n当前信息：\n用户名: %s\n手机号: %s\n邮箱: %s\n", admin.username, admin.phone, admin.email);
 
-    char buffer[100];
-
-    /* 【BUG修复】原为 safeGetString(buffer, 50)，但 admin.username 仅 char[20]，改为 20 防止溢出 */
     printf("\n请输入新用户名 (直接输入-1保留原值): ");
     safeGetString(buffer, 20);
     if (strcmp(buffer, "-1") != 0 && strlen(buffer) > 0) strcpy(admin.username, buffer);
 
-    /* 【BUG修复】原为 safeGetString(buffer, 20)，但 admin.phone 仅 char[12]，改为 12 防止溢出 */
     printf("请输入新手机号 (直接输入-1保留原值): ");
     safeGetString(buffer, 12);
     if (strcmp(buffer, "-1") != 0 && strlen(buffer) > 0) strcpy(admin.phone, buffer);
 
-    /* 【BUG修复】原为 safeGetString(buffer, 50)，但 admin.email 仅 char[30]，改为 30 防止溢出 */
     printf("请输入新邮箱 (直接输入-1保留原值): ");
     safeGetString(buffer, 30);
     if (strcmp(buffer, "-1") != 0 && strlen(buffer) > 0) strcpy(admin.email, buffer);
 
+    syncCurrentAdminBackToNode();
     printf("  [√] 个人信息更新成功！\n");
     saveAdminData();
     system("pause");
 }
 
-void personalMenu() {
+void personalMenu(void) {
     int choice;
     do {
         system("cls");
@@ -101,11 +153,15 @@ void adminMenu(void) {
         }
 
         switch (choice) {
-        case 1: drugMenu(); break;
-        case 2: decisionMenu(); break;
-        case 3:
-            printf("\n-- 医生与排班管理 --\n1. 医生信息管理\n2. 门诊排班管理\n-1. 取消返回\n选择: ");
+        case 1:
+            drugMenu();
+            break;
+        case 2:
+            decisionMenu();
+            break;
+        case 3: {
             int sub;
+            printf("\n-- 医生与排班管理 --\n1. 医生信息管理\n2. 门诊排班管理\n-1. 取消返回\n选择: ");
             while (1) {
                 sub = safeGetInt();
                 if (sub == 1 || sub == 2 || sub == -1) break;
@@ -114,9 +170,15 @@ void adminMenu(void) {
             if (sub == 1) doctorMenu();
             else if (sub == 2) scheduleMenu();
             break;
-        case 4: reportMenu(); break;
-        case 5: personalMenu(); break;
-        case -1: break;
+        }
+        case 4:
+            reportMenu();
+            break;
+        case 5:
+            personalMenu();
+            break;
+        case -1:
+            break;
         }
     } while (choice != -1);
 }
