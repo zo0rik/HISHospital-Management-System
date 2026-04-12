@@ -14,7 +14,9 @@ typedef struct Patient {
     int age;
     char allergy[100];
     int isEmergency;
-    double balance;
+    double balance;           // 普通账户余额
+    double inpatientDeposit;  // 住院押金余额，可为负数
+    int isInpatient;          // 1=当前住院中，0=非住院
     struct Patient* next;
 } Patient, * PatientList;
 

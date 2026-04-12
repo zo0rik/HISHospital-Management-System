@@ -55,39 +55,28 @@ static int ensureDrugStockForRecord(const Record* rec) {
     return drug && drug->stock >= qty;
 }
 
-static DrugHistory* createDrugDispenseHistoryForRecord(const Record* rec, Drug** drugOut, int* qtyOut) {
+static int finalizeDrugDispenseForRecord(const Record* rec) {
     char drugName[50];
     int qty = 0;
-    if (!parseDrugRecordInfo(rec, drugName, sizeof(drugName), &qty)) {
-        if (drugOut) *drugOut = NULL;
-        if (qtyOut) *qtyOut = 0;
-        return NULL;
-    }
+    if (!parseDrugRecordInfo(rec, drugName, sizeof(drugName), &qty)) return 1;
 
     Drug* drug = findDrugByName(drugName);
-    if (!drug || drug->stock < qty) return (DrugHistory*)-1;
+    if (!drug || drug->stock < qty) return 0;
 
     DrugHistory* hist = (DrugHistory*)malloc(sizeof(DrugHistory));
-    if (!hist) return (DrugHistory*)-1;
+    if (!hist) return 0;
 
     hist->drug_id = drug->id;
     hist->type = 2;
     hist->quantity = qty;
     getCurrentTimeStr(hist->time, sizeof(hist->time));
-    hist->next = NULL;
+    hist->next = drugHistoryList->next;
 
-    if (drugOut) *drugOut = drug;
-    if (qtyOut) *qtyOut = qty;
-    return hist;
-}
-
-static void commitDrugDispense(Drug* drug, int qty, DrugHistory* hist) {
-    if (!drug || !hist || qty <= 0) return;
     drug->stock -= qty;
     strncpy(drug->last_out, hist->time, sizeof(drug->last_out) - 1);
     drug->last_out[sizeof(drug->last_out) - 1] = '\0';
-    hist->next = drugHistoryList->next;
     drugHistoryList->next = hist;
+    return 1;
 }
 
 void generatePatientID(char* idBuffer) {
@@ -130,19 +119,13 @@ static int settleSingleRecord(Patient* p, const char* currentPatientId, Record* 
     if (!p || !currentPatientId || !rec || rec->isPaid != 0) return 0;
     if (p->balance < rec->cost) return 0;
 
-    Drug* dispenseDrug = NULL;
-    DrugHistory* dispenseHist = NULL;
-    int dispenseQty = 0;
-
     if (rec->type == 3) {
         if (!ensureDrugStockForRecord(rec)) return 0;
-        dispenseHist = createDrugDispenseHistoryForRecord(rec, &dispenseDrug, &dispenseQty);
-        if (dispenseHist == (DrugHistory*)-1) return 0;
+        if (!finalizeDrugDispenseForRecord(rec)) return 0;
     }
 
     if (isInpatientArrearsRecord(rec)) {
         if (!appendTransactionSafe(TRANS_INPATIENT_SUPPLEMENT, rec->cost, "住院欠费补交(不计收入)")) {
-            if (dispenseHist && dispenseHist != (DrugHistory*)-1) free(dispenseHist);
             return 0;
         }
         p->balance -= rec->cost;
@@ -153,15 +136,10 @@ static int settleSingleRecord(Patient* p, const char* currentPatientId, Record* 
     else {
         int transType = determineTransactionTypeForRecord(rec);
         if (!appendTransactionSafe(transType, rec->cost, rec->description)) {
-            if (dispenseHist && dispenseHist != (DrugHistory*)-1) free(dispenseHist);
             return 0;
         }
         p->balance -= rec->cost;
         rec->isPaid = 1;
-        if (dispenseHist) {
-            commitDrugDispense(dispenseDrug, dispenseQty, dispenseHist);
-            dispenseHist = NULL;
-        }
     }
 
     checkAndAutoDischarge(rec, currentPatientId);

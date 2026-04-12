@@ -7,6 +7,8 @@
 #include "schedule.h"
 #include "doctor.h"
 #include "outpatient_department.h"
+#include "patient.h"
+#include "inpatient_department.h"
 #include "drug.h"
 
 // ---------------------------------------------------------
@@ -263,7 +265,7 @@ void prescribeMedicine(const char* docId) {
         sprintf(r3->description, "药品:%s_单价:%.2f_数量:%d_总价:%.2f", selectedMed->name, selectedMed->price, qty, totalCost);
         getCurrentTimeStr(r3->createTime, 30); r3->next = recordHead->next; recordHead->next = r3;
 
-        printf("  [√] 云端处方下达指令送出，价值 %.2f 元。 (循环配药开启)\n", totalCost);
+        printf("  [√] 云端处方下达指令送出，价值 %.2f 元。待患者支付成功后再正式扣减库存。\n", totalCost);
     }
 }
 

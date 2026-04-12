@@ -75,36 +75,23 @@ void syncInpatientArrearsBill(Patient* patient, const char* staffId) {
     }
 }
 
-static Record* createInpatientDetailRecordNode(int type, const char* patientId, const char* staffId,
+static void appendInpatientDetailRecord(int type, const char* patientId, const char* staffId,
     double cost, int isPaid, const char* description) {
     Record* rec = (Record*)malloc(sizeof(Record));
-    if (!rec) return NULL;
+    if (!rec) return;
 
     generateRecordID(rec->recordId);
     rec->type = type;
-    strncpy(rec->patientId, patientId ? patientId : "", sizeof(rec->patientId) - 1);
-    rec->patientId[sizeof(rec->patientId) - 1] = '\0';
-    strncpy(rec->staffId, staffId ? staffId : "", sizeof(rec->staffId) - 1);
-    rec->staffId[sizeof(rec->staffId) - 1] = '\0';
+    strcpy(rec->patientId, patientId);
+    strcpy(rec->staffId, staffId);
     rec->cost = cost;
     rec->isPaid = isPaid;
-    strncpy(rec->description, description ? description : "", sizeof(rec->description) - 1);
+    strncpy(rec->description, description, sizeof(rec->description) - 1);
     rec->description[sizeof(rec->description) - 1] = '\0';
     getCurrentTimeStr(rec->createTime, 30);
-    rec->next = NULL;
-    return rec;
-}
 
-static void appendPreparedRecord(Record* rec) {
-    if (!rec) return;
     rec->next = recordHead->next;
     recordHead->next = rec;
-}
-
-static void appendInpatientDetailRecord(int type, const char* patientId, const char* staffId,
-    double cost, int isPaid, const char* description) {
-    Record* rec = createInpatientDetailRecordNode(type, patientId, staffId, cost, isPaid, description);
-    appendPreparedRecord(rec);
 }
 
 static void initHospitalDepts() {
@@ -548,7 +535,23 @@ void admitPatient(const char* docId) {
         return;
     }
 
-    Record* depositDetail = NULL;
+    targetPat->balance -= finalDeposit;
+    targetPat->inpatientDeposit += finalDeposit;
+    targetPat->isInpatient = 1;
+
+    printf("  [√] 账户资金划扣完毕，病区收治状态已激活。\n");
+
+    {
+        char transDesc[200];
+        sprintf(transDesc, "住院押金收取(患者:%s, 不计收入)", targetPat->name);
+        appendTransaction(TRANS_INPATIENT_DEPOSIT, (double)finalDeposit, transDesc);
+    }
+
+    finalBed->isOccupied = 1;
+    strcpy(finalBed->patientId, pId);
+    finalBed->isRoundsDone = 0;
+    targetNotice->isPaid = 1;
+
     {
         char adminTime[30];
         char detailDesc[300];
@@ -556,36 +559,9 @@ void admitPatient(const char* docId) {
         sprintf(detailDesc,
             "[住院明细][押金] 病房:%s_床位:%s_入院日期:%s_预期天数:%d_押金:%d",
             finalBed->wardType, finalBed->bedId, adminTime, days, finalDeposit);
-        depositDetail = createInpatientDetailRecordNode(5, pId, docId, finalDeposit, 1, detailDesc);
+
+        appendInpatientDetailRecord(5, pId, docId, finalDeposit, 1, detailDesc);
     }
-    if (!depositDetail) {
-        printf("  [异常] 住院明细记录创建失败，本次入院未提交。\n");
-        system("pause");
-        return;
-    }
-
-    {
-        char transDesc[200];
-        sprintf(transDesc, "住院押金收取(患者:%s, 不计收入)", targetPat->name);
-        if (!appendTransactionSafe(TRANS_INPATIENT_DEPOSIT, (double)finalDeposit, transDesc)) {
-            free(depositDetail);
-            printf("  [异常] 财务流水写入失败，本次入院未提交。\n");
-            system("pause");
-            return;
-        }
-    }
-
-    targetPat->balance -= finalDeposit;
-    targetPat->inpatientDeposit += finalDeposit;
-    targetPat->isInpatient = 1;
-
-    printf("  [√] 账户资金划扣完毕，病区收治状态已激活。\n");
-
-    finalBed->isOccupied = 1;
-    strcpy(finalBed->patientId, pId);
-    finalBed->isRoundsDone = 0;
-    targetNotice->isPaid = 1;
-    appendPreparedRecord(depositDetail);
 
     if (isCrossDept) {
         printf("\n  [成功] 跨模块调度机制完成，已将病患安置于 [%s] 的 %s 节点。\n",
@@ -856,63 +832,44 @@ void dischargePatient() {
             return;
         }
 
+        targetPat->inpatientDeposit -= totalBedFee;
+
         {
             char desc[300];
-            Record* bedFeeDetail = NULL;
-            Record* refundDetail = NULL;
-            double depositAfterFee = targetPat->inpatientDeposit - totalBedFee;
-
             sprintf(desc, "[住院明细][床位费] 床位:%s_计费天数:%d_床位单价:%.2f",
                 targetBed->bedId, billableDays, targetBed->price);
-            bedFeeDetail = createInpatientDetailRecordNode(5, pId, "SYS", totalBedFee, 1, desc);
-            if (!bedFeeDetail) {
-                printf("\n  [异常] 床位费明细创建失败，本次出院结算未完成。\n");
+            appendInpatientDetailRecord(5, pId, "SYS", totalBedFee, 1, desc);
+        }
+        if (!appendTransactionSafe(TRANS_INPATIENT_BED_INCOME, totalBedFee, "出院结算床位费")) {
+            printf("\n  [异常] 财务流水写入失败，本次出院结算未完成，请稍后重试。\n");
+            targetPat->inpatientDeposit += totalBedFee;
+            system("pause");
+            return;
+        }
+
+        if (targetPat->inpatientDeposit > 0) {
+            double refund = targetPat->inpatientDeposit;
+            targetPat->balance += refund;
+            targetPat->inpatientDeposit = 0;
+
+            appendInpatientDetailRecord(
+                8, pId, "SYS", refund, 1,
+                "[住院明细][退回] 出院后住院押金结余退回普通账户"
+            );
+            if (!appendTransactionSafe(TRANS_INPATIENT_REFUND, refund, "住院押金结余退回(不计收入)")) {
+                printf("\n  [异常] 退款流水写入失败，请联系财务核查。\n");
                 system("pause");
                 return;
             }
 
-            if (!appendTransactionSafe(TRANS_INPATIENT_BED_INCOME, totalBedFee, "出院结算床位费")) {
-                free(bedFeeDetail);
-                printf("\n  [异常] 财务流水写入失败，本次出院结算未完成，请稍后重试。\n");
-                system("pause");
-                return;
-            }
-
-            if (depositAfterFee > 0) {
-                refundDetail = createInpatientDetailRecordNode(
-                    8, pId, "SYS", depositAfterFee, 1,
-                    "[住院明细][退回] 出院后住院押金结余退回普通账户"
-                );
-                if (!refundDetail) {
-                    printf("\n  [异常] 退款明细创建失败，请联系财务核查。\n");
-                    system("pause");
-                    return;
-                }
-                if (!appendTransactionSafe(TRANS_INPATIENT_REFUND, depositAfterFee, "住院押金结余退回(不计收入)")) {
-                    free(refundDetail);
-                    printf("\n  [异常] 退款流水写入失败，请联系财务核查。\n");
-                    system("pause");
-                    return;
-                }
-            }
-
-            targetPat->inpatientDeposit = depositAfterFee;
-            appendPreparedRecord(bedFeeDetail);
-
-            if (depositAfterFee > 0) {
-                double refund = depositAfterFee;
-                targetPat->balance += refund;
-                targetPat->inpatientDeposit = 0;
-                appendPreparedRecord(refundDetail);
-                printf("\n  [资金清算] 住院押金结余 %.2f 元，已退回普通账户余额。\n", refund);
-            }
-            else if (depositAfterFee < 0) {
-                syncInpatientArrearsBill(targetPat, "SYS");
-                printf("\n  [资金预警] 出院结算后仍欠费 %.2f 元，已生成待补交账单。\n", -targetPat->inpatientDeposit);
-            }
-            else {
-                printf("\n  [资金清算] 出院结算完成，住院押金已刚好结清。\n");
-            }
+            printf("\n  [资金清算] 住院押金结余 %.2f 元，已退回普通账户余额。\n", refund);
+        }
+        else if (targetPat->inpatientDeposit < 0) {
+            syncInpatientArrearsBill(targetPat, "SYS");
+            printf("\n  [资金预警] 出院结算后仍欠费 %.2f 元，已生成待补交账单。\n", -targetPat->inpatientDeposit);
+        }
+        else {
+            printf("\n  [资金清算] 出院结算完成，住院押金已刚好结清。\n");
         }
 
         targetBed->isOccupied = 0;
