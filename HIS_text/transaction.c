@@ -159,74 +159,384 @@ static void showFinancialReport(void) {
 }
 
 void parttimereport(char* start, char* end) {
-    double total_outpatient = 0.0;
-    double total_bed = 0.0;
-    double total_drug = 0.0;
-    double total_exam = 0.0;
+    if (personnelReportList == NULL) {
+        return;
+    }
+    // ==========判断记录链表是否为空 ==========
+    if (recordHead->next == NULL) {
+        return;
+    }
 
-    for (Transaction* t = transactionList ? transactionList->next : NULL; t != NULL; t = t->next) {
-        if (strncmp(t->time, start, 10) >= 0 && strncmp(t->time, end, 10) <= 0) {
-            switch (t->type) {
-            case TRANS_OUTPATIENT_INCOME:
-                total_outpatient += t->amount;
-                break;
-            case TRANS_INPATIENT_BED_INCOME:
-                total_bed += t->amount;
-                break;
-            case TRANS_DRUG_INCOME:
-                total_drug += t->amount;
-                break;
-            case TRANS_EXAM_INCOME:
-                total_exam += t->amount;
-                break;
-            default:
+    Record* r = recordHead->next;
+    while (r) {
+        // 时间范围判断
+        if (strncmp(r->createTime, start, 10) >= 0 && strncmp(r->createTime, end, 10) <= 0) {
+            int flag = 0;
+            PersonnelReport* pr = personnelReportList->next;
+            while (pr) {
+                if (strcmp(pr->doctor_id, r->staffId) == 0) {
+                    pr->count++;
+                    flag = 1;
+                    break;
+                }
+                pr = pr->next;
+            }
+
+            if (flag == 0) {
+                PersonnelReport* new_pr = (PersonnelReport*)malloc(sizeof(PersonnelReport));
+                strcpy(new_pr->doctor_id, r->staffId);
+
+                // 默认值先填空，防止乱码
+                strcpy(new_pr->department, "未知科室");
+                strcpy(new_pr->doctor_name, "未知医生");
+
+                // ========== 修复 3：判断员工链表是否为空 ==========
+                if (staffHead != NULL && staffHead->next != NULL) {
+                    Staff* s = staffHead->next;
+                    while (s) {
+                        if (strcmp(s->id, r->staffId) == 0) {
+                            strcpy(new_pr->department, s->department);
+                            strcpy(new_pr->doctor_name, s->name);
+                            break;
+                        }
+                        s = s->next;
+                    }
+                }
+
+                new_pr->count = 1;
+                new_pr->next = personnelReportList->next;
+                personnelReportList->next = new_pr;
+            }
+        }
+        r = r->next;
+    }
+}
+
+static void showDrugOnlyTransactions(void) {
+    system("cls");
+	printf("请选择查看方式：1.查看所有药物流水 2.按时间筛选药物流水\n输入-1返回上级菜单\n请选择: ");
+	int choice = safeGetInt();
+	if (choice == -1) return;
+    while (1) {
+		if (choice == 1 || choice == 2) break;
+        else {
+			printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n请选择查看方式：1.查看所有流水 2.按时间筛选流水\n输入-1返回上级菜单\n请选择: ");
+             choice = safeGetInt();
+            if (choice == -1) return;
+        }
+    }
+   
+    int found = 0;
+    if (choice == 2) {
+        char start[20], end[20];
+        while (1) {
+            printf("\n请输入起始日期 (YYYY-MM-DD, 输入-1取消): ");
+            judgetime(start);
+            if (strcmp(start, "-1") == 0) return;
+            printf("请输入结束日期 (YYYY-MM-DD, 输入-1取消): ");
+            judgetime(end);
+            if (strcmp(end, "-1") == 0) return;
+            if (strcmp(start, end) > 0) {
+                printf("  [!] 逻辑错误：起始日期不能晚于结束日期，请重新输入。\n");
+            }
+            else {
                 break;
             }
         }
-    }
+        printf("\n========== 药物类业务流水 ==========（从 %s 到 %s）\n", start, end);
+        printf("%-8s %-14s %-12s %-12s %s\n", "ID", "类型", "金额", "时间", "说明");
+        printf("-------------------------------------------------------------------------------\n");
 
-    printf("\n========== 分时段财务统计 (%s 至 %s) ==========\n", start, end);
-    printf("门诊收入: %.2f\n", total_outpatient);
-    printf("床位费收入: %.2f\n", total_bed);
-    printf("药品收入: %.2f\n", total_drug);
-    printf("检查收入: %.2f\n", total_exam);
-    printf("总收入: %.2f\n", total_outpatient + total_bed + total_drug + total_exam);
-}
-
-static void showIncomeOnlyTransactions(void) {
-    system("cls");
-    printf("\n========== 收入类业务流水 ==========\n");
-    printf("%-8s %-14s %-12s %-12s %s\n", "ID", "类型", "金额", "时间", "说明");
-    printf("-------------------------------------------------------------------------------\n");
-
-    int found = 0;
-    for (Transaction* t = transactionList ? transactionList->next : NULL; t != NULL; t = t->next) {
-        if (isIncomeTransactionType(t->type)) {
-            printf("%-8d %-14s %-12.2f %-12.12s %s\n",
-                t->id,
-                getTransactionTypeName(t->type),
-                t->amount,
-                t->time,
-                t->description);
-            found = 1;
+        for (Transaction* t = transactionList ? transactionList->next : NULL; t != NULL; t = t->next) {
+            if (t->type == TRANS_DRUG_INCOME && strncmp(t->time, start, 10) >= 0 && strncmp(t->time, end, 10) <= 0) {
+                printf("%-8d %-14s %-12.2f %-12.12s %s\n",
+                    t->id,
+                    getTransactionTypeName(t->type),
+                    t->amount,
+                    t->time,
+                    t->description);
+                found = 1;
+            }
         }
+
+        if (!found) {
+            printf("该时间段内暂无药物类流水记录。\n");
+        }
+
+        printf("-------------------------------------------------------------------------------\n");
     }
 
-    if (!found) {
-        printf("暂无收入类流水记录。\n");
-    }
+    else {
+        printf("\n========== 药物类业务流水 ==========\n");
+        printf("%-8s %-14s %-12s %-12s %s\n", "ID", "类型", "金额", "时间", "说明");
+        printf("-------------------------------------------------------------------------------\n");
 
-    printf("-------------------------------------------------------------------------------\n");
+        for (Transaction* t = transactionList ? transactionList->next : NULL; t != NULL; t = t->next) {
+            if (t->type == TRANS_DRUG_INCOME) {
+                printf("%-8d %-14s %-12.2f %-12.12s %s\n",
+                    t->id,
+                    getTransactionTypeName(t->type),
+                    t->amount,
+                    t->time,
+                    t->description);
+                found = 1;
+            }
+        }
+
+        if (!found) {
+            printf("暂无药物类流水记录。\n");
+        }
+
+        printf("-------------------------------------------------------------------------------\n");
+    }
     system("pause");
 }
+static void showExamOnlyTransactions(void) {
+    system("cls");
+    printf("请选择查看方式：1.查看所有检查流水 2.按时间筛选检查流水\n输入-1返回上级菜单\n请选择: ");
+    int choice = safeGetInt();
+    if (choice == -1) return;
+    while (1) {
+        if (choice == 1 || choice == 2) break;
+        else {
+            printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n请选择查看方式：1.查看所有流水 2.按时间筛选流水\n输入-1返回上级菜单\n请选择: ");
+            choice = safeGetInt();
+            if (choice == -1) return;
+        }
+    }
+    
+    int found = 0;
+    if (choice == 2) {
+        char start[20], end[20];
+        while (1) {
+            printf("\n请输入起始日期 (YYYY-MM-DD, 输入-1取消): ");
+            judgetime(start);
+            if (strcmp(start, "-1") == 0) return;
+            printf("请输入结束日期 (YYYY-MM-DD, 输入-1取消): ");
+            judgetime(end);
+            if (strcmp(end, "-1") == 0) return;
+            if (strcmp(start, end) > 0) {
+                printf("  [!] 逻辑错误：起始日期不能晚于结束日期，请重新输入。\n");
+            }
+            else {
+                break;
+            }
+        }
+        printf("\n========== 检查类业务流水 ==========（从 %s 到 %s）\n", start, end);
+        printf("%-8s %-14s %-12s %-12s %s\n", "ID", "类型", "金额", "时间", "说明");
+        printf("-------------------------------------------------------------------------------\n");
 
+        for (Transaction* t = transactionList ? transactionList->next : NULL; t != NULL; t = t->next) {
+            if (t->type == TRANS_EXAM_INCOME && strncmp(t->time, start, 10) >= 0 && strncmp(t->time, end, 10) <= 0) {
+                printf("%-8d %-14s %-12.2f %-12.12s %s\n",
+                    t->id,
+                    getTransactionTypeName(t->type),
+                    t->amount,
+                    t->time,
+                    t->description);
+                found = 1;
+            }
+        }
+
+        if (!found) {
+            printf("该时间段内暂无检查类流水记录。\n");
+        }
+
+        printf("-------------------------------------------------------------------------------\n");
+    }
+
+    else {
+        printf("\n========== 检查类业务流水 ==========\n");
+        printf("%-8s %-14s %-12s %-12s %s\n", "ID", "类型", "金额", "时间", "说明");
+        printf("-------------------------------------------------------------------------------\n");
+
+        for (Transaction* t = transactionList ? transactionList->next : NULL; t != NULL; t = t->next) {
+            if (t->type == TRANS_EXAM_INCOME) {
+                printf("%-8d %-14s %-12.2f %-12.12s %s\n",
+                    t->id,
+                    getTransactionTypeName(t->type),
+                    t->amount,
+                    t->time,
+                    t->description);
+                found = 1;
+            }
+        }
+
+        if (!found) {
+            printf("暂无检查类流水记录。\n");
+        }
+
+        printf("-------------------------------------------------------------------------------\n");
+    }
+    system("pause");
+}
+static void showBedOnlyTransactions(void) {
+    system("cls");
+    printf("请选择查看方式：1.查看所有床位流水 2.按时间筛选床位流水\n输入-1返回上级菜单\n请选择: ");
+    int choice = safeGetInt();
+    if (choice == -1) return;
+    while (1) {
+        if (choice == 1 || choice == 2) break;
+        else {
+            printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n请选择查看方式：1.查看所有流水 2.按时间筛选流水\n输入-1返回上级菜单\n请选择: ");
+            choice = safeGetInt();
+            if (choice == -1) return;
+        }
+    }
+   
+    int found = 0;
+    if (choice == 2) {
+        char start[20], end[20];
+        while (1) {
+           
+            printf("\n请输入起始日期 (YYYY-MM-DD, 输入-1取消): ");
+            judgetime(start);
+            if (strcmp(start, "-1") == 0) return;
+            printf("请输入结束日期 (YYYY-MM-DD, 输入-1取消): ");
+            judgetime(end);
+            if (strcmp(end, "-1") == 0) return;
+            if (strcmp(start, end) > 0) {
+                printf("  [!] 逻辑错误：起始日期不能晚于结束日期，请重新输入。\n");
+            }
+            else {
+                break;
+            }
+        }
+        printf("\n========== 住院床位费业务流水 ==========（从 %s 到 %s）\n", start, end);
+            printf("%-8s %-14s %-12s %-12s %s\n", "ID", "类型", "金额", "时间", "说明");
+            printf("-------------------------------------------------------------------------------\n");
+
+        for (Transaction* t = transactionList ? transactionList->next : NULL; t != NULL; t = t->next) {
+            if (t->type == TRANS_INPATIENT_BED_INCOME && strncmp(t->time, start, 10) >= 0 && strncmp(t->time, end, 10) <= 0) {
+                printf("%-8d %-14s %-12.2f %-12.12s %s\n",
+                    t->id,
+                    getTransactionTypeName(t->type),
+                    t->amount,
+                    t->time,
+                    t->description);
+                found = 1;
+            }
+        }
+
+        if (!found) {
+            printf("该时间段内暂无床位类流水记录。\n");
+        }
+
+        printf("-------------------------------------------------------------------------------\n");
+    }
+    else {
+        printf("\n========== 住院床位费业务流水 ==========\n");
+        printf("%-8s %-14s %-12s %-12s %s\n", "ID", "类型", "金额", "时间", "说明");
+        printf("-------------------------------------------------------------------------------\n");
+
+        for (Transaction* t = transactionList ? transactionList->next : NULL; t != NULL; t = t->next) {
+            if (t->type == TRANS_INPATIENT_BED_INCOME) {
+                printf("%-8d %-14s %-12.2f %-12.12s %s\n",
+                    t->id,
+                    getTransactionTypeName(t->type),
+                    t->amount,
+                    t->time,
+                    t->description);
+                found = 1;
+            }
+        }
+
+        if (!found) {
+            printf("暂无床位类流水记录。\n");
+        }
+
+        printf("-------------------------------------------------------------------------------\n");
+    }
+    system("pause");
+}
+static void showDoorOnlyTransactions(void) {
+    system("cls");
+    printf("请选择查看方式：1.查看所有门诊流水 2.按时间筛选门诊流水\n输入-1返回上级菜单\n请选择: ");
+    int choice = safeGetInt();
+    if (choice == -1) return;
+    while (1) {
+        if (choice == 1 || choice == 2) break;
+        else {
+            printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n请选择查看方式：1.查看所有流水 2.按时间筛选流水\n输入-1返回上级菜单\n请选择: ");
+            choice = safeGetInt();
+            if (choice == -1) return;
+        }
+    }
+    
+    int found = 0;
+    if (choice == 2) {
+        char start[20], end[20];
+        while (1) {
+            printf("\n请输入起始日期 (YYYY-MM-DD, 输入-1取消): ");
+            judgetime(start);
+            if (strcmp(start, "-1") == 0) return;
+            printf("请输入结束日期 (YYYY-MM-DD, 输入-1取消): ");
+            judgetime(end);
+            if (strcmp(end, "-1") == 0) return;
+            if (strcmp(start, end) > 0) {
+                printf("  [!] 逻辑错误：起始日期不能晚于结束日期，请重新输入。\n");
+            }
+            else {
+                break;
+            }
+        }
+        printf("\n========== 门诊业务流水 ==========（从 %s 到 %s）\n", start, end);
+        printf("%-8s %-14s %-12s %-12s %s\n", "ID", "类型", "金额", "时间", "说明");
+        printf("-------------------------------------------------------------------------------\n");
+
+        for (Transaction* t = transactionList ? transactionList->next : NULL; t != NULL; t = t->next) {
+            if (t->type == TRANS_OUTPATIENT_INCOME && strncmp(t->time, start, 10) >= 0 && strncmp(t->time, end, 10) <= 0) {
+                printf("%-8d %-14s %-12.2f %-12.12s %s\n",
+                    t->id,
+                    getTransactionTypeName(t->type),
+                    t->amount,
+                    t->time,
+                    t->description);
+                found = 1;
+            }
+        }
+
+        if (!found) {
+            printf("该时间段内暂无门诊类流水记录。\n");
+        }
+
+        printf("-------------------------------------------------------------------------------\n");
+    }
+    else {
+        printf("\n========== 门诊业务流水 ==========\n");
+        printf("%-8s %-14s %-12s %-12s %s\n", "ID", "类型", "金额", "时间", "说明");
+        printf("-------------------------------------------------------------------------------\n");
+
+        for (Transaction* t = transactionList ? transactionList->next : NULL; t != NULL; t = t->next) {
+            if (t->type == TRANS_OUTPATIENT_INCOME) {
+                printf("%-8d %-14s %-12.2f %-12.12s %s\n",
+                    t->id,
+                    getTransactionTypeName(t->type),
+                    t->amount,
+                    t->time,
+                    t->description);
+                found = 1;
+            }
+        }
+
+        if (!found) {
+            printf("暂无门诊类流水记录。\n");
+        }
+
+        printf("-------------------------------------------------------------------------------\n");
+    }
+    system("pause");
+}
 void reportMenu(void) {
     while (1) {
         system("cls");
         printf("\n========== 财务报表与流水中心 ==========\n");
         printf("  [1] 查看全部业务流水\n");
-        printf("  [2] 查看收入类流水\n");
-        printf("  [3] 查看区间财务报表\n");
+        printf("  [2] 查看药物类流水\n");
+		printf("  [3] 查看检查类流水\n");
+		printf("  [4] 查看住院床位费流水\n");
+		printf("  [5] 查看门诊业务流水\n");
+        printf("  [6] 查看区间财务报表\n");
         printf("  [-1] 返回上级菜单\n");
         printf("----------------------------------------\n");
         printf("请选择: ");
@@ -239,9 +549,18 @@ void reportMenu(void) {
             showAllTransactions();
             break;
         case 2:
-            showIncomeOnlyTransactions();
+            showDrugOnlyTransactions();
             break;
-        case 3:
+		case 3:
+			showExamOnlyTransactions();
+            break;
+		case 4:
+			showBedOnlyTransactions();
+            break;
+        case 5:
+            showDoorOnlyTransactions();
+            break;
+        case 6:
             showFinancialReport();
             break;
         default:

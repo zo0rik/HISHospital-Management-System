@@ -28,6 +28,7 @@ typedef struct Staff {
     char department[100];
     char level[100]; // 对应医生的“职称”
     char sex[10];    // 【新增】性别字段
+	int age;        // 【新增】年龄字段
     struct Staff* next;
 } Staff, * StaffList;
 
