@@ -9,21 +9,25 @@
 #include "time_t.h"
 #include "utils.h"
 
+// 人员异常预测与预警分析
 static void personnelPrediction() {
     printf("\n========== 人员异常预测预警 ==========\n");
     char start[30], currentTime[30];
-    getCurrentDate(currentTime, 30);
-    getPastDateAccurate(currentTime, start, 14);
-    parttimereport(start, currentTime);
+    getCurrentDate(currentTime, 30);                // 获取当前日期
+    getPastDateAccurate(currentTime, start, 14);   // 获取14天前的日期
+    parttimereport(start, currentTime);            // 生成指定时间段的接诊报表
+
+    // 无数据则直接返回
     if (!personnelReportList || !(personnelReportList->next)) {
         printf(" 在指定时间范围内无接诊数据，无法进行分析。\n");
         return;
     }
 
-    int totalDoctors = 0;
-    int highVolumeDoctors = 0;
-    int lowVolumeDoctors = 0;
+    int totalDoctors = 0;                          // 总医生数
+    int highVolumeDoctors = 0;                     // 高接诊量医生数
+    int lowVolumeDoctors = 0;                      // 低接诊量医生数
 
+    // 遍历统计接诊量
     PersonnelReport* current = personnelReportList->next;
     while (current != NULL) {
         totalDoctors++;
@@ -37,10 +41,12 @@ static void personnelPrediction() {
         current = current->next;
     }
 
+    // 输出统计结果
     printf("统计完成：共 %d 名医生\n", totalDoctors);
     printf("  高接诊量医生(>100): %d 名\n", highVolumeDoctors);
     printf("  低接诊量医生(<20): %d 名\n", lowVolumeDoctors);
 
+    // 输出医生接诊详情
     printf("\n--- 医生接诊情况分析 ---\n");
     printf("%-10s %-20s %-15s %-8s %s\n", "医生ID", "姓名", "科室", "接诊量", "风险状态");
     printf("------------------------------------------------------------\n");
@@ -50,6 +56,7 @@ static void personnelPrediction() {
         char riskStatus[20] = "正常";
         float riskProbability = 0.0f;
 
+        // 根据接诊量判断风险等级
         if (current->count > 120) {
             strcpy(riskStatus, "过劳风险");
             riskProbability = 0.8f;
@@ -74,6 +81,7 @@ static void personnelPrediction() {
         current = current->next;
     }
 
+    // 输出预警名单
     printf("\n--- 预警名单 ---\n");
     int warningCount = 0;
     current = personnelReportList->next;
@@ -109,6 +117,7 @@ static void personnelPrediction() {
         printf("  共 %d 名医生需要关注\n", warningCount);
     }
 
+    // 输出管理建议
     printf("\n--- 管理建议 ---\n");
     if (highVolumeDoctors > 0) {
         printf(" 对高接诊量医生(%d名)：适当减少排班，防止过劳\n", highVolumeDoctors);
@@ -121,6 +130,8 @@ static void personnelPrediction() {
     }
 
     printf("\n分析完成！\n");
+
+    // 释放临时报表链表内存
     PersonnelReport* p = personnelReportList->next;
     while (p) {
         PersonnelReport* tmp = p;
@@ -130,8 +141,11 @@ static void personnelPrediction() {
     personnelReportList->next = NULL;
 }
 
+// 药房分拣仓库效能评估
 static void warehouseStrategy() {
     printf("\n========== 药房分拣仓库效能评估 ==========\n");
+
+    // 无药品数据直接返回
     if (!(drugList->next)) {
         printf("暂无药品字典数据，无法建立效能评估模型。\n");
         return;
@@ -140,22 +154,29 @@ static void warehouseStrategy() {
     int total_out = 0, drug_count = 0;
     Drug* p = drugList->next;
 
+    // 统计所有药品的总出库量
     while (p) {
         drug_count++;
         int out_qty = 0;
         DrugHistory* h = drugHistoryList->next;
+
+        // 统计当前药品的出库量
         while (h) {
-            if (h->drug_id == p->id && h->type == 2) out_qty += h->quantity;
+            if (h->drug_id == p->id && h->type == 2)
+                out_qty += h->quantity;
             h = h->next;
         }
         total_out += out_qty;
         p = p->next;
     }
+
+    // 无出库数据则返回
     if (drug_count == 0 || total_out == 0) {
         printf("药房历史出库数据积累不足，无法完成效能评估。建议累积业务数据后再试。\n");
         return;
     }
 
+    // 计算平均出库量并输出评估建议
     double avg_out = (double)total_out / drug_count;
     printf("全院药品单品平均出库流转量：%.2f\n", avg_out);
 
@@ -176,19 +197,24 @@ static void warehouseStrategy() {
         printf("  - 实行批处理操作，集中时段进行药品分拣\n");
     }
 
+    // 异常处理规范提示
     printf("\n[标准异常处理规范提示]\n");
     printf(" > 账实不符：立刻冻结该批次，启动二级复盘点流程。\n");
     printf(" > 滞销积压：对接财务与供应商实行折价或调换退货。\n");
     printf("\n");
 }
 
+// 药品库存配比优化建议
 static void drugProportionAdvice() {
     printf("\n========== 供应链库存配比 AI 优化建议 ==========\n");
+
+    // 无药品数据直接返回
     if (!(drugList->next)) {
         printf("无药品基础数据接入。\n");
         return;
     }
 
+    // 药品统计结构体
     typedef struct {
         char name[50];
         int total_out;
@@ -198,15 +224,24 @@ static void drugProportionAdvice() {
     DrugStat stats[100];
     int count = 0;
 
+    // 统计每个药品的出库量与库存
     Drug* p = drugList->next;
     while (p) {
         int out_qty = 0;
         DrugHistory* h = drugHistoryList->next;
+
         while (h) {
-            if (h->drug_id == p->id && h->type == 2) out_qty += h->quantity;
+            if (h->drug_id == p->id && h->type == 2)
+                out_qty += h->quantity;
             h = h->next;
         }
-        if (count >= 100) { printf("  [!] 药品种类超过统计上限(100)，部分数据已截断。\n"); break; }
+
+        // 最多统计100种药品
+        if (count >= 100) {
+            printf("  [!] 药品种类超过统计上限(100)，部分数据已截断。\n");
+            break;
+        }
+
         strcpy(stats[count].name, p->name);
         stats[count].total_out = out_qty;
         stats[count].stock = p->stock;
@@ -214,17 +249,22 @@ static void drugProportionAdvice() {
         p = p->next;
     }
 
+    // 计算总出库量
     int total_out = 0;
-    for (int i = 0; i < count; i++) total_out += stats[i].total_out;
+    for (int i = 0; i < count; i++)
+        total_out += stats[i].total_out;
 
+    // 无出库数据则返回
     if (total_out == 0) {
         printf("系统缺乏有效出库历史，模型无法完成计算。\n");
         return;
     }
 
+    // 输出药品分析表头
     printf("基于医疗消耗大数据的采购结构分析：\n\n");
     printf("%-20s %-10s %-10s %-15s\n", "药品名称", "累计消耗", "消耗占率", "当前库存");
 
+    // 逐个分析药品库存健康度
     for (int i = 0; i < count; i++) {
         double ratio = (double)stats[i].total_out / total_out * 100;
         printf("%-20s %-10d %-10.2f%% %-15d ", stats[i].name, stats[i].total_out, ratio, stats[i].stock);
@@ -240,12 +280,14 @@ static void drugProportionAdvice() {
         }
     }
 
+    // 输出总结建议
     printf("\n【模型输出总结】\n");
     printf("  1. 优先将资金向高消耗、低库存的长尾刚需药品倾斜。\n");
     printf("  2. 对于消耗占率极低的品种，采用按单订货模式（JIT）代替海量囤货。\n");
     printf("\n");
 }
 
+// 智能决策主菜单
 void decisionMenu() {
     int choice;
     do {
@@ -255,15 +297,17 @@ void decisionMenu() {
         printf("2. 分拣与药房负载分析\n");
         printf("3. 供应链采销配比优化建议\n");
         printf("4. 一键执行全景分析\n");
-        printf("-1. 返回高管主菜单\n"); /* 【规则A】0→-1 */
+        printf("-1. 返回高管主菜单\n");
         printf("请选择功能: ");
 
+        // 输入合法性校验
         while (1) {
             choice = safeGetInt();
-            if (choice == -1 || (choice >= 1 && choice <= 4)) break; /* 【规则B】0→-1 */
+            if (choice == -1 || (choice >= 1 && choice <= 4)) break;
             printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n请重新选择功能: ");
         }
 
+        // 菜单功能分发
         switch (choice) {
         case 1:
             personnelPrediction();
@@ -283,8 +327,8 @@ void decisionMenu() {
             drugProportionAdvice();
             system("pause");
             break;
-        case -1: /* 【规则B】 */
+        case -1:
             break;
         }
-    } while (choice != -1); /* 【规则B】 */
+    } while (choice != -1);
 }

@@ -7,7 +7,9 @@
 #include "fileio.h"
 #include "time_t.h"
 
+// 药品链表头节点
 Drug* drugList;
+// 药品操作历史链表头节点
 DrugHistory* drugHistoryList;
 
 // 根据ID查找药品，找到返回药品指针，没找到返回NULL
@@ -27,6 +29,8 @@ Drug* findDrugById(int id) {
 
     return NULL; // 没找到
 }
+
+// 模糊查询药品：根据名称关键字查找，将匹配结果存入matched数组，返回匹配数量
 int findDrugsByNameFuzzy(char* key, Drug** matched, int maxCount) {
     int count = 0;
     Drug* p = drugList->next;
@@ -41,6 +45,7 @@ int findDrugsByNameFuzzy(char* key, Drug** matched, int maxCount) {
     return count;
 }
 
+// 判断药品ID是否已存在，用于新增时查重
 static int isDrugIdExists(int id) {
     Drug* p = drugList->next;
     while (p) {
@@ -50,6 +55,17 @@ static int isDrugIdExists(int id) {
     return 0;
 }
 
+// 判断药品名称是否已存在，避免重复添加
+static int isDrugNameExists(char* name) {
+    Drug* p = drugList->next;
+    while (p) {
+        if (strcmp(p->name, name) == 0) return 1;
+        p = p->next;
+    }
+    return 0;
+}
+
+// 显示所有药品信息
 static void displayAllDrugs() {
     if (!(drugList->next)) {
         printf("药品库为空。\n");
@@ -67,6 +83,7 @@ static void displayAllDrugs() {
     printf("------------------------------------------------------------------------------------------------------------\n");
 }
 
+// 药品库存查询功能
 static void drugStockQuery() {
     int choice;
     printf("\n药品库存查询:\n1-按ID查询\n2-按名称模糊查询\n3-查看所有药品\n-1-返回上一步\n请选择: ");
@@ -97,6 +114,7 @@ static void drugStockQuery() {
         if (found == 0) printf("  [!] 未找到该药品。\n");
     }
     else if (choice == 2) {
+        // 模糊查询时显示所有匹配结果，方便用户确认后续操作
         char name[50];
         printf("请输入药品名称关键字: ");
         safeGetString(name, 50);
@@ -118,6 +136,7 @@ static void drugStockQuery() {
     system("pause");
 }
 
+// 查看药品库存变动记录（入库/出库）
 static void viewStockRecords() {
     printf("\n--- 库存变动记录 ---\n");
     DrugHistory* h = drugHistoryList->next;
@@ -131,8 +150,9 @@ static void viewStockRecords() {
     system("pause");
 }
 
+// 药品入库功能
 static void drugIn() {
-	printf("请选择药品入库方式:\n1-按ID入库\n2-按名称入库(模糊化搜索）\n-1-返回上一步\n请选择: ");
+    printf("请选择药品入库方式:\n1-按ID入库\n2-按名称入库(模糊化搜索）\n-1-返回上一步\n请选择: ");
     int choice;
     while (1) {
         choice = safeGetInt();
@@ -149,6 +169,7 @@ static void drugIn() {
         Drug* p = drugList->next;
         while (p) {
             if (p->id == id) {
+                // 入库前显示药品详细信息，帮助用户确认入库对象，避免误操作
                 printf("ID:%d 名称:%s 库存:%d 价格:%.2f 批号:%s 有效期:%s\n",
                     p->id, p->name, p->stock, p->price, p->batch, p->expiry);
                 printf("当前库存: %d\n", p->stock);
@@ -175,7 +196,7 @@ static void drugIn() {
     }
     else {
         char name[50];
-		Drug* tmp[100];
+        Drug* tmp[100];
         printf("请输入药品名称关键字: ");
         safeGetString(name, 50);
         int found = 1;
@@ -184,13 +205,13 @@ static void drugIn() {
             if (strstr(p->name, name)) {
                 printf("%d   ID:%d 名称:%s 库存:%d 价格:%.2f 批号:%s 有效期:%s\n",
                     found, p->id, p->name, p->stock, p->price, p->batch, p->expiry);
-				tmp[found - 1] = p;
+                tmp[found - 1] = p;
                 found++;
             }
             p = p->next;
         }
-        if (found==1) printf("  [!] 未找到匹配药品。\n");
-        else if(found==2){
+        if (found == 1) printf("  [!] 未找到匹配药品。\n");
+        else if (found == 2) {
             printf("当前库存: %d\n", tmp[0]->stock);
             printf("请输入入库数量: ");
             int quantity = safeGetPositiveInt();
@@ -207,35 +228,37 @@ static void drugIn() {
             saveDrugs();
             saveDrugHistory();
         }
-         else {
-                printf("请输入要入库的药品编号 (输入-1取消): ");
-                int sel;
-                while (1) {
-                    sel = safeGetInt();
-                    if (sel == -1 || (sel >= 1 && sel < found)) break;
-                    printf("  [!] 输入格式不合法，请正确输入上方提供的数字编号！\n请重新选择: ");
-                }
-                if (sel == -1) return;
-                Drug* selectedDrug = tmp[sel - 1];
-                printf("当前库存: %d\n", selectedDrug->stock);
-                printf("请输入入库数量: ");
-                int quantity = safeGetPositiveInt();
-                if (quantity == -1) return;
-                if (quantity <= 0) return;
-                selectedDrug->stock += quantity;
-                getCurrentTimeStr(selectedDrug->last_in, 30);
-                DrugHistory* h = (DrugHistory*)malloc(sizeof(DrugHistory));
-                h->drug_id = selectedDrug->id; h->type = 1; h->quantity = quantity;
-                getCurrentTimeStr(h->time, 30);
-                h->next = drugHistoryList->next; drugHistoryList->next = h;
-                printf("  [√] 入库成功，新库存: %d\n", selectedDrug->stock);
-                saveDrugs();
-                saveDrugHistory();
-	    }   
+        else {
+            // 当模糊查询结果多于1个时，要求用户从列表中选择具体药品进行入库操作，避免误操作
+            printf("请输入要入库的药品编号 (输入-1取消): ");
+            int sel;
+            while (1) {
+                sel = safeGetInt();
+                if (sel == -1 || (sel >= 1 && sel < found)) break;
+                printf("  [!] 输入格式不合法，请正确输入上方提供的数字编号！\n请重新选择: ");
+            }
+            if (sel == -1) return;
+            Drug* selectedDrug = tmp[sel - 1];
+            printf("当前库存: %d\n", selectedDrug->stock);
+            printf("请输入入库数量: ");
+            int quantity = safeGetPositiveInt();
+            if (quantity == -1) return;
+            if (quantity <= 0) return;
+            selectedDrug->stock += quantity;
+            getCurrentTimeStr(selectedDrug->last_in, 30);
+            DrugHistory* h = (DrugHistory*)malloc(sizeof(DrugHistory));
+            h->drug_id = selectedDrug->id; h->type = 1; h->quantity = quantity;
+            getCurrentTimeStr(h->time, 30);
+            h->next = drugHistoryList->next; drugHistoryList->next = h;
+            printf("  [√] 入库成功，新库存: %d\n", selectedDrug->stock);
+            saveDrugs();
+            saveDrugHistory();
+        }
     }
     system("pause");
 }
 
+// 药品出库功能
 static void drugOut() {
     printf("请选择药品出库方式:\n1-按ID出库\n2-按名称出库(模糊化搜索）\n-1-返回上一步\n请选择: ");
     int choice;
@@ -264,12 +287,13 @@ static void drugOut() {
 
                 if (quantity > p->stock) {
                     printf("  [!] 库存不足，无法出库。\n");
+                    system("pause");
                     return;
                 }
                 p->stock -= quantity;
-                getCurrentTimeStr(p->last_in, 30);
+                getCurrentTimeStr(p->last_out, 30);
                 DrugHistory* h = (DrugHistory*)malloc(sizeof(DrugHistory));
-                h->drug_id = id; h->type = 1; h->quantity = quantity;
+                h->drug_id = id; h->type = 2; h->quantity = quantity;
                 getCurrentTimeStr(h->time, 30);
                 h->next = drugHistoryList->next; drugHistoryList->next = h;
                 printf("  [√] 出库成功，新库存: %d\n", p->stock);
@@ -308,12 +332,13 @@ static void drugOut() {
 
             if (quantity > tmp[0]->stock) {
                 printf("  [!] 库存不足，无法出库。\n");
+                system("pause");
                 return;
             }
             tmp[0]->stock -= quantity;
-            getCurrentTimeStr(tmp[0]->last_in, 30);
+            getCurrentTimeStr(tmp[0]->last_out, 30);
             DrugHistory* h = (DrugHistory*)malloc(sizeof(DrugHistory));
-            h->drug_id = tmp[0]->id; h->type = 1; h->quantity = quantity;
+            h->drug_id = tmp[0]->id; h->type = 2; h->quantity = quantity;
             getCurrentTimeStr(h->time, 30);
             h->next = drugHistoryList->next; drugHistoryList->next = h;
             printf("  [√] 出库成功，新库存: %d\n", tmp[0]->stock);
@@ -337,12 +362,13 @@ static void drugOut() {
             if (quantity <= 0) return;
             if (quantity > selectedDrug->stock) {
                 printf("  [!] 库存不足，无法出库。\n");
+                system("pause");
                 return;
-			}
+            }
             selectedDrug->stock -= quantity;
-            getCurrentTimeStr(selectedDrug->last_in, 30);
+            getCurrentTimeStr(selectedDrug->last_out, 30);
             DrugHistory* h = (DrugHistory*)malloc(sizeof(DrugHistory));
-            h->drug_id = selectedDrug->id; h->type = 1; h->quantity = quantity;
+            h->drug_id = selectedDrug->id; h->type = 2; h->quantity = quantity;
             getCurrentTimeStr(h->time, 30);
             h->next = drugHistoryList->next; drugHistoryList->next = h;
             printf("  [√] 出库成功，新库存: %d\n", selectedDrug->stock);
@@ -352,6 +378,8 @@ static void drugOut() {
     }
     system("pause");
 }
+
+// 新增药品种类
 void addDrug() {
     Drug* d = malloc(sizeof(Drug));
     if (!d) { printf("  [!] 内存分配失败，无法新增药品。\n"); return; }
@@ -368,8 +396,19 @@ void addDrug() {
             break;
         }
     }
-
-    printf("请输入药品名称: "); safeGetString(d->name, 100);
+    while (1) {
+        printf("请输入药品名称: ");
+        safeGetString(d->name, 100);
+        if (isDrugNameExists(d->name)) {
+            printf("  [!] 药品名称已存在，请重新输入！\n");
+        }
+        else if (strlen(d->name) == 0) {
+            printf("  [!] 药品名称不能为空，请重新输入！\n");
+        }
+        else {
+            break;
+        }
+    }
     d->stock = 0;
 
     printf("请输入药品单价: "); d->price = safeGetDouble();
@@ -396,6 +435,7 @@ void addDrug() {
     system("pause");
 }
 
+// 药房管理主菜单
 void drugMenu() {
     int choice;
     do {
