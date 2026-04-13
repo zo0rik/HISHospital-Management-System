@@ -412,6 +412,7 @@ void bookAppointment(const char* currentPatientId) {
                 if (strcmp(keyword, "-1") == 0) break;
                 if (strlen(keyword) == 0) {
                     printf("  [!] 输入不能为空！");
+                    system("pause");
                     continue;
                 }
 
