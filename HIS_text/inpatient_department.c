@@ -1,40 +1,56 @@
-#define _CRT_SECURE_NO_WARNINGS
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include "models.h"
-#include "utils.h"
-#include "inpatient_department.h"
-#include "transaction.h"
-#include "outpatient_department.h"
-#include "drug.h"
-#include "patient.h"
+#define _CRT_SECURE_NO_WARNINGS  
+#include <stdio.h>   
+#include <stdlib.h>  
+#include <string.h>  
+#include <time.h>    
+#include "models.h"                  
+#include "utils.h"                   
+#include "inpatient_department.h"    
+#include "transaction.h"             
+#include "outpatient_department.h"   
+#include "drug.h"                   
+#include "patient.h"                
 
-extern void generateRecordID(char* buffer);
+// 外部全局变量：床位链表头
 extern Bed* bedHead;
-extern int appendTransactionSafe(int type, double amount, const char* description);
 
+// 保存医院内已有科室名称的数组
 static char hospitalDepts[50][50];
+// 当前已收集到的科室数量
 static int hospitalDeptCount = 0;
+// 是否已完成科室初始化
 static int isDeptsInitialized = 0;
 
+// 判断一条记录是否为“住院欠费补交单”
+// 条件：
+// 1. 记录存在
+// 2. 记录类型为 5（住院类）
+// 3. 描述中包含 [住院欠费补交单]
 int isInpatientArrearsBill(const Record* rec) {
     return rec &&
         rec->type == 5 &&
         strstr(rec->description, "[住院欠费补交单]") != NULL;
 }
 
-void syncInpatientArrearsBill(Patient* patient, const char* staffId) {
+// 按指定金额创建或更新住院欠费补交单
+// 作用：
+// 1. arrearsAmount > 0 时，创建或更新一张“待补交账单”
+// 2. arrearsAmount <= 0 时，把已有未支付欠费单标记为已补清
+// 3. 若存在多张未支付欠费单，只保留一张有效的，其余作废
+static void syncInpatientArrearsBillByAmount(Patient* patient, const char* staffId, double arrearsAmount) {
     if (!patient) return;
 
     Record* bill = NULL;
+
+    // 先遍历所有记录，查找该患者是否已有住院欠费补交单
     for (Record* r = recordHead->next; r != NULL; r = r->next) {
         if (strcmp(r->patientId, patient->id) == 0 && isInpatientArrearsBill(r)) {
             if (r->isPaid == 0 && !bill) {
+                // 第一张未支付欠费单作为当前有效账单
                 bill = r;
             }
             else if (r->isPaid == 0) {
+                // 多余的未支付欠费单作废
                 r->isPaid = 2;
                 strcpy(r->description, "[住院欠费补交单] 已被更新账单替代");
                 getCurrentTimeStr(r->createTime, 30);
@@ -42,10 +58,10 @@ void syncInpatientArrearsBill(Patient* patient, const char* staffId) {
         }
     }
 
-    if (patient->inpatientDeposit < 0) {
-        double arrears = -patient->inpatientDeposit;
-
+    // 指定金额大于 0，则创建或更新欠费补交单
+    if (arrearsAmount > 0.0) {
         if (!bill) {
+            // 若没有现成账单，则新建一张欠费补交单
             bill = (Record*)malloc(sizeof(Record));
             if (!bill) return;
 
@@ -53,20 +69,23 @@ void syncInpatientArrearsBill(Patient* patient, const char* staffId) {
             bill->type = 5;
             strcpy(bill->patientId, patient->id);
             strcpy(bill->staffId, staffId ? staffId : "SYS");
-            bill->cost = arrears;
+            bill->cost = arrearsAmount;
             bill->isPaid = 0;
-            sprintf(bill->description, "[住院欠费补交单] 当前待补交金额: %.2f", arrears);
+            sprintf(bill->description, "[住院欠费补交单] 当前待补交金额: %.2f", arrearsAmount);
             getCurrentTimeStr(bill->createTime, 30);
             bill->next = recordHead->next;
             recordHead->next = bill;
         }
         else {
-            bill->cost = arrears;
-            sprintf(bill->description, "[住院欠费补交单] 当前待补交金额: %.2f", arrears);
+            // 若已有账单，则更新金额和说明
+            bill->cost = arrearsAmount;
+            sprintf(bill->description, "[住院欠费补交单] 当前待补交金额: %.2f", arrearsAmount);
+            strcpy(bill->staffId, staffId ? staffId : "SYS");
             getCurrentTimeStr(bill->createTime, 30);
         }
     }
     else {
+        // 若无欠费，则说明欠费已清
         if (bill) {
             bill->isPaid = 2;
             strcpy(bill->description, "[住院欠费补交单] 已补清");
@@ -75,6 +94,24 @@ void syncInpatientArrearsBill(Patient* patient, const char* staffId) {
     }
 }
 
+// 同步住院欠费补交单
+// 作用：
+// 1. 若患者住院押金为负，则创建或更新一张“待补交账单”
+// 2. 若患者押金已不欠费，则把旧欠费单标记为已补清
+// 3. 若存在多张未支付欠费单，只保留一张有效的，其余作废
+void syncInpatientArrearsBill(Patient* patient, const char* staffId) {
+    if (!patient) return;
+    syncInpatientArrearsBillByAmount(patient, staffId, patient->inpatientDeposit < 0 ? -patient->inpatientDeposit : 0.0);
+}
+
+// 创建一条“住院明细记录”节点，但不立刻插入链表
+// 参数含义：
+// type: 记录类型
+// patientId: 患者 ID
+// staffId: 操作人员 ID
+// cost: 金额
+// isPaid: 支付状态
+// description: 描述
 static Record* createInpatientDetailRecordNode(int type, const char* patientId, const char* staffId,
     double cost, int isPaid, const char* description) {
     Record* rec = (Record*)malloc(sizeof(Record));
@@ -95,38 +132,28 @@ static Record* createInpatientDetailRecordNode(int type, const char* patientId, 
     return rec;
 }
 
+// 将已经准备好的记录节点插入到记录链表头部
 static void appendPreparedRecord(Record* rec) {
     if (!rec) return;
     rec->next = recordHead->next;
     recordHead->next = rec;
 }
 
+// 直接创建并插入一条住院明细记录
 static void appendInpatientDetailRecord(int type, const char* patientId, const char* staffId,
     double cost, int isPaid, const char* description) {
     Record* rec = createInpatientDetailRecordNode(type, patientId, staffId, cost, isPaid, description);
     appendPreparedRecord(rec);
 }
 
+// 初始化医院科室列表
+// 从 staff 链表中提取不重复的科室名称，保存到 hospitalDepts 中
 static void initHospitalDepts() {
     if (isDeptsInitialized) return;
 
-    hospitalDeptCount = 0;
-    for (Staff* stf = staffHead->next; stf != NULL; stf = stf->next) {
-        if (strlen(stf->department) == 0) continue;
+    hospitalDeptCount = collectHospitalDepartments(hospitalDepts, 50);
 
-        int exists = 0;
-        for (int i = 0; i < hospitalDeptCount; i++) {
-            if (strcmp(hospitalDepts[i], stf->department) == 0) {
-                exists = 1;
-                break;
-            }
-        }
-        if (!exists && hospitalDeptCount < 50) {
-            strcpy(hospitalDepts[hospitalDeptCount], stf->department);
-            hospitalDeptCount++;
-        }
-    }
-
+    // 若没有读取到任何科室，则给一个默认值
     if (hospitalDeptCount == 0) {
         strcpy(hospitalDepts[0], "综合科");
         hospitalDeptCount = 1;
@@ -134,6 +161,11 @@ static void initHospitalDepts() {
     isDeptsInitialized = 1;
 }
 
+// 获取某个患者当前的负责科室
+// 做法：
+// 1. 从记录链表中找到 type == 6 的住院通知/住院相关记录
+// 2. 取出其中的 staffId
+// 3. 再到 staff 链表中找对应医生，从而得到其 department
 void getResponsibleDept(const char* patientId, char* deptBuffer) {
     char staffId[20] = "";
     strcpy(deptBuffer, "未知科室");
@@ -154,6 +186,10 @@ void getResponsibleDept(const char* patientId, char* deptBuffer) {
     }
 }
 
+// 如果床位链表为空，则自动初始化全院病床
+// 规则：
+// 每个科室生成 5 类房型
+// 每类房型 4 张床
 void initBedsIfEmpty() {
     if (bedHead->next) return;
 
@@ -186,6 +222,8 @@ void initBedsIfEmpty() {
     }
 }
 
+// 根据床位号推断该床位所属科室
+// 规则：一个科室对应连续 5 个房间号
 const char* getRoomDepartment(const char* bedId) {
     initHospitalDepts();
 
@@ -199,6 +237,7 @@ const char* getRoomDepartment(const char* bedId) {
     return "未知科室";
 }
 
+// 检查某个床位号是否已存在
 static int bedIdExists(const char* bedId) {
     if (!bedId) return 0;
     for (Bed* b = bedHead->next; b != NULL; b = b->next) {
@@ -207,6 +246,8 @@ static int bedIdExists(const char* bedId) {
     return 0;
 }
 
+// 检查并调整某科室床位紧张程度
+// 若该科室空床率低于 20%，则尝试把“单人陪护疗养病房”拆分成双人病房扩容
 void checkAndAdjustBedTension(const char* targetDept) {
     int total = 0, empty = 0;
 
@@ -227,12 +268,16 @@ void checkAndAdjustBedTension(const char* targetDept) {
                 strcmp(b->bedType, "单人陪护疗养病房") == 0 &&
                 strcmp(getRoomDepartment(b->bedId), targetDept) == 0) {
 
+                // 把原床位改成双人病房
                 strcpy(b->bedType, "双人病房");
                 b->price = 150.0;
 
+                // 复制出一个额外床位
                 Bed* extra = (Bed*)malloc(sizeof(Bed));
                 if (!extra) continue;
                 *extra = *b;
+
+                // 给复制床位一个新 ID，例如原本 3-1，复制后可能变成 3-A
                 strncpy(extra->bedId, b->bedId, sizeof(extra->bedId) - 2);
                 extra->bedId[sizeof(extra->bedId) - 2] = '\0';
                 size_t blen = strlen(extra->bedId);
@@ -242,10 +287,14 @@ void checkAndAdjustBedTension(const char* targetDept) {
                 }
                 extra->bedId[blen] = 'A';
                 extra->bedId[blen + 1] = '\0';
+
+                // 防止床位号重复
                 if (bedIdExists(extra->bedId)) {
                     free(extra);
                     continue;
                 }
+
+                // 头插到床位链表
                 extra->next = bedHead->next;
                 bedHead->next = extra;
                 converted++;
@@ -261,31 +310,14 @@ void checkAndAdjustBedTension(const char* targetDept) {
     }
 }
 
+// 获取动态科室提示字符串
+// 例如：内科/外科/骨科
 void getDynamicDeptPrompt(char* promptBuffer) {
-    char depts[20][50];
-    int dCount = 0;
-
-    for (Staff* stf = staffHead->next; stf != NULL; stf = stf->next) {
-        int exists = 0;
-        for (int i = 0; i < dCount; i++) {
-            if (strcmp(depts[i], stf->department) == 0) {
-                exists = 1;
-                break;
-            }
-        }
-        if (!exists && strlen(stf->department) > 0) {
-            strcpy(depts[dCount], stf->department);
-            dCount++;
-        }
-    }
-
-    strcpy(promptBuffer, "");
-    for (int i = 0; i < dCount; i++) {
-        strcat(promptBuffer, depts[i]);
-        if (i < dCount - 1) strcat(promptBuffer, "/");
-    }
+    buildHospitalDeptPrompt(promptBuffer, 200, "/");
 }
 
+// 查看全院床位图
+// 先按科室筛选，再打印该科室下的所有床位信息
 void viewAllBeds() {
     initBedsIfEmpty();
     while (1) {
@@ -304,14 +336,7 @@ void viewAllBeds() {
             safeGetString(targetDept, 50);
             if (strcmp(targetDept, "-1") == 0) return;
 
-            int isValidDept = 0;
-            for (Staff* stf = staffHead->next; stf != NULL; stf = stf->next) {
-                if (strcmp(stf->department, targetDept) == 0) {
-                    isValidDept = 1;
-                    break;
-                }
-            }
-            if (isValidDept) break;
+            if (isKnownHospitalDepartment(targetDept)) break;
             printf("  [!] 输入的科室不存在，请从上方列表中选择并重新输入！\n请输入要查看的科室 (输-1返回): ");
         }
 
@@ -326,6 +351,7 @@ void viewAllBeds() {
                 char docName[50] = "-";
 
                 if (b->isOccupied) {
+                    // 找患者姓名
                     for (Patient* p = patientHead->next; p != NULL; p = p->next) {
                         if (strcmp(p->id, b->patientId) == 0) {
                             strcpy(patName, p->name);
@@ -333,6 +359,7 @@ void viewAllBeds() {
                         }
                     }
 
+                    // 找负责医生姓名
                     for (Record* r = recordHead->next; r != NULL; r = r->next) {
                         if (r->type == 6 && strcmp(r->patientId, b->patientId) == 0) {
                             for (Staff* s = staffHead->next; s != NULL; s = s->next) {
@@ -360,12 +387,22 @@ void viewAllBeds() {
     }
 }
 
+// 办理患者入院
+// 流程：
+// 1. 查看未处理住院通知单
+// 2. 选择患者
+// 3. 定位负责科室
+// 4. 分配床位
+// 5. 计算住院押金
+// 6. 从普通账户扣押金并转入住院押金
+// 7. 激活住院状态
 void admitPatient(const char* docId) {
     initBedsIfEmpty();
     int noticeCount = 0;
 
     printf("\n========== 门诊下发《待入院通知单》队列 ==========\n");
 
+    // 先显示重症队列
     printf("【重症优先通道】\n");
     for (Record* r = recordHead->next; r != NULL; r = r->next) {
         if (r->type == 6 && r->isPaid == 0 && strstr(r->description, "重症")) {
@@ -384,6 +421,7 @@ void admitPatient(const char* docId) {
         }
     }
 
+    // 再显示普通入院队列
     printf("\n【普通入院队列】\n");
     for (Record* r = recordHead->next; r != NULL; r = r->next) {
         if (r->type == 6 && r->isPaid == 0 && strstr(r->description, "普通")) {
@@ -411,10 +449,17 @@ void admitPatient(const char* docId) {
     Record* targetNotice = NULL;
     Patient* targetPat = NULL;
 
+    // 输入患者 ID，并确保有未处理通知单，且患者未住院
     while (1) {
         printf("\n请输入需办理入院的患者ID (输-1返回): ");
         safeGetString(pId, 20);
         if (strcmp(pId, "-1") == 0) return;
+
+        targetPat = findPatientById(pId);
+        if (!targetPat) {
+            printf("  [!] 患者基础信息不存在，请重新输入！\n");
+            continue;
+        }
 
         targetNotice = NULL;
         for (Record* r = recordHead->next; r != NULL; r = r->next) {
@@ -460,6 +505,7 @@ void admitPatient(const char* docId) {
     getResponsibleDept(pId, requiredDept);
     printf("\n>>> 锁定通知单：该患者由【%s】下发，系统正检索 %s 的专属空余床位...\n", requiredDept, requiredDept);
 
+    // 检查目标科室床位是否紧张，必要时自动扩容
     checkAndAdjustBedTension(requiredDept);
 
     int hasLocalEmpty = 0;
@@ -471,6 +517,8 @@ void admitPatient(const char* docId) {
     }
 
     int isCrossDept = 0;
+
+    // 若本科室已无空床，则启用跨科室调度
     if (!hasLocalEmpty) {
         printf("\n  [警告] %s 专属床位资源枯竭（扩容后仍无空余）！\n", requiredDept);
         printf("  >>> 触发系统应急预案：开启跨科室床位全局调度 <<<\n");
@@ -509,6 +557,7 @@ void admitPatient(const char* docId) {
     char selectBed[20];
     Bed* finalBed = NULL;
 
+    // 输入并校验最终选择的床位号
     while (1) {
         printf("\n请输入系统拟分配的床位号 (如 1-3) (输入-1取消): ");
         safeGetString(selectBed, 20);
@@ -535,57 +584,79 @@ void admitPatient(const char* docId) {
     int days = safeGetPositiveInt();
     if (days == -1) return;
 
+    // 押金规则：200 * 天数，最低 1000，向上取整到 100 元
     int baseDeposit = 200 * days;
     if (baseDeposit < 1000) baseDeposit = 1000;
     int finalDeposit = ((baseDeposit + 99) / 100) * 100;
-
-    printf("  系统通过风控模型核算，需缴纳初始住院统筹押金: %d 元。\n", finalDeposit);
-
-    if (targetPat->balance < finalDeposit) {
-        printf("  [提示] 账户实时结余不足，住院押金未完成缴纳，暂不办理正式入院。\n");
-        printf("  [提示] 当前普通账户余额: %.2f 元，押金要求: %d 元。\n", targetPat->balance, finalDeposit);
-        system("pause");
-        return;
-    }
-
+    double actualDeduct = targetPat->balance;
+    double arrearsAmount;
     Record* depositDetail = NULL;
-    {
+
+    if (actualDeduct > (double)finalDeposit) actualDeduct = (double)finalDeposit;
+    if (actualDeduct < 0.0) actualDeduct = 0.0;
+    arrearsAmount = (double)finalDeposit - actualDeduct;
+
+printf("  系统通过风控模型核算，需缴纳初始住院统筹押金: %d 元。\n", finalDeposit);
+
+    if (actualDeduct > 0.0) {
+        // 创建已实收的住院押金明细记录
         char adminTime[30];
         char detailDesc[300];
         getCurrentTimeStr(adminTime, 30);
         sprintf(detailDesc,
-            "[住院明细][押金] 病房:%s_床位:%s_入院日期:%s_预期天数:%d_押金:%d",
-            finalBed->wardType, finalBed->bedId, adminTime, days, finalDeposit);
-        depositDetail = createInpatientDetailRecordNode(5, pId, docId, finalDeposit, 1, detailDesc);
-    }
-    if (!depositDetail) {
-        printf("  [异常] 住院明细记录创建失败，本次入院未提交。\n");
-        system("pause");
-        return;
-    }
-
-    {
-        char transDesc[200];
-        sprintf(transDesc, "住院押金收取(患者:%s, 不计收入)", targetPat->name);
-        if (!appendTransactionSafe(TRANS_INPATIENT_DEPOSIT, (double)finalDeposit, transDesc)) {
-            free(depositDetail);
-            printf("  [异常] 财务流水写入失败，本次入院未提交。\n");
+            "[住院明细][押金] 病房:%s_床位:%s_入院日期:%s_预期天数:%d_实收押金:%.2f_应收押金:%d",
+            finalBed->wardType, finalBed->bedId, adminTime, days, actualDeduct, finalDeposit);
+        depositDetail = createInpatientDetailRecordNode(5, pId, docId, actualDeduct, 1, detailDesc);
+        if (!depositDetail) {
+printf("  [异常] 住院明细记录创建失败，本次入院未提交。\n");
             system("pause");
             return;
         }
+
+        // 写财务流水：仅记录本次实际收取到的住院押金，不计收入
+        {
+            char transDesc[200];
+            sprintf(transDesc, "住院押金收取(患者:%s, 不计收入)", targetPat->name);
+            if (!appendTransactionSafe(TRANS_INPATIENT_DEPOSIT, actualDeduct, transDesc)) {
+                free(depositDetail);
+                printf("  [异常] 财务流水写入失败，本次入院未提交。\n");
+                system("pause");
+                return;
+            }
+        }
     }
 
-    targetPat->balance -= finalDeposit;
-    targetPat->inpatientDeposit += finalDeposit;
+    // 更新患者状态和资金：
+    // 1. 自动从普通余额中尽量扣款
+    // 2. 仅把实际到账部分记入住院押金
+    // 3. 差额通过待补交账单进入患者端后续补缴
+    targetPat->balance -= actualDeduct;
+    targetPat->inpatientDeposit += actualDeduct;
     targetPat->isInpatient = 1;
 
-    printf("  [√] 账户资金划扣完毕，病区收治状态已激活。\n");
+    if (arrearsAmount > 0.0) {
+        syncInpatientArrearsBillByAmount(targetPat, docId, arrearsAmount);
+        printf("  [提示] 当前普通账户余额不足，已自动扣除 %.2f 元，剩余 %.2f 元已生成住院待补交账单。\n",
+            actualDeduct, arrearsAmount);
+        printf("  [√] 患者已先行办理入院，后续可在患者端费用中心完成补缴。\n");
+    }
+    else {
+        syncInpatientArrearsBillByAmount(targetPat, docId, 0.0);
+        printf("  [√] 账户资金划扣完毕，病区收治状态已激活。\n");
+    }
 
+    // 若本次存在实际收款，则插入住院押金明细
+    if (depositDetail) {
+        appendPreparedRecord(depositDetail);
+    }
+
+    // 更新床位状态
     finalBed->isOccupied = 1;
     strcpy(finalBed->patientId, pId);
     finalBed->isRoundsDone = 0;
+
+    // 通知单处理完成
     targetNotice->isPaid = 1;
-    appendPreparedRecord(depositDetail);
 
     if (isCrossDept) {
         printf("\n  [成功] 跨模块调度机制完成，已将病患安置于 [%s] 的 %s 节点。\n",
@@ -599,6 +670,7 @@ void admitPatient(const char* docId) {
     system("pause");
 }
 
+// 查看在院病人中住院押金低于 300 元的名单
 void viewLowDepositInpatients(void) {
     int found = 0;
     char depBuf[32];
@@ -624,6 +696,12 @@ void viewLowDepositInpatients(void) {
     }
 }
 
+// 日常查房
+// 功能：
+// 1. 按科室查看在院病人
+// 2. 录入基础医嘱
+// 3. 调用药房配药
+// 4. 开辅助检查并直接从住院押金扣费
 void wardRounds(const char* docId) {
     while (1) {
         char deptStr[200];
@@ -639,14 +717,7 @@ void wardRounds(const char* docId) {
             safeGetString(targetDept, 50);
             if (strcmp(targetDept, "-1") == 0) return;
 
-            int isValidDept = 0;
-            for (Staff* stf = staffHead->next; stf != NULL; stf = stf->next) {
-                if (strcmp(stf->department, targetDept) == 0) {
-                    isValidDept = 1;
-                    break;
-                }
-            }
-            if (isValidDept) break;
+            if (isKnownHospitalDepartment(targetDept)) break;
             printf("  [!] 输入的科室不存在，请从上方列表中选择并重新输入！\n调取目标科室域 (输-1返回): ");
         }
 
@@ -667,6 +738,7 @@ void wardRounds(const char* docId) {
                     }
                 }
 
+                // 根据 type == 6 的记录描述判断是否为重症
                 for (Record* r = recordHead->next; r != NULL; r = r->next) {
                     if (r->type == 6 && strcmp(r->patientId, b->patientId) == 0) {
                         if (strstr(r->description, "重症")) strcpy(severity, "重症");
@@ -688,10 +760,9 @@ void wardRounds(const char* docId) {
         char pId[20];
         Bed* targetBed = NULL;
 
+        // 选择要查房的患者
         while (1) {
-            printf("\n检索需建立查房会话的患者ID (输入-1退回科室层级): ");
-            safeGetString(pId, 20);
-            if (strcmp(pId, "-1") == 0) break;
+            if (!inputExistingPatientIdCommon(pId, sizeof(pId), "\n检索需建立查房会话的患者ID (输入-1退回科室层级): ")) break;
 
             targetBed = NULL;
             for (Bed* b = bedHead->next; b != NULL; b = b->next) {
@@ -707,6 +778,7 @@ void wardRounds(const char* docId) {
         }
         if (strcmp(pId, "-1") == 0) continue;
 
+        // 进入该患者的查房面板
         while (1) {
             system("cls");
             printf("\n========== 针对患者实体 [%s] 的查房干预面板 ==========\n", pId);
@@ -725,6 +797,7 @@ void wardRounds(const char* docId) {
             }
             if (choice == -1) break;
 
+            // 录入基础医嘱
             if (choice == 1) {
                 char note[200];
                 printf("输入实时医嘱指令内容(避免非法空格切断字符, 输入-1取消): ");
@@ -747,6 +820,7 @@ void wardRounds(const char* docId) {
                 targetBed->isRoundsDone = 1;
                 system("pause");
             }
+            // 调用门诊处方开药逻辑
             else if (choice == 2) {
                 extern char currentCallingPatientId[20];
                 strcpy(currentCallingPatientId, pId);
@@ -758,6 +832,7 @@ void wardRounds(const char* docId) {
                 targetBed->isRoundsDone = 1;
                 system("pause");
             }
+            // 调用门诊辅助检查逻辑，但以住院模式扣费
             else if (choice == 3) {
                 extern char currentCallingPatientId[20];
                 strcpy(currentCallingPatientId, pId);
@@ -770,6 +845,15 @@ void wardRounds(const char* docId) {
     }
 }
 
+// 办理出院
+// 流程：
+// 1. 按科室查看待出院患者
+// 2. 选择患者
+// 3. 输入实际住院天数
+// 4. 结算床位费
+// 5. 若押金有剩余则退回普通余额
+// 6. 若押金不足则生成欠费补交单
+// 7. 释放床位，取消住院状态
 void dischargePatient() {
     while (1) {
         char deptStr[200];
@@ -785,14 +869,7 @@ void dischargePatient() {
             safeGetString(targetDept, 50);
             if (strcmp(targetDept, "-1") == 0) return;
 
-            int isValidDept = 0;
-            for (Staff* stf = staffHead->next; stf != NULL; stf = stf->next) {
-                if (strcmp(stf->department, targetDept) == 0) {
-                    isValidDept = 1;
-                    break;
-                }
-            }
-            if (isValidDept) break;
+            if (isKnownHospitalDepartment(targetDept)) break;
             printf("  [!] 输入的科室不存在，请从上方列表中选择并重新输入！\n锁定业务作用域科室 (输-1放弃办理): ");
         }
 
@@ -824,10 +901,9 @@ void dischargePatient() {
         char pId[20];
         Bed* targetBed = NULL;
 
+        // 选择出院患者
         while (1) {
-            printf("\n确立清算实体的患者ID (输入-1终止当前操作): ");
-            safeGetString(pId, 20);
-            if (strcmp(pId, "-1") == 0) break;
+            if (!inputExistingPatientIdCommon(pId, sizeof(pId), "\n确立清算实体的患者ID (输入-1终止当前操作): ")) break;
 
             targetBed = NULL;
             for (Bed* b = bedHead->next; b != NULL; b = b->next) {
@@ -852,6 +928,8 @@ void dischargePatient() {
         if (actualDays == -1) continue;
 
         int billableDays = actualDays;
+
+        // 若在 08:00 前出院，触发优惠：最后一天床位费不计
         if (currentHour >= 0 && currentHour < 8) {
             printf("  [时间优惠策略触发] 08:00 阈值前申请办理，系统已自动扣减终端最后一天的驻留费用计提！\n");
             billableDays = (actualDays > 1) ? actualDays - 1 : 0;
@@ -872,6 +950,7 @@ void dischargePatient() {
             Record* refundDetail = NULL;
             double depositAfterFee = targetPat->inpatientDeposit - totalBedFee;
 
+            // 创建床位费明细
             sprintf(desc, "[住院明细][床位费] 床位:%s_计费天数:%d_床位单价:%.2f",
                 targetBed->bedId, billableDays, targetBed->price);
             bedFeeDetail = createInpatientDetailRecordNode(5, pId, "SYS", totalBedFee, 1, desc);
@@ -881,6 +960,7 @@ void dischargePatient() {
                 return;
             }
 
+            // 写床位费收入流水
             if (!appendTransactionSafe(TRANS_INPATIENT_BED_INCOME, totalBedFee, "出院结算床位费")) {
                 free(bedFeeDetail);
                 printf("\n  [异常] 财务流水写入失败，本次出院结算未完成，请稍后重试。\n");
@@ -888,6 +968,7 @@ void dischargePatient() {
                 return;
             }
 
+            // 若押金结余大于 0，则准备退款明细
             if (depositAfterFee > 0) {
                 refundDetail = createInpatientDetailRecordNode(
                     8, pId, "SYS", depositAfterFee, 1,
@@ -906,10 +987,12 @@ void dischargePatient() {
                 }
             }
 
+            // 更新住院押金余额
             targetPat->inpatientDeposit = depositAfterFee;
             appendPreparedRecord(bedFeeDetail);
 
             if (depositAfterFee > 0) {
+                // 有结余则退回普通余额
                 double refund = depositAfterFee;
                 targetPat->balance += refund;
                 targetPat->inpatientDeposit = 0;
@@ -917,17 +1000,22 @@ void dischargePatient() {
                 printf("\n  [资金清算] 住院押金结余 %.2f 元，已退回普通账户余额。\n", refund);
             }
             else if (depositAfterFee < 0) {
+                // 不够支付床位费，则生成欠费补交单
                 syncInpatientArrearsBill(targetPat, "SYS");
                 printf("\n  [资金预警] 出院结算后仍欠费 %.2f 元，已生成待补交账单。\n", -targetPat->inpatientDeposit);
             }
             else {
+                // 刚好结清
                 printf("\n  [资金清算] 出院结算完成，住院押金已刚好结清。\n");
             }
         }
 
+        // 释放床位
         targetBed->isOccupied = 0;
         strcpy(targetBed->patientId, "");
         targetBed->isRoundsDone = 0;
+
+        // 取消住院状态
         targetPat->isInpatient = 0;
 
         printf("  [解除挂载] 系统解绑指令送达，该物理床位资源已恢复闲置状态。\n");
@@ -936,6 +1024,7 @@ void dischargePatient() {
     }
 }
 
+// 住院管理主菜单
 void inpatientMenu(const char* docId) {
     while (1) {
         system("cls");
@@ -961,6 +1050,7 @@ void inpatientMenu(const char* docId) {
         switch (choice) {
         case 1:
             viewAllBeds();
+            system("pause");
             break;
         case 2:
             admitPatient(docId);
@@ -972,9 +1062,11 @@ void inpatientMenu(const char* docId) {
             break;
         case 4:
             wardRounds(docId);
+            system("pause");
             break;
         case 5:
             dischargePatient();
+            system("pause");
             break;
         case -1:
             return;

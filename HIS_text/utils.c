@@ -10,13 +10,16 @@
 #include "utils.h"
 #include "fileio.h"
 
+// 去掉字符串首尾空格
 static void trimSpaces(char* s) {
     char* start;
     char* end;
     if (!s) return;
+
     start = s;
     while (*start && isspace((unsigned char)*start)) start++;
     if (start != s) memmove(s, start, strlen(start) + 1);
+
     end = s + strlen(s);
     while (end > s && isspace((unsigned char)*(end - 1))) {
         *(end - 1) = '\0';
@@ -24,10 +27,12 @@ static void trimSpaces(char* s) {
     }
 }
 
+// 判断字符串是否最多保留两位小数
 static int hasAtMostTwoDecimals(const char* s) {
     const char* dot = strchr(s, '.');
     int decimals = 0;
     if (!dot) return 1;
+
     dot++;
     while (*dot) {
         if (!isdigit((unsigned char)*dot)) return 0;
@@ -37,6 +42,7 @@ static int hasAtMostTwoDecimals(const char* s) {
     return decimals <= 2;
 }
 
+// 安全读取字符串，自动去掉换行和首尾空格
 void safeGetString(char* buffer, int size) {
     if (!buffer || size <= 0) return;
 
@@ -51,6 +57,8 @@ void safeGetString(char* buffer, int size) {
         }
 
         trimSpaces(buffer);
+
+        // 把逗号替换成分号，避免影响文件存储格式
         for (int i = 0; buffer[i] != '\0'; i++) {
             if (buffer[i] == ',') buffer[i] = ';';
         }
@@ -61,21 +69,27 @@ void safeGetString(char* buffer, int size) {
     }
 }
 
+// 严格解析整数
 static int tryParseIntStrict(const char* buffer, int* outValue) {
     char* endptr;
     long value;
     if (!buffer || !outValue) return 0;
+
     errno = 0;
     value = strtol(buffer, &endptr, 10);
+
     if (buffer == endptr || *endptr != '\0' || errno == ERANGE) return 0;
     if (value < -2147483647L - 1L || value > 2147483647L) return 0;
+
     *outValue = (int)value;
     return 1;
 }
 
+// 安全读取整数
 int safeGetInt(void) {
     char buffer[SAFE_INPUT_BUFFER_SIZE];
     int value;
+
     while (1) {
         safeGetString(buffer, sizeof(buffer));
         if (strlen(buffer) == 0) {
@@ -87,16 +101,19 @@ int safeGetInt(void) {
     }
 }
 
+// 读取指定范围内的整数
 int safeGetIntInRange(int minValue, int maxValue, const char* promptOnError) {
     int value;
     while (1) {
         value = safeGetInt();
         if (value >= minValue && value <= maxValue) return value;
+
         if (promptOnError && strlen(promptOnError) > 0) printf("%s", promptOnError);
         else printf("  [!] 输入超出允许范围，请重新输入: ");
     }
 }
 
+// 读取正整数，允许输入 -1 返回
 int safeGetPositiveInt(void) {
     int val;
     while (1) {
@@ -107,6 +124,7 @@ int safeGetPositiveInt(void) {
     }
 }
 
+// 读取药品数量
 int safeGetDrugQuantity(void) {
     int quantity;
     while (1) {
@@ -124,22 +142,28 @@ int safeGetDrugQuantity(void) {
     }
 }
 
+// 严格解析金额
 static int tryParseMoneyStrict(const char* buffer, double* outValue) {
     char* endptr;
     double value;
     if (!buffer || !outValue) return 0;
     if (!hasAtMostTwoDecimals(buffer)) return 0;
+
     errno = 0;
     value = strtod(buffer, &endptr);
+
     if (buffer == endptr || *endptr != '\0' || errno == ERANGE) return 0;
     if (!isfinite(value)) return 0;
+
     *outValue = value;
     return 1;
 }
 
+// 安全读取金额
 double safeGetMoney(void) {
     char buffer[SAFE_INPUT_BUFFER_SIZE];
     double value;
+
     while (1) {
         safeGetString(buffer, sizeof(buffer));
         if (strlen(buffer) == 0) {
@@ -155,11 +179,13 @@ double safeGetMoney(void) {
     }
 }
 
+// 读取指定范围内的金额
 double safeGetMoneyInRange(double minValue, double maxValue) {
     double value;
     while (1) {
         value = safeGetMoney();
         if (value == -1.0) return -1.0;
+
         if (value < minValue || value > maxValue) {
             if (fabs(minValue) < 1e-9 && fabs(maxValue - 10000.0) < 1e-9) {
                 printf("单次充值金额不能超过10000元。\n");
@@ -176,22 +202,27 @@ double safeGetMoneyInRange(double minValue, double maxValue) {
     }
 }
 
+// 读取 double，本质上复用金额输入
 double safeGetDouble(void) {
     return safeGetMoney();
 }
 
+// 把金额格式化成 xx.xx元
 void formatMoney(double amount, char* buffer, size_t size) {
     if (!buffer || size == 0) return;
     snprintf(buffer, size, "%.2f元", amount);
 }
 
+// 安全读取性别
 void safeGetGender(char* buffer, int size) {
     while (1) {
         safeGetString(buffer, size);
         if (strcmp(buffer, "-1") == 0) return;
+
         if (strcmp(buffer, "男性") == 0 || strcmp(buffer, "女性") == 0) return;
         if (strcmp(buffer, "男") == 0) { strcpy(buffer, "男性"); return; }
         if (strcmp(buffer, "女") == 0) { strcpy(buffer, "女性"); return; }
+
         if (strlen(buffer) == 0) {
             printf("  [!] 输入不能为空，请重新输入 (输入-1取消): ");
             continue;
@@ -200,11 +231,13 @@ void safeGetGender(char* buffer, int size) {
     }
 }
 
+// 安全读取密码
 void safeGetPassword(char* buffer, int size) {
     int i, valid;
     while (1) {
         safeGetString(buffer, size);
         if (strcmp(buffer, "-1") == 0) return;
+
         if (strlen(buffer) == 0) {
             printf("  [!] 输入不能为空，请重新输入: ");
             continue;
@@ -213,21 +246,23 @@ void safeGetPassword(char* buffer, int size) {
             printf("  [!] 密码长度不能少于6位，请重新输入: ");
             continue;
         }
+
         valid = 1;
         for (i = 0; buffer[i] != '\0'; i++) {
             if (!((buffer[i] >= '0' && buffer[i] <= '9') ||
                 (buffer[i] >= 'a' && buffer[i] <= 'z') ||
-                (buffer[i] >= 'A' && buffer[i] <= 'Z')))
-            {
+                (buffer[i] >= 'A' && buffer[i] <= 'Z'))) {
                 valid = 0;
                 break;
             }
         }
+
         if (valid) return;
         printf("  [!] 非法输入：密码只能由【数字】和【字母】组合，不能包含特殊字符，请重输 (输入-1取消): ");
     }
 }
 
+// 获取当前时间字符串
 void getCurrentTimeStr(char* buffer, size_t size) {
     time_t t;
     struct tm* tm_info;

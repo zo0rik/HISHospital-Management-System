@@ -9,8 +9,9 @@
 #include "inpatient_department.h"
 #include "work_management.h"
 
-extern char currentCallingPatientId[20];
+extern char currentCallingPatientId[20];  // 当前正在叫号/接诊的患者ID
 
+// 修改医护人员密码
 void changeStaffPassword(Staff* me) {
     char oldPwd[50], newPwd[50], confirmPwd[50];
 
@@ -19,6 +20,7 @@ void changeStaffPassword(Staff* me) {
     safeGetString(oldPwd, 50);
     if (strcmp(oldPwd, "-1") == 0) return;
 
+    // 校验原密码
     if (strcmp(me->password, oldPwd) != 0) {
         printf("  [!] 安全警告：原密码验证失败！\n");
         system("pause");
@@ -32,24 +34,27 @@ void changeStaffPassword(Staff* me) {
     printf("请再次确认新密码: ");
     safeGetString(confirmPwd, 50);
 
+    // 两次输入不一致则取消
     if (strcmp(newPwd, confirmPwd) != 0) {
         printf("  [!] 校验失败：两次输入的新密码不一致，操作已取消。\n");
         system("pause");
         return;
     }
 
+    // 更新密码
     strcpy(me->password, newPwd);
     printf("  [√] 数据更新成功！您的账户已启用新密码。\n");
     system("pause");
 }
 
+// 医护端主菜单
 void staffTerminal(Staff* me) {
     int c;
     int sc;
 
     while (1) {
         system("cls");
-        strcpy(currentCallingPatientId, "");
+        strcpy(currentCallingPatientId, "");  // 每次回到主菜单先清空当前接诊患者
 
         printf("\n================================================\n");
         printf("   临床医生工作台 [所属: %-10s 医师: %s]   \n", me->department, me->name);
@@ -62,14 +67,14 @@ void staffTerminal(Staff* me) {
         printf("------------------------------------------------\n");
         printf("  请选择业务: ");
 
-        // 【修改点】严格校验医护端入口
+        // 校验主菜单输入
         while (1) {
             c = safeGetInt();
             if ((c >= 1 && c <= 4) || c == -1) break;
             printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n  请重新选择业务: ");
         }
 
-        if (c == 1) {
+        if (c == 1) {  // 门诊业务中心
             while (1) {
                 system("cls");
                 printf("\n========== 门诊门前接诊业务中心 ==========\n");
@@ -84,7 +89,7 @@ void staffTerminal(Staff* me) {
                 printf("------------------------------------------\n");
                 printf("  操作指令: ");
 
-                // 【修改点】严格校验看诊内页入口
+                // 校验门诊子菜单输入
                 while (1) {
                     sc = safeGetInt();
                     if ((sc >= 1 && sc <= 4) || sc == -1) break;
@@ -92,37 +97,37 @@ void staffTerminal(Staff* me) {
                 }
 
                 if (sc == 1) {
-                    callPatient(me->id);
+                    callPatient(me->id);  // 叫号
                     system("pause");
                 }
                 else if (sc == 2) {
-                    diagnoseAndTest(me->id);
+                    diagnoseAndTest(me->id);  // 诊断和开检查
                     system("pause");
                 }
                 else if (sc == 3) {
-                    prescribeMedicine(me->id);
+                    prescribeMedicine(me->id);  // 开药
                     system("pause");
                 }
                 else if (sc == 4) {
-                    issueAdmissionNotice(me->id);
+                    issueAdmissionNotice(me->id);  // 开住院通知单
                     system("pause");
                 }
                 else if (sc == -1) {
-                    break;
+                    break;  // 返回工作台
                 }
             }
         }
         else if (c == 2) {
-            inpatientMenu(me->id);
+            inpatientMenu(me->id);  // 住院业务
         }
         else if (c == 3) {
-            workManagementMenu(me->id);
+            workManagementMenu(me->id);  // 工作管理
         }
         else if (c == 4) {
-            changeStaffPassword(me);
+            changeStaffPassword(me);  // 修改密码
         }
         else if (c == -1) {
-            return;
+            return;  // 退出登录
         }
     }
 }

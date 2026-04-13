@@ -42,7 +42,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v145</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
@@ -149,11 +149,12 @@
     <ClCompile Include="inpatient_department.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="outpatient_department.c" />
+    <ClCompile Include="patient2.c" />
     <ClCompile Include="schedule.c" />
     <ClCompile Include="Medical_Staff_Side.c" />
     <ClCompile Include="time_t.c" />
     <ClCompile Include="transaction.c" />
-    <ClCompile Include="patient.c" />
+    <ClCompile Include="patient1.c" />
     <ClCompile Include="utils.c" />
     <ClCompile Include="work_management.c" />
   </ItemGroup>

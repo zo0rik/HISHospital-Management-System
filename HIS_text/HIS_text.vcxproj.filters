@@ -65,7 +65,7 @@
     <ClCompile Include="utils.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="patient.c">
+    <ClCompile Include="patient1.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Medical_Staff_Side.c">
@@ -105,6 +105,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="fileio.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="patient2.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

@@ -12,17 +12,22 @@
 #include "schedule.h"
 #include "transaction.h"
 
+// 安全拷贝字符串，避免越界
 static void copyField(char* dest, size_t destSize, const char* src) {
     if (!dest || destSize == 0) return;
-    if (!src) { dest[0] = '\0'; return; }
+    if (!src) {
+        dest[0] = '\0';
+        return;
+    }
     strncpy(dest, src, destSize - 1);
     dest[destSize - 1] = '\0';
 }
 
-
+// 读取基础数据：患者、医生、记录、床位
 void loadAllDataFromTxt() {
     FILE* fp;
 
+    // 读取患者数据
     fp = fopen("patients.txt", "r");
     if (fp) {
         char line[1024];
@@ -47,12 +52,15 @@ void loadAllDataFromTxt() {
             token = strtok(NULL, ","); if (token) p_temp.isInpatient = atoi(token); else p_temp.isInpatient = 0;
 
             Patient* p_node = (Patient*)malloc(sizeof(Patient));
-            *p_node = p_temp; p_node->next = NULL;
-            p_tail->next = p_node; p_tail = p_node;
+            *p_node = p_temp;
+            p_node->next = NULL;
+            p_tail->next = p_node;
+            p_tail = p_node;
         }
         fclose(fp);
     }
 
+    // 读取医生数据
     fp = fopen("doctor_information.txt", "r");
     if (fp) {
         char line[512];
@@ -73,12 +81,15 @@ void loadAllDataFromTxt() {
             token = strtok(NULL, ","); if (token) copyField(s_temp.sex, sizeof(s_temp.sex), token);
 
             Staff* s_node = (Staff*)malloc(sizeof(Staff));
-            *s_node = s_temp; s_node->next = NULL;
-            s_tail->next = s_node; s_tail = s_node;
+            *s_node = s_temp;
+            s_node->next = NULL;
+            s_tail->next = s_node;
+            s_tail = s_node;
         }
         fclose(fp);
     }
 
+    // 读取业务记录
     fp = fopen("records.txt", "r");
     if (fp) {
         char line[1024];
@@ -101,12 +112,15 @@ void loadAllDataFromTxt() {
             token = strtok(NULL, ","); if (token) copyField(r_temp.createTime, sizeof(r_temp.createTime), token);
 
             Record* r_node = (Record*)malloc(sizeof(Record));
-            *r_node = r_temp; r_node->next = NULL;
-            r_tail->next = r_node; r_tail = r_node;
+            *r_node = r_temp;
+            r_node->next = NULL;
+            r_tail->next = r_node;
+            r_tail = r_node;
         }
         fclose(fp);
     }
 
+    // 读取床位数据
     fp = fopen("beds.txt", "r");
     if (fp) {
         char line[512];
@@ -122,29 +136,35 @@ void loadAllDataFromTxt() {
             if (token) copyField(b_temp.bedId, sizeof(b_temp.bedId), token);
             token = strtok(NULL, ","); if (token) b_temp.isOccupied = atoi(token);
             token = strtok(NULL, ",");
+
+            // 空患者ID保存为“无”，加载时再还原为空串
             if (token) {
-                /* 【BUG修复7】保存时空patientId写为"无"，加载时需还原为空串 */
                 if (strcmp(token, "无") == 0)
                     strcpy(b_temp.patientId, "");
                 else
                     copyField(b_temp.patientId, sizeof(b_temp.patientId), token);
             }
+
             token = strtok(NULL, ","); if (token) copyField(b_temp.wardType, sizeof(b_temp.wardType), token);
             token = strtok(NULL, ","); if (token) copyField(b_temp.bedType, sizeof(b_temp.bedType), token);
             token = strtok(NULL, ","); if (token) b_temp.price = atof(token);
             token = strtok(NULL, ","); if (token) b_temp.isRoundsDone = atoi(token);
 
             Bed* b_node = (Bed*)malloc(sizeof(Bed));
-            *b_node = b_temp; b_node->next = NULL;
-            b_tail->next = b_node; b_tail = b_node;
+            *b_node = b_temp;
+            b_node->next = NULL;
+            b_tail->next = b_node;
+            b_tail = b_node;
         }
         fclose(fp);
     }
 }
 
+// 保存基础数据：患者、医生、记录、床位
 void saveAllDataToTxt() {
     FILE* fp;
 
+    // 保存患者数据
     fp = fopen("patients.txt", "w");
     if (fp) {
         Patient* p = patientHead->next;
@@ -158,6 +178,7 @@ void saveAllDataToTxt() {
         fclose(fp);
     }
 
+    // 保存医生数据
     fp = fopen("doctor_information.txt", "w");
     if (fp) {
         Staff* s = staffHead->next;
@@ -169,6 +190,7 @@ void saveAllDataToTxt() {
         fclose(fp);
     }
 
+    // 保存业务记录
     fp = fopen("records.txt", "w");
     if (fp) {
         Record* r = recordHead->next;
@@ -181,11 +203,14 @@ void saveAllDataToTxt() {
         fclose(fp);
     }
 
+    // 保存床位数据
     fp = fopen("beds.txt", "w");
     if (fp) {
         Bed* b = bedHead->next;
         while (b) {
             char safePatientId[30];
+
+            // 空patientId写成“无”
             if (strlen(b->patientId) == 0) strcpy(safePatientId, "无");
             else strcpy(safePatientId, b->patientId);
 
@@ -198,10 +223,7 @@ void saveAllDataToTxt() {
     }
 }
 
-
-// =========================================================================
-// 2. 药品与库存读写 (转移自 drug.c)
-// =========================================================================
+// 读取药品数据
 void loadDrugs() {
     FILE* fp = fopen("drug.txt", "r");
     if (!fp) return;
@@ -233,9 +255,11 @@ void loadDrugs() {
     fclose(fp);
 }
 
+// 保存药品数据
 void saveDrugs() {
     FILE* fp = fopen("drug.txt", "w");
     if (!fp) return;
+
     Drug* p = drugList->next;
     while (p) {
         fprintf(fp, "%d,%s,%d,%.2f,%s,%s,%s,%s\n",
@@ -246,6 +270,7 @@ void saveDrugs() {
     fclose(fp);
 }
 
+// 读取药品出入库历史
 void loadDrugHistory() {
     FILE* fp = fopen("drug_history.txt", "r");
     if (!fp) return;
@@ -273,9 +298,11 @@ void loadDrugHistory() {
     fclose(fp);
 }
 
+// 保存药品出入库历史
 void saveDrugHistory() {
     FILE* fp = fopen("drug_history.txt", "w");
     if (!fp) return;
+
     DrugHistory* p = drugHistoryList->next;
     while (p) {
         fprintf(fp, "%d,%d,%d,%s\n", p->drug_id, p->type, p->quantity, p->time);
@@ -284,10 +311,7 @@ void saveDrugHistory() {
     fclose(fp);
 }
 
-
-// =========================================================================
-// 4. 管理员数据读写 
-// =========================================================================
+// 读取管理员数据
 void loadAdminData(void) {
     FILE* fp;
     char line[256];
@@ -300,6 +324,8 @@ void loadAdminData(void) {
     tail = adminHead;
 
     fp = fopen("admin.txt", "r");
+
+    // 如果文件不存在，创建默认管理员
     if (!fp) {
         Admin* node = (Admin*)calloc(1, sizeof(Admin));
         if (!node) return;
@@ -336,12 +362,14 @@ void loadAdminData(void) {
             free(node);
             continue;
         }
+
         node->next = NULL;
         tail->next = node;
         tail = node;
     }
     fclose(fp);
 
+    // 如果文件为空，补一个默认管理员
     if (!adminHead->next) {
         Admin* node = (Admin*)calloc(1, sizeof(Admin));
         if (!node) return;
@@ -352,14 +380,17 @@ void loadAdminData(void) {
         node->next = NULL;
         adminHead->next = node;
     }
+
     setCurrentAdminNode(adminHead->next);
 }
 
+// 保存管理员数据
 void saveAdminData(void) {
     FILE* fp = fopen("admin.txt", "w");
     Admin* p;
     if (!fp) return;
 
+    // 先把当前管理员修改同步回链表节点
     if (currentAdminNode) {
         copyField(currentAdminNode->username, sizeof(currentAdminNode->username), admin.username);
         copyField(currentAdminNode->password, sizeof(currentAdminNode->password), admin.password);
@@ -375,10 +406,7 @@ void saveAdminData(void) {
     fclose(fp);
 }
 
-// =========================================================================
-// 5. 排班与流水读写 
-// =========================================================================
-
+// 读取排班数据
 void loadSchedules() {
     FILE* fp = fopen("schedules.txt", "r");
     if (!fp) return;
@@ -408,9 +436,11 @@ void loadSchedules() {
     fclose(fp);
 }
 
+// 保存排班数据
 void saveSchedules() {
     FILE* fp = fopen("schedules.txt", "w");
     if (!fp) return;
+
     Schedule* p = scheduleList->next;
     while (p) {
         fprintf(fp, "%d,%s,%s,%s\n", p->schedule_id, p->doctor_id, p->date, p->shift);
@@ -419,6 +449,7 @@ void saveSchedules() {
     fclose(fp);
 }
 
+// 读取交易流水
 void loadTransactions() {
     FILE* fp = fopen("transactions.txt", "r");
     if (!fp) return;
@@ -450,9 +481,11 @@ void loadTransactions() {
     fclose(fp);
 }
 
+// 保存交易流水
 void saveTransactions() {
     FILE* fp = fopen("transactions.txt", "w");
     if (!fp) return;
+
     Transaction* p = transactionList->next;
     while (p) {
         fprintf(fp, "%d,%d,%.2f,%s,%s\n", p->id, p->type, p->amount, p->time, p->description);
