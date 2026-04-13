@@ -149,6 +149,8 @@ static void drugIn() {
         Drug* p = drugList->next;
         while (p) {
             if (p->id == id) {
+                printf("ID:%d 名称:%s 库存:%d 价格:%.2f 批号:%s 有效期:%s\n",
+                    p->id, p->name, p->stock, p->price, p->batch, p->expiry);
                 printf("当前库存: %d\n", p->stock);
                 printf("请输入入库数量: ");
                 int quantity = safeGetPositiveInt();
@@ -252,12 +254,18 @@ static void drugOut() {
         Drug* p = drugList->next;
         while (p) {
             if (p->id == id) {
+                printf("ID:%d 名称:%s 库存:%d 价格:%.2f 批号:%s 有效期:%s\n",
+                    p->id, p->name, p->stock, p->price, p->batch, p->expiry);
                 printf("当前库存: %d\n", p->stock);
                 printf("请输入出库数量: ");
                 int quantity = safeGetPositiveInt();
                 if (quantity == -1) return;
                 if (quantity <= 0) return;
 
+                if (quantity > p->stock) {
+                    printf("  [!] 库存不足，无法出库。\n");
+                    return;
+                }
                 p->stock -= quantity;
                 getCurrentTimeStr(p->last_in, 30);
                 DrugHistory* h = (DrugHistory*)malloc(sizeof(DrugHistory));
@@ -298,6 +306,10 @@ static void drugOut() {
             if (quantity == -1) return;
             if (quantity <= 0) return;
 
+            if (quantity > tmp[0]->stock) {
+                printf("  [!] 库存不足，无法出库。\n");
+                return;
+            }
             tmp[0]->stock -= quantity;
             getCurrentTimeStr(tmp[0]->last_in, 30);
             DrugHistory* h = (DrugHistory*)malloc(sizeof(DrugHistory));
@@ -323,6 +335,10 @@ static void drugOut() {
             int quantity = safeGetPositiveInt();
             if (quantity == -1) return;
             if (quantity <= 0) return;
+            if (quantity > selectedDrug->stock) {
+                printf("  [!] 库存不足，无法出库。\n");
+                return;
+			}
             selectedDrug->stock -= quantity;
             getCurrentTimeStr(selectedDrug->last_in, 30);
             DrugHistory* h = (DrugHistory*)malloc(sizeof(DrugHistory));
