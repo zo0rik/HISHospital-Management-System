@@ -30,7 +30,7 @@ static int getCurrentYearValue(void) {
 }
 
 // 从一个 ID 字符串末尾提取最后 4 位数字序号。
-// 例如：P20250001 -> 1
+// 例如：P20260001 -> 1
 // 如果字符串长度不足 4，或提取失败，则返回 -1。
 static int extractTrailingSequence(const char* id) {
     int len = (int)strlen(id);
@@ -122,7 +122,7 @@ static void commitDrugDispense(Drug* drug, int qty, DrugHistory* hist) {
 
 // 生成患者 ID。
 // 规则：P + 当前年份 + 四位递增序号
-// 例如：P20250001
+// 例如：P20260001
 void generatePatientID(char* idBuffer) {
     int maxId = 999;
     int currentIdNum;
@@ -320,7 +320,7 @@ void registerPatient() {
         }
 
         while (1) {
-            printf("请输入过敏史(无则填无, 输入-1取消): ");
+            printf("请输入过敏史(未知则填未知，无则填无, 输入-1取消): ");
             safeGetString(newPatient->allergy, 100);
             if (strcmp(newPatient->allergy, "-1") == 0) {
                 free(newPatient);
@@ -354,17 +354,60 @@ void registerPatient() {
     printf("  ==========================================\n");
 }
 
-// 患者预约挂号。
-// 支持：
-// 1. 按科室搜索未来一周排班
-// 2. 按医生姓名/工号搜索排班
-// 选择成功后生成一条待支付挂号记录。
+/*
+ * 函数名：bookAppointment
+ * ------------------------------------------------------------
+ * 功能说明：
+ *   患者在自助终端中进行“未来一周门诊预约挂号”。
+ *
+ *   该函数支持两种搜索方式：
+ *   1. 按科室名称搜索未来一周的排班
+ *   2. 按医生姓名或工号搜索未来一周的排班
+ *
+ *   当患者选定某个排班后，系统会进一步进行一系列业务规则校验：
+ *   - 全院当天门诊量是否超限
+ *   - 患者当天挂号次数是否超限
+ *   - 患者是否已经在同一天挂过同科室号
+ *   - 患者是否已经挂过同一天同一医生的号
+ *   - 医生当天号源是否已满
+ *
+ *   如果校验通过，则创建一条“门诊挂号记录 Record”，
+ *   该记录初始状态为“未支付”，后续需要患者去财务中心完成缴费。
+ *
+ * 参数说明：
+ *   currentPatientId
+ *      当前登录患者的唯一 ID，用于：
+ *      1. 标识这条挂号记录属于哪个患者
+ *      2. 在校验环节中统计该患者当天是否已挂号
+ *
+ * 返回值：
+ *   无返回值（void）
+ *
+ * 核心流程：
+ *   1. 计算“今天”和“未来一周截止日期”
+ *   2. 让用户选择搜索方式（科室 / 医生）
+ *   3. 根据关键字筛选符合条件的未来一周排班
+ *   4. 展示排班表并让患者输入排班 ID
+ *   5. 验证该排班是否属于当前搜索结果
+ *   6. 执行业务规则检查
+ *   7. 若通过，则创建挂号记录并提示成功
+ *
+ * 依赖的全局链表/外部资源：
+ *   - scheduleList : 排班链表
+ *   - staffHead    : 医生链表
+ *   - recordHead   : 记录链表
+ *
+ * 注意事项：
+ *   - 本函数只“生成挂号记录”，不会直接扣费
+ *   - 费用会在后续财务中心中支付
+ *   - 使用了 safeGetInt / safeGetString 等安全输入函数，避免非法输入
+ */
 void bookAppointment(const char* currentPatientId) {
-    char today[11], nextWeek[11];
+    char today[11];
+    char nextWeek[11];
     time_t t = time(NULL);
     struct tm* tm_info = localtime(&t);
     strftime(today, sizeof(today), "%Y-%m-%d", tm_info);
-
     t += 7 * 24 * 60 * 60;
     tm_info = localtime(&t);
     strftime(nextWeek, sizeof(nextWeek), "%Y-%m-%d", tm_info);
@@ -381,35 +424,52 @@ void bookAppointment(const char* currentPatientId) {
         int choice = safeGetInt();
         if (choice == -1) return;
 
+        /* keyword 用来保存用户输入的搜索关键字 */
         char keyword[50];
 
-        // 方式 1：按科室搜索
+        /*
+         * ========== 方式一：按科室搜索 ==========
+         *
+         * 这里会先从 staff 链表中收集所有已存在的科室，
+         * 然后展示给用户，再让用户输入科室名。
+         */
         if (choice == 1) {
+            /* depts 用来保存系统中所有不重复的科室名称 */
             char depts[20][50];
+            /* dCount 表示当前收集到的科室数量 */
             int dCount = 0;
-
-            // 收集已有科室
+            /*
+             * 遍历所有医生，提取其 department 字段，
+             * 并去重后保存到 depts 中。
+             */
             for (Staff* stf = staffHead->next; stf != NULL; stf = stf->next) {
                 int exists = 0;
+
+                /* 判断该科室是否已经收集过 */
                 for (int i = 0; i < dCount; i++) {
                     if (strcmp(depts[i], stf->department) == 0) {
                         exists = 1;
                         break;
                     }
                 }
+
+                /* 如果没有重复，且科室名非空，则加入科室数组 */
                 if (!exists && strlen(stf->department) > 0) {
                     strcpy(depts[dCount], stf->department);
                     dCount++;
                 }
             }
+
+            /* 打印当前系统中已有的门诊科室 */
             printf("\n  [系统当前已开设的门诊科室]: ");
             for (int i = 0; i < dCount; i++) printf("[%s] ", depts[i]);
 
-            // 输入目标科室并校验
             while (1) {
                 printf("\n  请输入您要挂号的目标科室名称 (输入-1返回): ");
                 safeGetString(keyword, 50);
+
                 if (strcmp(keyword, "-1") == 0) break;
+
                 if (strlen(keyword) == 0) {
                     printf("  [!] 输入不能为空！");
                     system("pause");
@@ -417,35 +477,59 @@ void bookAppointment(const char* currentPatientId) {
                 }
 
                 int isValidDept = 0;
+
+                /* 判断 keyword 是否在已有科室列表中 */
                 for (int i = 0; i < dCount; i++) {
                     if (strcmp(depts[i], keyword) == 0) {
                         isValidDept = 1;
                         break;
                     }
                 }
+
                 if (isValidDept) break;
                 else printf("  [!] 输入的科室不存在，请从上方列表中选择并重新输入！");
             }
+
+            /* 如果用户输入 -1，返回外层菜单重新选搜索方式 */
             if (strcmp(keyword, "-1") == 0) continue;
         }
-        // 方式 2：按医生姓名或工号搜索
+
+        /*
+         * ========== 方式二：按医生姓名 / 工号搜索 ==========
+         *
+         * 支持两种匹配：
+         * 1. 医生姓名包含 keyword
+         * 2. 医生工号等于 keyword
+         */
         else if (choice == 2) {
             printf("  请输入医生精确姓名或纯数字工号 (如:李四 / 1001, 输入-1返回): ");
             safeGetString(keyword, 50);
+
             if (strcmp(keyword, "-1") == 0) continue;
+
             if (strlen(keyword) == 0) {
                 printf("  [!] 输入不能为空！\n");
                 system("pause");
                 continue;
             }
         }
+
+      
         else {
             printf("  [!] 无效的菜单选项，请正确输入菜单中提供的数字编号！\n");
             system("pause");
             continue;
         }
 
-        int matchedSchIds[200];  // 存放本轮搜索命中的排班 ID
+        /*
+         * matchedSchIds:
+         *   存放本轮搜索命中的所有排班 ID，
+         *   后面用于验证用户输入的目标排班 ID 是否真的来自当前搜索结果。
+         *
+         * matchedCount:
+         *   当前命中的排班数量。
+         */
+        int matchedSchIds[200];
         int matchedCount = 0;
 
         printf("\n========== 未来一周可预约排班总表 (%s 至 %s) ==========\n", today, nextWeek);
@@ -453,10 +537,21 @@ void bookAppointment(const char* currentPatientId) {
             "排班ID", "出诊日期", "班次", "出诊医师(工号)", "科室", "职称");
         printf("  ---------------------------------------------------------------------------\n");
 
+        /*
+         * found:
+         *   表示是否找到了符合条件的排班
+         *
+         * maxRegId:
+         *   用于生成新的挂号记录流水号尾号
+         *   初始值从 4999 开始
+         */
         int found = 0;
         int maxRegId = 4999;
 
-        // 找当前最大挂号流水尾号，后续用于生成新挂号记录号
+        /*
+         * 遍历已有记录，找当前最大挂号流水尾号，
+         * 后面生成新挂号记录时会用 maxRegId + 1。
+         */
         for (Record* r_temp = recordHead->next; r_temp != NULL; r_temp = r_temp->next) {
             int curReg;
             curReg = extractTrailingSequence(r_temp->recordId);
@@ -465,10 +560,17 @@ void bookAppointment(const char* currentPatientId) {
             }
         }
 
-        // 遍历排班，筛选未来一周符合条件的排班
+        /*
+         * 遍历排班链表 scheduleList，筛选未来一周内符合条件的排班：
+         * 1. 日期在 today ~ nextWeek 范围内
+         * 2. 能找到对应医生
+         * 3. 满足当前搜索条件
+         * 4. 班次不是“休息”
+         */
         for (Schedule* s = scheduleList->next; s != NULL; s = s->next) {
             if (strcmp(s->date, today) < 0 || strcmp(s->date, nextWeek) > 0) continue;
 
+            /* 根据排班里的 doctor_id 找医生档案 */
             Staff* matchedDoc = NULL;
             for (Staff* d = staffHead->next; d != NULL; d = d->next) {
                 if (strcmp(d->id, s->doctor_id) == 0) {
@@ -479,18 +581,25 @@ void bookAppointment(const char* currentPatientId) {
             if (!matchedDoc) continue;
 
             int match = 0;
+
+            /* 按科室搜索时：医生科室必须等于 keyword */
             if (choice == 1 && strcmp(matchedDoc->department, keyword) == 0) match = 1;
+
+            /* 按医生搜索时：姓名包含 keyword，或工号精确等于 keyword */
             if (choice == 2) {
                 if (strstr(matchedDoc->name, keyword) || strcmp(matchedDoc->id, keyword) == 0) match = 1;
             }
 
-            // 命中且不是休息班次才展示
+            /* 命中且不是休息班次才展示 */
             if (match && strcmp(s->shift, "休息") != 0) {
                 char docDisp[130];
                 snprintf(docDisp, sizeof(docDisp), "%s(%s)", matchedDoc->name, matchedDoc->id);
+
                 printf("  [%-6d] | %-12s | %-8s | %-18s | %-10s | %-10s\n",
                     s->schedule_id, s->date, s->shift, docDisp,
                     matchedDoc->department, matchedDoc->level);
+
+                /* 把命中的排班 ID 记下来，便于后面校验 */
                 if (matchedCount < 200) {
                     matchedSchIds[matchedCount++] = s->schedule_id;
                 }
@@ -498,6 +607,7 @@ void bookAppointment(const char* currentPatientId) {
             }
         }
 
+        /* 若没有任何排班命中，则提示并重新搜索 */
         if (found == 0) {
             printf("\n  [!] 数据流反馈：未搜索到满足当前条件的排班资源。\n");
             system("pause");
@@ -506,10 +616,18 @@ void bookAppointment(const char* currentPatientId) {
 
         printf("  ---------------------------------------------------------------------------\n");
         printf("  请输入要确认选择的【排班ID】 (输入-1重新搜索): ");
+
+        /*
+         * 用户输入目标排班 ID。
+         * 若输入 -1，则回到外层重新搜索。
+         */
         int targetSchId = safeGetInt();
         if (targetSchId == -1) continue;
 
-        // 只允许输入当前搜索结果中的排班 ID
+        /*
+         * 校验该排班 ID 是否出现在本次搜索结果中。
+         * 这样可以防止患者输入一个系统存在但当前搜索结果里没有的排班。
+         */
         int idInResult = 0;
         for (int i = 0; i < matchedCount; i++) {
             if (matchedSchIds[i] == targetSchId) {
@@ -523,7 +641,9 @@ void bookAppointment(const char* currentPatientId) {
             continue;
         }
 
-        // 定位目标排班
+        /*
+         * 再次根据 targetSchId 在排班链表里定位目标排班对象。
+         */
         Schedule* targetSch = NULL;
         for (Schedule* s = scheduleList->next; s != NULL; s = s->next) {
             if (s->schedule_id == targetSchId) {
@@ -537,7 +657,9 @@ void bookAppointment(const char* currentPatientId) {
             continue;
         }
 
-        // 找到目标医生
+        /*
+         * 再通过 targetSch->doctor_id 找到对应医生对象。
+         */
         Staff* targetDoc = NULL;
         for (Staff* d = staffHead->next; d != NULL; d = d->next) {
             if (strcmp(d->id, targetSch->doctor_id) == 0) {
@@ -551,22 +673,59 @@ void bookAppointment(const char* currentPatientId) {
             continue;
         }
 
+        /*
+         * staffIdStr:
+         *   当前目标医生 ID 的字符串副本
+         *   方便后面在 record 中比较
+         */
         char staffIdStr[22];
         snprintf(staffIdStr, sizeof(staffIdStr), "%s", targetDoc->id);
 
-        // 这些变量用于各种业务限制判断
+        /*
+         * 以下变量用于执行业务规则校验：
+         *
+         * patientDailyActive:
+         *   当前患者在 targetSch->date 这一天总共已有多少条挂号记录
+         *
+         * patientDeptDailyActive:
+         *   当前患者在同一天、同科室已有多少条挂号记录
+         *
+         * sameDocSameDay:
+         *   当前患者是否已经在同一天挂过该医生
+         *
+         * docDailyCount:
+         *   该医生在该天已有多少个挂号号源
+         *
+         * hospitalDailyCount:
+         *   全院在该天一共有多少条挂号记录
+         */
         int patientDailyActive = 0, patientDeptDailyActive = 0, sameDocSameDay = 0, docDailyCount = 0, hospitalDailyCount = 0;
 
-        // 统计当日挂号情况
+        /*
+         * 遍历所有挂号记录（type == 1），统计业务限制所需数据。
+         */
         for (Record* rec = recordHead->next; rec != NULL; rec = rec->next) {
             if (rec->type == 1 && strstr(rec->description, targetSch->date)) {
                 hospitalDailyCount++;
+
+                /* 统计该医生当天已有的挂号人数 */
                 if (strcmp(rec->staffId, staffIdStr) == 0) docDailyCount++;
+
+                /*
+                 * 统计当前患者当天挂号情况。
+                 * rec->isPaid != 2 表示还不是“已接诊完毕/已离室”的状态。
+                 */
                 if (strcmp(rec->patientId, currentPatientId) == 0 && rec->isPaid != 2) {
                     patientDailyActive++;
+                    /*
+                     * 进一步判断：
+                     * 1. 是否已经挂过同科室号
+                     * 2. 是否已经挂过同医生号
+                     */
                     for (Staff* recDoc = staffHead->next; recDoc != NULL; recDoc = recDoc->next) {
                         char tempDId[22];
                         snprintf(tempDId, sizeof(tempDId), "%s", recDoc->id);
+
                         if (strcmp(tempDId, rec->staffId) == 0) {
                             if (strcmp(recDoc->department, targetDoc->department) == 0) patientDeptDailyActive++;
                             if (strcmp(tempDId, staffIdStr) == 0) sameDocSameDay = 1;
@@ -577,39 +736,45 @@ void bookAppointment(const char* currentPatientId) {
             }
         }
 
-        // 全院日门诊量限制
+        /* 全院日门诊量限制：最多 1000 */
         if (hospitalDailyCount >= 1000) {
             printf("\n  [系统过载] 全院日门诊量已达设定阈值。\n");
             system("pause");
             continue;
         }
 
-        // 患者单日挂号次数限制
+        /* 患者单日挂号次数限制：最多 5 次 */
         if (patientDailyActive >= 5) {
             printf("\n  [策略约束] 患者单日预约次数已达上限。\n");
             system("pause");
             continue;
         }
 
-        // 同日同科室不可重复挂号
+        /* 同日同科室不可重复挂号 */
         if (patientDeptDailyActive >= 1) {
             printf("\n  [策略约束] 同日同科室不允许重复挂号。\n");
             system("pause");
             continue;
         }
 
-        // 同日同医生不可重复挂号
+        /* 同日同医生不可重复挂号 */
         if (sameDocSameDay) {
             printf("\n  [策略约束] 该日已存在相同医师的挂号记录。\n");
             system("pause");
             continue;
         }
 
-        // 若该医生当日号源满了，则推荐替代资源
+        /*
+         * 若该医生当天号源已满（50人），则不给继续挂号，
+         * 并且推荐替代资源：
+         * 1. 该医生其他时间
+         * 2. 同日同科室其他医生
+         */
         if (docDailyCount >= 50) {
             int recCount = 0;
-            printf("\n  [资源售罄] %s 医生在 %s 的有效号源已全部分配完毕。\n", targetDoc->name, targetSch->date);
+            printf("\n  [ ！] %s 医生在 %s 的有效号源已全部分配完毕。\n", targetDoc->name, targetSch->date);
             printf("  >>> 调度系统为您推荐以下相似接诊资源 <<<\n");
+
             printf("\n  [分支一：该医师的其他接诊时段]\n");
             for (Schedule* altS = scheduleList->next; altS != NULL; altS = altS->next) {
                 if (strcmp(altS->doctor_id, targetDoc->id) == 0 &&
@@ -643,31 +808,75 @@ void bookAppointment(const char* currentPatientId) {
             continue;
         }
 
-        // 生成排号和挂号费
+        /*
+         * 通过前面统计出的 docDailyCount，
+         * 给当前新挂号患者分配排号序号：
+         * 第 docDailyCount + 1 位
+         */
         int seqNum = docDailyCount + 1;
-        double regFee = strstr(targetDoc->level, "主任") != NULL ? 50.0 : 15.0;
 
-        // 创建挂号记录，初始为待支付
+        /*
+ * 根据医生职称确定挂号费：
+ * 1. 主任医师：50 元
+ * 2. 副主任医师：30 元
+ * 3. 主治医师：15 元
+ * 4. 其它默认：15 元
+ */
+        double regFee;
+        if (strcmp(targetDoc->level, "主任医师") == 0) {
+            regFee = 50.0;
+        }
+        else if (strcmp(targetDoc->level, "副主任医师") == 0) {
+            regFee = 30.0;
+        }
+        else if (strcmp(targetDoc->level, "主治医师") == 0) {
+            regFee = 15.0;
+        }
+        else {
+            regFee = 15.0;
+        }
+
+        /*
+         * 创建新的挂号记录：
+         * type = 1 表示门诊挂号
+         * isPaid = 0 表示待支付
+         */
         Record* newRecord = (Record*)malloc(sizeof(Record));
         if (!newRecord) {
             printf("  [!] 内存分配失败。\n");
             return;
         }
+
         sprintf(newRecord->recordId, "REG%d%04d", getCurrentYearValue(), maxRegId + 1);
         newRecord->type = 1;  // 1 表示门诊挂号
         strcpy(newRecord->patientId, currentPatientId);
         strcpy(newRecord->staffId, staffIdStr);
         newRecord->cost = regFee;
         newRecord->isPaid = 0; // 待支付
+
+        /*
+         * description 中保存：
+         * 1. 医生姓名
+         * 2. 就诊日期
+         * 3. 排号序号
+         */
         sprintf(newRecord->description, "挂号:%s(%s)_排号:%d", targetDoc->name, targetSch->date, seqNum);
+
         getCurrentTimeStr(newRecord->createTime, 30);
         newRecord->next = NULL;
 
-        // 挂到记录链表尾部
+        /*
+         * 将新挂号记录挂到 record 链表尾部。
+         * 这里采用尾插。
+         */
         Record* temp = recordHead;
         while (temp->next) temp = temp->next;
         temp->next = newRecord;
 
+        /*
+         * 提示挂号成功，但注意这里只是创建待支付记录，
+         * 患者还需要去费用中心支付。
+         */
         printf("\n  [√ 事务确认] %s 医师接诊号源申请成功！系统产生待支付流水 %.2f 元。\n", targetDoc->name, regFee);
         printf("  =======================================================\n");
         printf("  >>> 当日分诊系统的预计算序号为：【 第 %d 号 】 <<<\n", seqNum);
@@ -678,18 +887,61 @@ void bookAppointment(const char* currentPatientId) {
     }
 }
 
-// 支付后自动检查出院。
-// 当前未实现，仅保留扩展位。
-static void checkAndAutoDischarge(Record* rec, const char* currentPatientId) {
-    (void)rec;
-    (void)currentPatientId;
-}
 
-// 财务中心。
-// 功能：
-// 1. 充值
-// 2. 清算待支付账单（聚合支付或单项核销）
+/*
+ * 函数名：financeCenter
+ * ------------------------------------------------------------
+ * 功能说明：
+ *   这是患者端的“个人财务结算中心”。
+ *
+ *   该函数主要负责两大功能：
+ *   1. 账户充值
+ *   2. 清算患者当前所有未支付账单
+ *
+ *   在这个函数中，系统会先显示当前患者的：
+ *   - 普通账户余额
+ *   - 住院押金余额
+ *   - 当前住院状态
+ *   - 若押金为负，则显示待补交金额
+ *
+ *   随后提供两个业务入口：
+ *   [1] 在线充值
+ *   [2] 待支付账单清算
+ *
+ * 参数说明：
+ *   currentPatientId
+ *      当前登录患者的唯一 ID。
+ *      用于查找患者对象、筛选该患者名下的记录、完成扣费和充值。
+ *
+ * 返回值：
+ *   无返回值（void）
+ *
+ * 主要依赖：
+ *   - findPatientById()            根据患者 ID 找到患者对象
+ *   - formatMoney()                把金额格式化成 xx.xx元 字符串
+ *   - safeGetInt()                 安全读取整数菜单输入
+ *   - safeGetMoneyInRange()        安全读取金额输入
+ *   - ensureDrugStockForRecord()   检查药品单库存是否足够
+ *   - settleSingleRecord()         真正执行单笔账单支付
+ *   - isInpatientArrearsRecord()   判断记录是否为住院补缴单
+ *   - appendTransaction()          写入财务流水
+ *
+ * 核心流程：
+ *   1. 查找当前患者对象
+ *   2. 显示账户余额和住院押金信息
+ *   3. 让患者选择充值或支付
+ *   4. 若充值，则增加余额并生成充值记录
+ *   5. 若支付，则列出所有未支付账单
+ *      - 可一键聚合支付
+ *      - 也可按流水号单独核销
+ *
+ * 业务特点：
+ *   - 药品支付前会再次检查库存，防止支付后库存不足
+ *   - 住院欠费补交单有特殊处理逻辑
+ *   - 聚合支付允许部分成功、部分失败
+ */
 void financeCenter(const char* currentPatientId) {
+ 
     while (1) {
         system("cls");
         Patient* p = findPatientById(currentPatientId);
@@ -697,15 +949,25 @@ void financeCenter(const char* currentPatientId) {
 
         printf("\n========== 个人财务结算中心 ==========\n");
         char balanceText[32], depositText[32], arrearsText[32];
+
+        /* 把数值金额格式化为统一的 xx.xx元 样式 */
         formatMoney(p->balance, balanceText, sizeof(balanceText));
         formatMoney(p->inpatientDeposit, depositText, sizeof(depositText));
+        /* 显示当前账户资金情况 */
         printf("  [当前账户可用余额]:      %s\n", balanceText);
         printf("  [当前住院押金余额]:      %s\n", depositText);
         printf("  [当前住院状态]:          %s\n", p->isInpatient ? "住院中" : "非住院");
+
+        /*
+         * 如果住院押金为负，表示已经欠费，
+         * 这里显示待补交金额（取绝对值）。
+         */
         if (p->inpatientDeposit < 0) {
             formatMoney(-p->inpatientDeposit, arrearsText, sizeof(arrearsText));
             printf("  [当前待补交金额]:        %s\n", arrearsText);
         }
+
+        /* 财务中心主菜单 */
         printf("--------------------------------------\n");
         printf("  [1] 在线网银充值 (预存备用金)\n");
         printf("  [2] 待处理账单清算 (聚合结算)\n");
@@ -715,57 +977,95 @@ void financeCenter(const char* currentPatientId) {
         int choice = safeGetInt();
         if (choice == -1) return;
 
-        // 充值
+        //一、充值功能
+
         if (choice == 1) {
             printf("\n  请输入需充值的金额 (输入-1取消): ");
+
             double money = safeGetMoneyInRange(0.01, 10000.0);
             if (money == -1.0) continue;
 
             if (money > 0) {
+                /* 给患者普通账户余额加钱 */
                 p->balance += money;
 
-                // 生成充值记录
+                /*
+                 * 生成一条充值记录 Record：
+                 * type = 7 表示充值
+                 * isPaid = 1 表示该记录已完成
+                 */
                 Record* r7 = (Record*)malloc(sizeof(Record));
                 if (!r7) {
                     printf("  [!] 内存分配失败。\n");
                     return;
                 }
+
                 generateRecordID(r7->recordId);
                 r7->type = 7;  // 7 表示充值
                 strcpy(r7->patientId, currentPatientId);
-                strcpy(r7->staffId, "SYS");
+                strcpy(r7->staffId, "SYS");   // 表示系统自动处理
                 r7->cost = money;
                 r7->isPaid = 1;
                 sprintf(r7->description, "终端自助充值入账");
                 getCurrentTimeStr(r7->createTime, 30);
+
+                /* 头插法，把充值记录插入 record 链表 */
                 r7->next = recordHead->next;
                 recordHead->next = r7;
 
-                // 写财务流水（充值不计收入）
+                /*
+                 * 写入财务流水。
+                 * 充值属于“患者资金注入”，不算医院业务收入，所以描述中写“不计收入”。
+                 */
                 appendTransaction(TRANS_RECHARGE, money, "终端自助充值(不计收入)");
 
+                /* 再次格式化金额用于回显 */
                 char moneyText[32];
                 formatMoney(money, moneyText, sizeof(moneyText));
+
                 printf("  [完成] 充值业务受理成功，金额: %s。\n", moneyText);
                 system("pause");
             }
+            
             else if (money != 0) {
                 printf("  [异常] 充值数额校验失败，必须为正值参数。\n");
                 system("pause");
             }
         }
-        // 清算待支付账单
+
+         // 二、清算待支付账单
+        
         else if (choice == 2) {
+            
             while (1) {
+                /*
+                 * hasUnpaid:
+                 *   当前患者是否存在未支付账单
+                 * totalUnpaidCost:
+                 *   当前患者所有未支付账单的总金额
+                 */
                 int hasUnpaid = 0;
                 double totalUnpaidCost = 0.0;
+
                 system("cls");
                 printf("\n========== 待清算账单明细列表 ==========\n");
 
-                // 列出当前患者所有未支付记录
+                /*
+                 * 遍历所有记录，列出当前患者 isPaid == 0 的记录。
+                 * 也就是“尚未支付”的账单。
+                 */
                 for (Record* rec = recordHead->next; rec != NULL; rec = rec->next) {
                     if (strcmp(rec->patientId, currentPatientId) == 0 && rec->isPaid == 0) {
                         char typeName[20];
+
+                        /*
+                         * 根据记录类型 rec->type 映射成可读的业务名称：
+                         * 1 -> 门诊挂号
+                         * 2 -> 临床诊疗
+                         * 3 -> 药事调拨
+                         * 4 -> 辅助检验
+                         * 5 -> 住院类（住院补缴 / 住院账目）
+                         */
                         switch (rec->type) {
                         case 1: strcpy(typeName, "门诊挂号"); break;
                         case 2: strcpy(typeName, "临床诊疗"); break;
@@ -778,24 +1078,44 @@ void financeCenter(const char* currentPatientId) {
                         default: strcpy(typeName, "其他"); break;
                         }
 
+                        /*
+                         * 打印账单明细：
+                         * - 流水号
+                         * - 业务类型
+                         * - 金额
+                         * - 描述信息
+                         */
                         printf("  流水号: %-12s | 业务项: [%-10s] | 实收: %-8.2f | 备忘录: %s\n",
                             rec->recordId, typeName, rec->cost, rec->description);
+
                         totalUnpaidCost += rec->cost;
                         hasUnpaid = 1;
                     }
                 }
 
+                /* 若当前没有未支付账单，提示并退出清算循环 */
                 if (!hasUnpaid) {
                     printf("  [核查反馈] 当前无未决的财务单据。\n");
                     system("pause");
                     break;
                 }
 
+                /*
+                 * 输出待清算总额与当前普通余额的对比，
+                 * 帮助患者判断资金是否足够。
+                 */
                 printf("----------------------------------------------------------------------\n");
                 char unpaidText[32], balanceText2[32];
                 formatMoney(totalUnpaidCost, unpaidText, sizeof(unpaidText));
                 formatMoney(p->balance, balanceText2, sizeof(balanceText2));
                 printf("  [资金比对] 待清算总额: %s | 普通余额: %s\n\n", unpaidText, balanceText2);
+
+                /*
+                 * 提供两种支付方式：
+                 * 1. 一键聚合支付：尽量一次把所有未支付账单都结掉
+                 * 2. 指定流水号单项核销：只支付某一条账单
+                 * -1. 返回上一级
+                 */
                 printf("  1. 一键聚合支付\n");
                 printf("  2. 指定流水号单项核销\n");
                 printf(" -1. 返回上一级\n");
@@ -804,8 +1124,16 @@ void financeCenter(const char* currentPatientId) {
                 int payChoice = safeGetInt();
                 if (payChoice == -1) break;
 
-                // 一键聚合支付
+                /*
+                 * =========================
+                 * 2.1 一键聚合支付
+                 * =========================
+                 */
                 if (payChoice == 1) {
+                    /*
+                     * 先判断普通余额是否足够覆盖所有未支付账单总额。
+                     * 若不足，则直接拒绝执行。
+                     */
                     if (p->balance < totalUnpaidCost) {
                         char gapText[32];
                         formatMoney(totalUnpaidCost - p->balance, gapText, sizeof(gapText));
@@ -813,16 +1141,31 @@ void financeCenter(const char* currentPatientId) {
                         system("pause");
                     }
                     else {
+                        /*
+                         * pending:
+                         *   用于临时保存所有待支付记录指针
+                         *
+                         * pendingCount:
+                         *   当前收集到多少条待支付记录
+                         *
+                         * stockOk:
+                         *   药品库存检查是否全部通过
+                         */
                         Record* pending[512];
                         int pendingCount = 0;
                         int stockOk = 1;
 
-                        // 先收集所有待支付记录，并对药品单做库存检查
+                        /*
+                         * 第一步：先收集所有待支付记录。
+                         * 第二步：如果遇到药品单(type == 3)，先检查库存是否还足够。
+                         * 因为药品库存可能在患者开单之后发生变化。
+                         */
                         for (Record* rec = recordHead->next; rec != NULL; rec = rec->next) {
                             if (strcmp(rec->patientId, currentPatientId) == 0 && rec->isPaid == 0) {
                                 if (pendingCount < (int)(sizeof(pending) / sizeof(pending[0]))) {
                                     pending[pendingCount++] = rec;
                                 }
+
                                 if (rec->type == 3 && !ensureDrugStockForRecord(rec)) {
                                     printf("  [拒绝执行] 药品库存已发生变化，单据 %s 暂无法支付，请联系药房刷新库存。\n", rec->recordId);
                                     stockOk = 0;
@@ -830,16 +1173,31 @@ void financeCenter(const char* currentPatientId) {
                                 }
                             }
                         }
+
+                        /* 若有任意药品单库存不足，则终止本次聚合支付 */
                         if (!stockOk) {
                             system("pause");
                             continue;
                         }
 
+                        /*
+                         * processed:
+                         *   已成功处理的账单数量
+                         *
+                         * failed:
+                         *   是否出现失败
+                         *
+                         * failedId:
+                         *   保存失败那条账单的流水号，便于报错
+                         */
                         int processed = 0;
                         int failed = 0;
                         char failedId[30] = "";
 
-                        // 逐条支付
+                        /*
+                         * 逐条调用 settleSingleRecord() 完成真正的支付。
+                         * 如果中途失败，则记录失败位置并终止。
+                         */
                         for (int i = 0; i < pendingCount; ++i) {
                             if (!settleSingleRecord(p, currentPatientId, pending[i])) {
                                 failed = 1;
@@ -850,18 +1208,29 @@ void financeCenter(const char* currentPatientId) {
                             processed++;
                         }
 
+                        /*
+                         * 如果中途失败：
+                         * - 前面已成功的账单保持成功状态
+                         * - 后面未处理的账单继续保留待支付状态
+                         */
                         if (failed) {
                             printf("  [异常] 聚合支付在单据 %s 处中止，前面已成功处理 %d 笔，其余账单保留待支付状态。\n", failedId, processed);
                             system("pause");
                             continue;
                         }
 
+                        /* 全部成功 */
                         printf("  [处理成功] 所有挂起账单已完成聚合清算。\n");
                         system("pause");
                         break;
                     }
                 }
-                // 单笔核销
+
+                /*
+                 * =========================
+                 * 2.2 指定流水号单项核销
+                 * =========================
+                 */
                 else if (payChoice == 2) {
                     printf("\n  请输入需独立清算的单据流水号 (输入-1取消): ");
                     char target[30];
@@ -874,7 +1243,12 @@ void financeCenter(const char* currentPatientId) {
                         continue;
                     }
 
-                    // 定位目标未支付记录
+                    /*
+                     * 在所有记录中查找：
+                     * 1. 流水号等于 target
+                     * 2. 属于当前患者
+                     * 3. 当前状态是未支付
+                     */
                     Record* tRec = NULL;
                     for (Record* rec = recordHead->next; rec != NULL; rec = rec->next) {
                         if (strcmp(rec->recordId, target) == 0 &&
@@ -884,29 +1258,49 @@ void financeCenter(const char* currentPatientId) {
                             break;
                         }
                     }
+
+                    /* 没找到合法目标账单 */
                     if (!tRec) {
                         printf("  [!] 流水寻址失败。\n");
                         system("pause");
                         continue;
                     }
 
+                    /* 判断余额是否足够支付这单 */
                     if (p->balance < tRec->cost) {
                         printf("  [拒绝执行] 余额不足。\n");
                         system("pause");
                     }
                     else {
-                        // 药品类需再次检查库存
+                        /*
+                         * 如果是药品单，再次检查库存。
+                         * 因为药品库存是动态变化的。
+                         */
                         if (tRec->type == 3 && !ensureDrugStockForRecord(tRec)) {
                             printf("  [拒绝执行] 药房库存不足，当前药单无法完成支付。\n");
                             system("pause");
                             continue;
                         }
+
+                        /*
+                         * 真正执行单笔支付。
+                         * settleSingleRecord() 内部会：
+                         * - 扣除余额
+                         * - 更新记录支付状态
+                         * - 必要时写财务流水
+                         * - 若是药品单则完成出库
+                         * - 若是住院补缴则更新住院押金
+                         */
                         if (!settleSingleRecord(p, currentPatientId, tRec)) {
                             printf("  [异常] 本次支付未提交，请重试或联系管理员核查。\n");
                             system("pause");
                             continue;
                         }
 
+                        /*
+                         * 若是住院欠费补交单，给专门提示；
+                         * 否则按普通账单支付成功提示。
+                         */
                         if (isInpatientArrearsRecord(tRec)) {
                             printf("  [处理成功] 住院欠费补交完成，%.2f 元。\n", tRec->cost);
                         }
@@ -916,12 +1310,16 @@ void financeCenter(const char* currentPatientId) {
                         system("pause");
                     }
                 }
+
+                /* 清算菜单输入非法 */
                 else {
                     printf("  [!] 无效选项！\n");
                     system("pause");
                 }
             }
         }
+
+        /* 财务中心主菜单输入非法 */
         else {
             printf("  [!] 无效选项！\n");
             system("pause");

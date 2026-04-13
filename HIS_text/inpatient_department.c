@@ -1,15 +1,15 @@
-#define _CRT_SECURE_NO_WARNINGS  // 关闭 VS 对部分传统 C 函数的安全警告
-#include <stdio.h>   // 标准输入输出
-#include <stdlib.h>  // malloc、free、system 等
-#include <string.h>  // strcpy、strcmp、strstr、strlen 等字符串处理
-#include <time.h>    // time、localtime 等时间处理
-#include "models.h"                  // 项目核心数据结构
-#include "utils.h"                   // 工具函数，如安全输入、金额格式化、时间工具
-#include "inpatient_department.h"    // 当前模块头文件
-#include "transaction.h"             // 财务流水相关
-#include "outpatient_department.h"   // 门诊相关，住院中会复用门诊检查功能
-#include "drug.h"                    // 药品相关
-#include "patient.h"                 // 患者相关
+#define _CRT_SECURE_NO_WARNINGS  
+#include <stdio.h>   
+#include <stdlib.h>  
+#include <string.h>  
+#include <time.h>    
+#include "models.h"                  
+#include "utils.h"                   
+#include "inpatient_department.h"    
+#include "transaction.h"             
+#include "outpatient_department.h"   
+#include "drug.h"                   
+#include "patient.h"                
 
 // 外部函数：生成记录 ID
 extern void generateRecordID(char* buffer);
@@ -1088,6 +1088,7 @@ void inpatientMenu(const char* docId) {
         switch (choice) {
         case 1:
             viewAllBeds();
+            system("pause");
             break;
         case 2:
             admitPatient(docId);
@@ -1099,9 +1100,11 @@ void inpatientMenu(const char* docId) {
             break;
         case 4:
             wardRounds(docId);
+            system("pause");
             break;
         case 5:
             dischargePatient();
+            system("pause");
             break;
         case -1:
             return;

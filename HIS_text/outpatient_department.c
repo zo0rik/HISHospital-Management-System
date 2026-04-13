@@ -1,15 +1,15 @@
-#define _CRT_SECURE_NO_WARNINGS  // 关闭 VS 对传统 C 函数的安全警告
-#include <stdio.h>   // 标准输入输出
-#include <stdlib.h>  // malloc、free 等内存管理
-#include <string.h>  // strcpy、strcmp、strstr、strlen 等字符串函数
-#include "models.h"                  // 项目核心数据结构定义
-#include "utils.h"                   // 通用工具函数，如安全输入、金额格式化、时间获取
-#include "schedule.h"                // 排班相关声明
-#include "doctor.h"                  // 医生相关声明
-#include "outpatient_department.h"   // 当前模块头文件/相关声明
-#include "patient.h"                 // 患者相关声明
-#include "inpatient_department.h"    // 住院部相关声明
-#include "drug.h"                    // 药品相关声明
+#define _CRT_SECURE_NO_WARNINGS  
+#include <stdio.h>  
+#include <stdlib.h>  
+#include <string.h>  
+#include "models.h"                 
+#include "utils.h"                  
+#include "schedule.h"               
+#include "doctor.h"                 
+#include "outpatient_department.h"   
+#include "patient.h"                 
+#include "inpatient_department.h"    
+#include "drug.h"                   
 
 // 当前被医生“叫到诊室”的患者 ID。
 // 门诊看诊、开药、开检查时，如果这里有值，就默认对这个患者操作。
@@ -233,19 +233,19 @@ int createAuxiliaryExamOrders(const char* docId, const char* patientId, int inpa
 }
 
 // 生成 Record 的唯一 ID
-// 当前实现规则是：R2025XXXX
+// 当前实现规则是：R2026XXXX
 // 其中 XXXX 从现有记录中取最大值后 +1
 void generateRecordID(char* buffer) {
     int maxId = 1999;
     Record* r = recordHead->next;
     while (r != NULL) {
         int currentIdNum;
-        if (sscanf(r->recordId, "R2025%04d", &currentIdNum) == 1) {
+        if (sscanf(r->recordId, "R2026%04d", &currentIdNum) == 1) {
             if (currentIdNum > maxId) maxId = currentIdNum;
         }
         r = r->next;
     }
-    sprintf(buffer, "R2025%04d", maxId + 1);
+    sprintf(buffer, "R2026%04d", maxId + 1);
 }
 
 // 医生叫号函数

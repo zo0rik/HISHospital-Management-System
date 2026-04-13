@@ -62,7 +62,6 @@ void staffTerminal(Staff* me) {
         printf("------------------------------------------------\n");
         printf("  请选择业务: ");
 
-        // 【修改点】严格校验医护端入口
         while (1) {
             c = safeGetInt();
             if ((c >= 1 && c <= 4) || c == -1) break;

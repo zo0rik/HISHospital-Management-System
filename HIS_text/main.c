@@ -171,7 +171,7 @@ int main() {
 
             if (pChoice == 1) {
                 while (1) {
-                    printf("\n  [?] 请输入患者ID (如P20251000, 输入-1返回): "); /* 【修改】 */
+                    printf("\n  [?] 请输入患者ID (如P20261000, 输入-1返回): "); /* 【修改】 */
                     safeGetString(acc, 50);
                     if (strcmp(acc, "-1") == 0) break; /* 【修改】 */
                     /* 【新增】空输入校验 */
