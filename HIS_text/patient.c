@@ -1,27 +1,37 @@
-#define _CRT_SECURE_NO_WARNINGS
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include "models.h"
-#include "patient.h"
-#include "utils.h"
-#include "doctor.h"
-#include "schedule.h"
-#include "transaction.h"
-#include "drug.h"
-#include "inpatient_department.h"
+#define _CRT_SECURE_NO_WARNINGS  
+#include <stdio.h>   
+#include <stdlib.h>  
+#include <string.h>  
+#include <time.h>    // time、localtime、strftime 等时间处理
+#include "models.h"                  // 项目中的核心数据结构定义
+#include "patient.h"                 // patient 模块头文件
+#include "utils.h"                   // 工具函数，如安全输入、金额格式化、时间字符串等
+#include "doctor.h"                  // 医生相关声明
+#include "schedule.h"                // 排班相关声明
+#include "transaction.h"             // 财务流水相关声明
+#include "drug.h"                    // 药品相关声明
+#include "inpatient_department.h"    // 住院部相关声明
 
+// 外部函数：生成一条 Record 的唯一 ID
 extern void generateRecordID(char* buffer);
+
+// 外部全局变量：床位链表头
 extern Bed* bedHead;
+
+// 外部安全追加流水函数，成功返回真，失败返回假
 extern int appendTransactionSafe(int type, double amount, const char* description);
 
+// 获取当前年份。
+// 如果 localtime 失败，则默认返回 2026。
 static int getCurrentYearValue(void) {
     time_t now = time(NULL);
     struct tm* tm_info = localtime(&now);
     return tm_info ? (tm_info->tm_year + 1900) : 2026;
 }
 
+// 从一个 ID 字符串末尾提取最后 4 位数字序号。
+// 例如：P20250001 -> 1
+// 如果字符串长度不足 4，或提取失败，则返回 -1。
 static int extractTrailingSequence(const char* id) {
     int len = (int)strlen(id);
     if (len < 4) return -1;
@@ -30,6 +40,11 @@ static int extractTrailingSequence(const char* id) {
     return -1;
 }
 
+// 从药品记录描述字符串中解析药品名称和数量。
+// 仅支持 type == 3 的药品记录。
+// 预期 description 格式类似：
+// 药品:阿莫西林_单价:12.50元_数量:2
+// 解析成功返回 1，失败返回 0。
 static int parseDrugRecordInfo(const Record* rec, char* drugName, size_t drugNameSize, int* qtyOut) {
     if (!rec || rec->type != 3 || !drugName || drugNameSize == 0 || !qtyOut) return 0;
     drugName[0] = '\0';
@@ -40,6 +55,8 @@ static int parseDrugRecordInfo(const Record* rec, char* drugName, size_t drugNam
     return 0;
 }
 
+// 根据药品名称精确查找药品。
+// 找到则返回对应 Drug 节点指针，否则返回 NULL。
 static Drug* findDrugByName(const char* name) {
     for (Drug* d = drugList->next; d != NULL; d = d->next) {
         if (strcmp(d->name, name) == 0) return d;
@@ -47,6 +64,9 @@ static Drug* findDrugByName(const char* name) {
     return NULL;
 }
 
+// 检查某条药品记录对应的库存是否足够。
+// 若记录无法解析，则默认返回 1，不阻塞后续流程。
+// 若能解析出药品名和数量，则必须保证药品存在且库存足够。
 static int ensureDrugStockForRecord(const Record* rec) {
     char drugName[50];
     int qty = 0;
@@ -55,6 +75,12 @@ static int ensureDrugStockForRecord(const Record* rec) {
     return drug && drug->stock >= qty;
 }
 
+// 为某条药品记录创建一条“发药历史”节点。
+// 同时把对应药品指针和数量通过输出参数返回。
+// 返回值约定：
+// 1. 正常成功：返回 DrugHistory* 节点
+// 2. 解析失败：返回 NULL
+// 3. 药品不存在 / 库存不足 / 内存分配失败：返回 (DrugHistory*)-1
 static DrugHistory* createDrugDispenseHistoryForRecord(const Record* rec, Drug** drugOut, int* qtyOut) {
     char drugName[50];
     int qty = 0;
@@ -70,10 +96,10 @@ static DrugHistory* createDrugDispenseHistoryForRecord(const Record* rec, Drug**
     DrugHistory* hist = (DrugHistory*)malloc(sizeof(DrugHistory));
     if (!hist) return (DrugHistory*)-1;
 
-    hist->drug_id = drug->id;
-    hist->type = 2;
-    hist->quantity = qty;
-    getCurrentTimeStr(hist->time, sizeof(hist->time));
+    hist->drug_id = drug->id;                         // 记录药品 ID
+    hist->type = 2;                                  // 2 表示出库/发药
+    hist->quantity = qty;                            // 记录本次发药数量
+    getCurrentTimeStr(hist->time, sizeof(hist->time)); // 记录当前时间
     hist->next = NULL;
 
     if (drugOut) *drugOut = drug;
@@ -81,6 +107,10 @@ static DrugHistory* createDrugDispenseHistoryForRecord(const Record* rec, Drug**
     return hist;
 }
 
+// 真正提交发药动作：
+// 1. 扣减药品库存
+// 2. 更新药品最近出库时间
+// 3. 将历史记录挂到 drugHistoryList 链表头
 static void commitDrugDispense(Drug* drug, int qty, DrugHistory* hist) {
     if (!drug || !hist || qty <= 0) return;
     drug->stock -= qty;
@@ -90,6 +120,9 @@ static void commitDrugDispense(Drug* drug, int qty, DrugHistory* hist) {
     drugHistoryList->next = hist;
 }
 
+// 生成患者 ID。
+// 规则：P + 当前年份 + 四位递增序号
+// 例如：P20250001
 void generatePatientID(char* idBuffer) {
     int maxId = 999;
     int currentIdNum;
@@ -101,6 +134,8 @@ void generatePatientID(char* idBuffer) {
     sprintf(idBuffer, "P%d%04d", currentYear, maxId + 1);
 }
 
+// 根据患者 ID 精确查找患者。
+// 找到返回患者节点指针，找不到返回 NULL。
 Patient* findPatientById(const char* pid) {
     for (Patient* p = patientHead->next; p != NULL; p = p->next) {
         if (strcmp(p->id, pid) == 0) return p;
@@ -108,16 +143,26 @@ Patient* findPatientById(const char* pid) {
     return NULL;
 }
 
+// 判断某条记录是否是“住院欠费补交单”。
+// 条件：
+// 1. 记录存在
+// 2. type == 5（住院类）
+// 3. description 中包含 [住院欠费补交单]
 static int isInpatientArrearsRecord(const Record* rec) {
     return rec &&
         rec->type == 5 &&
         strstr(rec->description, "[住院欠费补交单]") != NULL;
 }
 
+// 追加一条简单记录的函数声明
 static void appendSimpleRecord(int type, const char* patientId, const char* staffId,
     double cost, int isPaid, const char* description);
+
+// 支付后自动检查是否满足出院条件的函数声明
 static void checkAndAutoDischarge(Record* rec, const char* currentPatientId);
 
+// 根据记录类型，映射到财务流水类型。
+// 用于在支付时写入不同种类的财务收入。
 static int determineTransactionTypeForRecord(const Record* rec) {
     if (!rec) return TRANS_OUTPATIENT_INCOME;
     if (rec->type == 3) return TRANS_DRUG_INCOME;
@@ -126,6 +171,14 @@ static int determineTransactionTypeForRecord(const Record* rec) {
     return TRANS_OUTPATIENT_INCOME;
 }
 
+// 结算单条记录。
+// 主要功能：
+// 1. 校验该记录是否可支付
+// 2. 若是药品单，先校验库存并准备发药历史
+// 3. 若是住院欠费补交单，则把普通余额转入住院押金
+// 4. 若是普通业务，则正常记收入并扣普通余额
+// 5. 若是药品单并支付成功，则提交出库
+// 成功返回 1，失败返回 0。
 static int settleSingleRecord(Patient* p, const char* currentPatientId, Record* rec) {
     if (!p || !currentPatientId || !rec || rec->isPaid != 0) return 0;
     if (p->balance < rec->cost) return 0;
@@ -134,23 +187,26 @@ static int settleSingleRecord(Patient* p, const char* currentPatientId, Record* 
     DrugHistory* dispenseHist = NULL;
     int dispenseQty = 0;
 
+    // 若是药品单，先检查库存并构造出库历史
     if (rec->type == 3) {
         if (!ensureDrugStockForRecord(rec)) return 0;
         dispenseHist = createDrugDispenseHistoryForRecord(rec, &dispenseDrug, &dispenseQty);
         if (dispenseHist == (DrugHistory*)-1) return 0;
     }
 
+    // 若是住院欠费补交单，则不是普通收入，而是给住院押金补钱
     if (isInpatientArrearsRecord(rec)) {
         if (!appendTransactionSafe(TRANS_INPATIENT_SUPPLEMENT, rec->cost, "住院欠费补交(不计收入)")) {
             if (dispenseHist && dispenseHist != (DrugHistory*)-1) free(dispenseHist);
             return 0;
         }
-        p->balance -= rec->cost;
-        p->inpatientDeposit += rec->cost;
-        rec->isPaid = 2;
+        p->balance -= rec->cost;           // 普通余额减少
+        p->inpatientDeposit += rec->cost;  // 住院押金增加
+        rec->isPaid = 2;                   // 标记补缴完成
         appendSimpleRecord(5, currentPatientId, "SYS", rec->cost, 1, "[住院明细][补缴] 住院欠费补交完成");
     }
     else {
+        // 普通支付：记收入、扣余额、标记已支付
         int transType = determineTransactionTypeForRecord(rec);
         if (!appendTransactionSafe(transType, rec->cost, rec->description)) {
             if (dispenseHist && dispenseHist != (DrugHistory*)-1) free(dispenseHist);
@@ -159,15 +215,19 @@ static int settleSingleRecord(Patient* p, const char* currentPatientId, Record* 
         p->balance -= rec->cost;
         rec->isPaid = 1;
         if (dispenseHist) {
+            // 若是药品单，则在支付成功后再真正发药出库
             commitDrugDispense(dispenseDrug, dispenseQty, dispenseHist);
             dispenseHist = NULL;
         }
     }
 
+    // 预留：支付后检查是否自动出院
     checkAndAutoDischarge(rec, currentPatientId);
     return 1;
 }
 
+// 追加一条简单 Record 记录到链表头。
+// 常用于系统内部自动生成一条业务记录。
 static void appendSimpleRecord(int type, const char* patientId, const char* staffId,
     double cost, int isPaid, const char* description) {
     Record* rec = (Record*)malloc(sizeof(Record));
@@ -187,6 +247,17 @@ static void appendSimpleRecord(int type, const char* patientId, const char* staf
     recordHead->next = rec;
 }
 
+// 支付后自动检查出院。
+// 当前为空实现，仅作保留接口。
+static void checkAndAutoDischarge(Record* rec, const char* currentPatientId) {
+    (void)rec;
+    (void)currentPatientId;
+}
+
+// 患者注册与建档。
+// 支持：
+// 1. 普通门诊
+// 2. 急诊绿色通道
 void registerPatient() {
     printf("\n========== 账户注册与建档 ==========\n");
     printf("请选择就诊类型 (1.普通门诊 2.急诊绿色通道 -1.取消返回): ");
@@ -207,6 +278,7 @@ void registerPatient() {
     newPatient->next = NULL;
     newPatient->isEmergency = (type == 2) ? 1 : 0;
 
+    // 输入真实姓名
     while (1) {
         printf("请输入真实姓名 (输入-1取消): ");
         safeGetString(newPatient->name, 100);
@@ -218,6 +290,7 @@ void registerPatient() {
         printf("  [!] 输入不能为空，请重新输入！\n");
     }
 
+    // 设置密码
     printf("请设置登录密码 (至少6位，仅限数字或字母组合, 输入-1取消): ");
     safeGetPassword(newPatient->password, 50);
     if (strcmp(newPatient->password, "-1") == 0) {
@@ -225,6 +298,7 @@ void registerPatient() {
         return;
     }
 
+    // 输入性别
     printf("请输入生理性别 (男/女, 输入-1取消): ");
     safeGetGender(newPatient->gender, 10);
     if (strcmp(newPatient->gender, "-1") == 0) {
@@ -232,6 +306,7 @@ void registerPatient() {
         return;
     }
 
+    // 普通门诊患者需要输入年龄和过敏史
     if (!newPatient->isEmergency) {
         printf("请输入周岁年龄 (1-200, 输入-1取消): ");
         while (1) {
@@ -257,15 +332,18 @@ void registerPatient() {
         if (strlen(newPatient->allergy) == 0) strcpy(newPatient->allergy, "无");
     }
     else {
+        // 急诊患者信息可简化
         newPatient->age = -1;
         strcpy(newPatient->allergy, "急诊未知");
     }
 
+    // 初始化患者信息
     generatePatientID(newPatient->id);
     newPatient->balance = 0.0;
     newPatient->inpatientDeposit = 0.0;
     newPatient->isInpatient = 0;
 
+    // 挂到患者链表尾部
     Patient* temp = patientHead;
     while (temp->next) temp = temp->next;
     temp->next = newPatient;
@@ -276,6 +354,11 @@ void registerPatient() {
     printf("  ==========================================\n");
 }
 
+// 患者预约挂号。
+// 支持：
+// 1. 按科室搜索未来一周排班
+// 2. 按医生姓名/工号搜索排班
+// 选择成功后生成一条待支付挂号记录。
 void bookAppointment(const char* currentPatientId) {
     char today[11], nextWeek[11];
     time_t t = time(NULL);
@@ -300,9 +383,12 @@ void bookAppointment(const char* currentPatientId) {
 
         char keyword[50];
 
+        // 方式 1：按科室搜索
         if (choice == 1) {
             char depts[20][50];
             int dCount = 0;
+
+            // 收集已有科室
             for (Staff* stf = staffHead->next; stf != NULL; stf = stf->next) {
                 int exists = 0;
                 for (int i = 0; i < dCount; i++) {
@@ -319,6 +405,7 @@ void bookAppointment(const char* currentPatientId) {
             printf("\n  [系统当前已开设的门诊科室]: ");
             for (int i = 0; i < dCount; i++) printf("[%s] ", depts[i]);
 
+            // 输入目标科室并校验
             while (1) {
                 printf("\n  请输入您要挂号的目标科室名称 (输入-1返回): ");
                 safeGetString(keyword, 50);
@@ -340,6 +427,7 @@ void bookAppointment(const char* currentPatientId) {
             }
             if (strcmp(keyword, "-1") == 0) continue;
         }
+        // 方式 2：按医生姓名或工号搜索
         else if (choice == 2) {
             printf("  请输入医生精确姓名或纯数字工号 (如:李四 / 1001, 输入-1返回): ");
             safeGetString(keyword, 50);
@@ -356,7 +444,7 @@ void bookAppointment(const char* currentPatientId) {
             continue;
         }
 
-        int matchedSchIds[200];
+        int matchedSchIds[200];  // 存放本轮搜索命中的排班 ID
         int matchedCount = 0;
 
         printf("\n========== 未来一周可预约排班总表 (%s 至 %s) ==========\n", today, nextWeek);
@@ -366,6 +454,8 @@ void bookAppointment(const char* currentPatientId) {
 
         int found = 0;
         int maxRegId = 4999;
+
+        // 找当前最大挂号流水尾号，后续用于生成新挂号记录号
         for (Record* r_temp = recordHead->next; r_temp != NULL; r_temp = r_temp->next) {
             int curReg;
             curReg = extractTrailingSequence(r_temp->recordId);
@@ -374,6 +464,7 @@ void bookAppointment(const char* currentPatientId) {
             }
         }
 
+        // 遍历排班，筛选未来一周符合条件的排班
         for (Schedule* s = scheduleList->next; s != NULL; s = s->next) {
             if (strcmp(s->date, today) < 0 || strcmp(s->date, nextWeek) > 0) continue;
 
@@ -392,6 +483,7 @@ void bookAppointment(const char* currentPatientId) {
                 if (strstr(matchedDoc->name, keyword) || strcmp(matchedDoc->id, keyword) == 0) match = 1;
             }
 
+            // 命中且不是休息班次才展示
             if (match && strcmp(s->shift, "休息") != 0) {
                 char docDisp[130];
                 snprintf(docDisp, sizeof(docDisp), "%s(%s)", matchedDoc->name, matchedDoc->id);
@@ -416,6 +508,7 @@ void bookAppointment(const char* currentPatientId) {
         int targetSchId = safeGetInt();
         if (targetSchId == -1) continue;
 
+        // 只允许输入当前搜索结果中的排班 ID
         int idInResult = 0;
         for (int i = 0; i < matchedCount; i++) {
             if (matchedSchIds[i] == targetSchId) {
@@ -429,6 +522,7 @@ void bookAppointment(const char* currentPatientId) {
             continue;
         }
 
+        // 定位目标排班
         Schedule* targetSch = NULL;
         for (Schedule* s = scheduleList->next; s != NULL; s = s->next) {
             if (s->schedule_id == targetSchId) {
@@ -442,6 +536,7 @@ void bookAppointment(const char* currentPatientId) {
             continue;
         }
 
+        // 找到目标医生
         Staff* targetDoc = NULL;
         for (Staff* d = staffHead->next; d != NULL; d = d->next) {
             if (strcmp(d->id, targetSch->doctor_id) == 0) {
@@ -458,8 +553,10 @@ void bookAppointment(const char* currentPatientId) {
         char staffIdStr[22];
         snprintf(staffIdStr, sizeof(staffIdStr), "%s", targetDoc->id);
 
+        // 这些变量用于各种业务限制判断
         int patientDailyActive = 0, patientDeptDailyActive = 0, sameDocSameDay = 0, docDailyCount = 0, hospitalDailyCount = 0;
 
+        // 统计当日挂号情况
         for (Record* rec = recordHead->next; rec != NULL; rec = rec->next) {
             if (rec->type == 1 && strstr(rec->description, targetSch->date)) {
                 hospitalDailyCount++;
@@ -479,27 +576,35 @@ void bookAppointment(const char* currentPatientId) {
             }
         }
 
+        // 全院日门诊量限制
         if (hospitalDailyCount >= 1000) {
             printf("\n  [系统过载] 全院日门诊量已达设定阈值。\n");
             system("pause");
             continue;
         }
+
+        // 患者单日挂号次数限制
         if (patientDailyActive >= 5) {
             printf("\n  [策略约束] 患者单日预约次数已达上限。\n");
             system("pause");
             continue;
         }
+
+        // 同日同科室不可重复挂号
         if (patientDeptDailyActive >= 1) {
             printf("\n  [策略约束] 同日同科室不允许重复挂号。\n");
             system("pause");
             continue;
         }
+
+        // 同日同医生不可重复挂号
         if (sameDocSameDay) {
             printf("\n  [策略约束] 该日已存在相同医师的挂号记录。\n");
             system("pause");
             continue;
         }
 
+        // 若该医生当日号源满了，则推荐替代资源
         if (docDailyCount >= 50) {
             int recCount = 0;
             printf("\n  [资源售罄] %s 医生在 %s 的有效号源已全部分配完毕。\n", targetDoc->name, targetSch->date);
@@ -515,6 +620,7 @@ void bookAppointment(const char* currentPatientId) {
                     recCount++;
                 }
             }
+
             printf("\n  [分支二：同日同科室的出诊医师]\n");
             for (Schedule* altS = scheduleList->next; altS != NULL; altS = altS->next) {
                 if (strcmp(altS->date, targetSch->date) == 0 &&
@@ -530,29 +636,33 @@ void bookAppointment(const char* currentPatientId) {
                     }
                 }
             }
+
             if (recCount == 0) printf("  未命中相似属性资源，请重置过滤条件。\n");
             system("pause");
             continue;
         }
 
+        // 生成排号和挂号费
         int seqNum = docDailyCount + 1;
         double regFee = strstr(targetDoc->level, "主任") != NULL ? 50.0 : 15.0;
 
+        // 创建挂号记录，初始为待支付
         Record* newRecord = (Record*)malloc(sizeof(Record));
         if (!newRecord) {
             printf("  [!] 内存分配失败。\n");
             return;
         }
         sprintf(newRecord->recordId, "REG%d%04d", getCurrentYearValue(), maxRegId + 1);
-        newRecord->type = 1;
+        newRecord->type = 1;  // 1 表示门诊挂号
         strcpy(newRecord->patientId, currentPatientId);
         strcpy(newRecord->staffId, staffIdStr);
         newRecord->cost = regFee;
-        newRecord->isPaid = 0;
+        newRecord->isPaid = 0; // 待支付
         sprintf(newRecord->description, "挂号:%s(%s)_排号:%d", targetDoc->name, targetSch->date, seqNum);
         getCurrentTimeStr(newRecord->createTime, 30);
         newRecord->next = NULL;
 
+        // 挂到记录链表尾部
         Record* temp = recordHead;
         while (temp->next) temp = temp->next;
         temp->next = newRecord;
@@ -567,11 +677,17 @@ void bookAppointment(const char* currentPatientId) {
     }
 }
 
+// 支付后自动检查出院。
+// 当前未实现，仅保留扩展位。
 static void checkAndAutoDischarge(Record* rec, const char* currentPatientId) {
     (void)rec;
     (void)currentPatientId;
 }
 
+// 财务中心。
+// 功能：
+// 1. 充值
+// 2. 清算待支付账单（聚合支付或单项核销）
 void financeCenter(const char* currentPatientId) {
     while (1) {
         system("cls");
@@ -598,6 +714,7 @@ void financeCenter(const char* currentPatientId) {
         int choice = safeGetInt();
         if (choice == -1) return;
 
+        // 充值
         if (choice == 1) {
             printf("\n  请输入需充值的金额 (输入-1取消): ");
             double money = safeGetMoneyInRange(0.01, 10000.0);
@@ -605,13 +722,15 @@ void financeCenter(const char* currentPatientId) {
 
             if (money > 0) {
                 p->balance += money;
+
+                // 生成充值记录
                 Record* r7 = (Record*)malloc(sizeof(Record));
                 if (!r7) {
                     printf("  [!] 内存分配失败。\n");
                     return;
                 }
                 generateRecordID(r7->recordId);
-                r7->type = 7;
+                r7->type = 7;  // 7 表示充值
                 strcpy(r7->patientId, currentPatientId);
                 strcpy(r7->staffId, "SYS");
                 r7->cost = money;
@@ -621,6 +740,7 @@ void financeCenter(const char* currentPatientId) {
                 r7->next = recordHead->next;
                 recordHead->next = r7;
 
+                // 写财务流水（充值不计收入）
                 appendTransaction(TRANS_RECHARGE, money, "终端自助充值(不计收入)");
 
                 char moneyText[32];
@@ -633,6 +753,7 @@ void financeCenter(const char* currentPatientId) {
                 system("pause");
             }
         }
+        // 清算待支付账单
         else if (choice == 2) {
             while (1) {
                 int hasUnpaid = 0;
@@ -640,6 +761,7 @@ void financeCenter(const char* currentPatientId) {
                 system("cls");
                 printf("\n========== 待清算账单明细列表 ==========\n");
 
+                // 列出当前患者所有未支付记录
                 for (Record* rec = recordHead->next; rec != NULL; rec = rec->next) {
                     if (strcmp(rec->patientId, currentPatientId) == 0 && rec->isPaid == 0) {
                         char typeName[20];
@@ -681,6 +803,7 @@ void financeCenter(const char* currentPatientId) {
                 int payChoice = safeGetInt();
                 if (payChoice == -1) break;
 
+                // 一键聚合支付
                 if (payChoice == 1) {
                     if (p->balance < totalUnpaidCost) {
                         char gapText[32];
@@ -693,6 +816,7 @@ void financeCenter(const char* currentPatientId) {
                         int pendingCount = 0;
                         int stockOk = 1;
 
+                        // 先收集所有待支付记录，并对药品单做库存检查
                         for (Record* rec = recordHead->next; rec != NULL; rec = rec->next) {
                             if (strcmp(rec->patientId, currentPatientId) == 0 && rec->isPaid == 0) {
                                 if (pendingCount < (int)(sizeof(pending) / sizeof(pending[0]))) {
@@ -713,6 +837,8 @@ void financeCenter(const char* currentPatientId) {
                         int processed = 0;
                         int failed = 0;
                         char failedId[30] = "";
+
+                        // 逐条支付
                         for (int i = 0; i < pendingCount; ++i) {
                             if (!settleSingleRecord(p, currentPatientId, pending[i])) {
                                 failed = 1;
@@ -734,6 +860,7 @@ void financeCenter(const char* currentPatientId) {
                         break;
                     }
                 }
+                // 单笔核销
                 else if (payChoice == 2) {
                     printf("\n  请输入需独立清算的单据流水号 (输入-1取消): ");
                     char target[30];
@@ -746,6 +873,7 @@ void financeCenter(const char* currentPatientId) {
                         continue;
                     }
 
+                    // 定位目标未支付记录
                     Record* tRec = NULL;
                     for (Record* rec = recordHead->next; rec != NULL; rec = rec->next) {
                         if (strcmp(rec->recordId, target) == 0 &&
@@ -766,6 +894,7 @@ void financeCenter(const char* currentPatientId) {
                         system("pause");
                     }
                     else {
+                        // 药品类需再次检查库存
                         if (tRec->type == 3 && !ensureDrugStockForRecord(tRec)) {
                             printf("  [拒绝执行] 药房库存不足，当前药单无法完成支付。\n");
                             system("pause");
@@ -799,6 +928,14 @@ void financeCenter(const char* currentPatientId) {
     }
 }
 
+// 个人医疗档案查询中心。
+// 支持查看：
+// 1. 门诊挂号
+// 2. 临床诊疗
+// 3. 门诊处方
+// 4. 辅助检查
+// 5. 住院与押金账单
+// 6. 终身财务流水
 void medicalRecords(const char* currentPatientId) {
     while (1) {
         system("cls");
@@ -816,6 +953,7 @@ void medicalRecords(const char* currentPatientId) {
         int c = safeGetInt();
         if (c == -1) return;
 
+        // 查询门诊类记录（1~4）
         if (c >= 1 && c <= 4) {
             int printed = 0;
             printf("\n--- 门诊业务类型查询结果反馈 ---\n");
@@ -832,6 +970,7 @@ void medicalRecords(const char* currentPatientId) {
             if (!printed) printf("  [数据空置] 无关联数据。\n");
             system("pause");
         }
+        // 查询住院相关业务明细
         else if (c == 5) {
             int printed = 0;
             system("cls");
@@ -856,6 +995,7 @@ void medicalRecords(const char* currentPatientId) {
                 char typeName[20] = "";
                 char statusName[20] = "";
 
+                // 通过 type + description 标签判断是否属于住院业务明细
                 if (rec->type == 3 && strstr(rec->description, "[住院明细][药品]")) {
                     isInpatientDetail = 1;
                     strcpy(typeName, "药品");
@@ -879,6 +1019,7 @@ void medicalRecords(const char* currentPatientId) {
 
                 if (!isInpatientDetail) continue;
 
+                // 根据支付状态映射显示文案
                 if (rec->isPaid == 0) strcpy(statusName, "待补交");
                 else if (rec->isPaid == 1) strcpy(statusName, "已入账");
                 else strcpy(statusName, "已完成");
@@ -892,6 +1033,7 @@ void medicalRecords(const char* currentPatientId) {
             printf("  -----------------------------------------------------------------------------------------\n");
             system("pause");
         }
+        // 查询终身财务总账
         else if (c == 6) {
             double totalSpent = 0.0, totalRecharged = 0.0, totalRefunded = 0.0;
             int printed = 0;
@@ -902,6 +1044,7 @@ void medicalRecords(const char* currentPatientId) {
 
             for (Record* rec = recordHead->next; rec != NULL; rec = rec->next) {
                 if (strcmp(rec->patientId, currentPatientId) == 0) {
+                    // 已支付的 1~5 类记录视为支出
                     if (rec->type >= 1 && rec->type <= 5 && rec->isPaid > 0 && rec->isPaid != 4) {
                         if (!(rec->type == 3 && strstr(rec->description, "[住院记账]"))) {
                             totalSpent += rec->cost;
@@ -911,6 +1054,7 @@ void medicalRecords(const char* currentPatientId) {
                             printed = 1;
                         }
                     }
+                    // type == 7 表示充值
                     else if (rec->type == 7) {
                         totalRecharged += rec->cost;
                         strcpy(typeName, "汇入(+)");
@@ -918,6 +1062,7 @@ void medicalRecords(const char* currentPatientId) {
                             rec->createTime, typeName, rec->cost, rec->description);
                         printed = 1;
                     }
+                    // type == 8 表示退款
                     else if (rec->type == 8) {
                         totalRefunded += rec->cost;
                         strcpy(typeName, "清退(+)");
@@ -944,6 +1089,12 @@ void medicalRecords(const char* currentPatientId) {
     }
 }
 
+// 修改患者密码。
+// 流程：
+// 1. 校验旧密码
+// 2. 输入新密码
+// 3. 再输入一次确认
+// 4. 一致则更新
 void changePatientPassword(const char* currentId) {
     Patient* p = findPatientById(currentId);
     if (!p) return;
@@ -980,6 +1131,8 @@ void changePatientPassword(const char* currentId) {
     system("pause");
 }
 
+// 患者端主菜单。
+// 统一调度患者的各项自助服务入口。
 void userTerminal(const char* currentId) {
     while (1) {
         system("cls");
