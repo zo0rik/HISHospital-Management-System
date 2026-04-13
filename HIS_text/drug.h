@@ -29,5 +29,8 @@ extern DrugHistory* drugHistoryList;
 
 void drugMenu(void);
 void initDrugList();
+Drug* findDrugById(int id);
+Drug* findDrugByNameExact(const char* name);
+int findDrugsByNameFuzzy(const char* keyword, Drug** results, int maxResults);
 
 #endif

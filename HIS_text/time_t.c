@@ -1,6 +1,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include "time_t.h"   // 
-#include "utils.h"    // 【新增】引入安全输入库
+#include "utils.h"    // 
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
@@ -29,29 +29,23 @@ void getCurrentDate(char* buffer, size_t size) {
 void judgetime(char* end) {
     while (1) {
         char temp[50];  // 临时接收，留足冗余空间
-
-        // 【修改点】：使用安全输入函数，彻底替代 fflush(stdin) 和 scanf
         safeGetString(temp, sizeof(temp));
-
-        // 【修改点】：增加取消机制，允许输入 -1 返回
+        // 允许输入 -1 返回
         if (strcmp(temp, "-1") == 0) {
             strcpy(end, "-1");
             return;
         }
-
         // 先解析成数字
         int year, month, day;
         if (sscanf(temp, "%d-%d-%d", &year, &month, &day) != 3) {
             printf("  [!] 格式错误，请重新输入 (YYYY-MM-DD)：");
             continue;
         }
-
         // 检查月份合法性
         if (month < 1 || month > 12) {
             printf("  [!] 月份无效，请重新输入 (01~12)：");
             continue;
         }
-
         // 计算当前年份月份的最大天数
         int max_day;
         if (month == 2) {
@@ -72,7 +66,6 @@ void judgetime(char* end) {
             printf("  [!] 日期无效，请重新输入该月的正确天数：");
             continue;
         }
-
         // 【优化点】：既然数字提取和合法性都过了，直接格式化成标准 10 位字符串。
         // sprintf 自然会补齐前导零（如 2025-5-2 -> 2025-05-02），不再需要手动去查 '-' 的位置。
         sprintf(end, "%04d-%02d-%02d", year, month, day);

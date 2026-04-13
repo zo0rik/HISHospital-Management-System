@@ -14,18 +14,20 @@ typedef struct Patient {
     int age;
     char allergy[100];
     int isEmergency;
-    double balance;
+    double balance;           // 普通账户余额
+    double inpatientDeposit;  // 住院押金余额，可为负数
+    int isInpatient;          // 1=当前住院中，0=非住院
     struct Patient* next;
 } Patient, * PatientList;
 
-// 【修改点】：统一使用 Staff 结构体管理所有医生与职工
+// 统一使用 Staff 结构体管理所有医生与职工
 typedef struct Staff {
     char id[20];
     char password[50];
     char name[100];
     char department[100];
     char level[100]; // 对应医生的“职称”
-    char sex[10];    // 【新增】性别字段
+    char sex[10];    // 性别字段
     struct Staff* next;
 } Staff, * StaffList;
 

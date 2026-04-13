@@ -107,19 +107,24 @@ int main() {
 
         if (port == 1) {
             while (1) {
-                printf("\n  >>> 高管身份验证 (输入-1返回大厅) <<<\n"); /* 【修改】0->-1 */
-                printf("  [?] 请输入超级管理账号: ");
+                Admin* me_admin;
+                printf("\n  >>> 管理端安全门禁 (输入-1返回大厅) <<<\n");
+                printf("  [?] 请输入管理员账号: ");
                 safeGetString(acc, 50);
-                if (strcmp(acc, "-1") == 0) break; /* 【修改】 */
+                if (strcmp(acc, "-1") == 0) break;
+                if (strlen(acc) == 0) { printf("  [!] 管理员账号不能为空！\n"); continue; }
 
-                printf("  [?] 请输入密码: "); safeGetString(pwd, 50);
+                printf("  [?] 请输入登录密码: ");
+                safeGetString(pwd, 50);
 
-                if (strcmp(acc, admin.username) == 0 && strcmp(pwd, admin.password) == 0) {
+                me_admin = findAdminByCredentials(acc, pwd);
+                if (me_admin) {
+                    setCurrentAdminNode(me_admin);
                     adminMenu();
                     break;
                 }
                 else {
-                    printf("  [!] 拦截：账号或密码验证失败，请重新尝试！\n");
+                    printf("  [!] 拦截：管理员账号不存在或密码错误，请重新尝试！\n");
                 }
             }
         }
