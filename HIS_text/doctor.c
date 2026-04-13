@@ -14,10 +14,10 @@ static void displayAllDoctors() {
         return;
     }
     printf("\n--- 医生/职工 列表 ---\n");
-    printf("%-10s %-15s %-15s %-15s %-10s\n", "工号", "姓名", "科室", "职称", "性别");
+    printf("%-10s %-15s %-15s %-15s %-10s %-10s\n", "工号", "姓名", "科室", "职称", "性别","年龄");
     Staff* p = staffHead->next;
     while (p) {
-        printf("%-10s %-15s %-15s %-15s %-10s\n", p->id, p->name, p->department, p->level, p->sex);
+        printf("%-10s %-15s %-15s %-15s %-10s %-10d\n", p->id, p->name, p->department, p->level, p->sex, p->age);
         p = p->next;
     }
 }
@@ -44,7 +44,12 @@ static void addDoctor() {
     printf("请输入科室: "); safeGetString(s.department, 100);
     printf("请输入职称: "); safeGetString(s.level, 100);
     printf("请输入性别（男/女）: "); safeGetGender(s.sex, 10);
-
+	printf("请输入年龄(20-99): "); 
+    while (1) {
+        s.age = safeGetPositiveInt();
+        if (s.age >= 20 && s.age <= 99) break;
+        printf("  [!] 输入格式不合法，请重新输入: ");
+    }
     Staff* node = (Staff*)malloc(sizeof(Staff));
     *node = s;
     node->next = staffHead->next;
@@ -91,13 +96,13 @@ static void updateDoctor() {
     while (p) {
         if (strcmp(p->id, id) == 0) {
             printf("当前医生信息：\n");
-            printf("1. 姓名: %s\n2. 科室: %s\n3. 职称: %s\n4. 性别: %s\n", p->name, p->department, p->level, p->sex);
-            printf("请选择要修改的单个字段 (1.姓名 2.科室 3.职称 4.性别 | -1.结束保存): "); /* 【规则A】0→-1 */
+            printf("1. 姓名: %s\n2. 科室: %s\n3. 职称: %s\n4. 性别: %s\n5. 年龄: %d\n", p->name, p->department, p->level, p->sex, p->age);
+            printf("请选择要修改的单个字段 (1.姓名 2.科室 3.职称 4.性别 5.年龄 | -1.结束保存): "); /* 【规则A】0→-1 */
 
             int ch;
             while (1) {
                 ch = safeGetInt();
-                if (ch == -1 || (ch >= 1 && ch <= 4)) break; /* 【规则B】0→-1 */
+                if (ch == -1 || (ch >= 1 && ch <= 5)) break; /* 【规则B】0→-1 */
                 printf("  [!] 输入格式不合法，请重新选择: ");
             }
             if (ch == -1) return; /* 【规则B】 */
@@ -115,7 +120,16 @@ static void updateDoctor() {
             case 4:
                 printf("请输入新性别(男/女): "); safeGetGender(p->sex, 10);
                 break;
+            case 5:
+                printf("请输入新年龄(20-99): ");
+                while (1) {
+                    p->age = safeGetPositiveInt();
+                    if (p->age >= 20 && p->age <= 99) break;
+                    printf("  [!] 输入格式不合法，请重新输入: ");
+                }
+				break;
             }
+            
             saveAllDataToTxt();
             printf("  [√] 医生信息修改成功。\n");
             system("pause");
@@ -146,8 +160,8 @@ static void queryDoctor() {
         Staff* p = staffHead->next;
         while (p) {
             if (strcmp(p->id, id) == 0) {
-                printf("工号: %s, 姓名: %s, 科室: %s, 职称: %s, 性别: %s\n",
-                    p->id, p->name, p->department, p->level, p->sex);
+                printf("工号: %s, 姓名: %s, 科室: %s, 职称: %s, 性别: %s, 年龄: %d\n",
+                    p->id, p->name, p->department, p->level, p->sex, p->age);
                 system("pause");
                 return;
             }
@@ -164,7 +178,7 @@ static void queryDoctor() {
         while (p) {
             if (strstr(p->name, name)) {
                 if (!found) printf("\n--- 查询结果 ---\n");
-                printf("工号: %s, 姓名: %s, 科室: %s, 职称: %s\n", p->id, p->name, p->department, p->level);
+                printf("工号: %s, 姓名: %s, 科室: %s, 职称: %s, 性别: %s, 年龄: %d\n", p->id, p->name, p->department, p->level, p->sex, p->age);
                 found = 1;
             }
             p = p->next;
@@ -180,7 +194,7 @@ static void queryDoctor() {
         while (p) {
             if (strstr(p->level, title)) {
                 if (!found) printf("\n--- 查询结果 ---\n");
-                printf("工号: %s, 姓名: %s, 科室: %s, 职称: %s\n", p->id, p->name, p->department, p->level);
+                printf("工号: %s, 姓名: %s, 科室: %s, 职称: %s, 性别: %s, 年龄: %d\n", p->id, p->name, p->department, p->level, p->sex, p->age);
                 found = 1;
             }
             p = p->next;
