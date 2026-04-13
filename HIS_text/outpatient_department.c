@@ -11,8 +11,6 @@
 #include "inpatient_department.h"    
 #include "drug.h"                   
 
-// 来自 patient.c 的统一公共函数
-extern int inputExistingPatientIdCommon(char* pId, size_t size, const char* prompt);
 
 // 当前被医生“叫到诊室”的患者 ID。
 // 门诊看诊、开药、开检查时，如果这里有值，就默认对这个患者操作。
@@ -26,6 +24,24 @@ static const char* examBodyParts[15] = {
     "腰椎", "颈椎", "膝关节", "肩关节", "肘关节",
     "腕关节", "髋关节", "踝关节", "盆腔", "甲状腺"
 };
+
+static int getShiftPriorityForDoctorView(const char* shift) {
+    if (!shift) return 9;
+    if (strcmp(shift, "上午") == 0 ) return 0;
+    if (strcmp(shift, "下午") == 0 ) return 1;
+    if (strcmp(shift, "休息") == 0) return 2;
+    return 9;
+}
+
+static int compareSchedulePtrForDoctorView(const void* lhs, const void* rhs) {
+    const Schedule* a = *(const Schedule* const*)lhs;
+    const Schedule* b = *(const Schedule* const*)rhs;
+    int cmp = strcmp(a->date, b->date);
+    if (cmp != 0) return cmp;
+    cmp = getShiftPriorityForDoctorView(a->shift) - getShiftPriorityForDoctorView(b->shift);
+    if (cmp != 0) return cmp;
+    return a->schedule_id - b->schedule_id;
+}
 
 // 打印可选检查部位列表。
 // 每行显示 3 个部位，方便医生按编号选择。
@@ -124,7 +140,7 @@ int createAuxiliaryExamOrders(const char* docId, const char* patientId, int inpa
                 bloodChoice = safeGetInt();
                 if (bloodChoice == -1 || (bloodChoice >= 1 && bloodChoice <= 2)) break;
                 printf("  [!] 请输入菜单中提供的数字编号 (-1/1~2): ");
-            }  
+            }
             if (bloodChoice == -1) continue;
 
             // 根据抽血子项目设置名称、说明和单价
@@ -350,59 +366,64 @@ void generateRecordID(char* buffer) {
 // 4. 叫号成功后，把 currentCallingPatientId 绑定到当前患者
 void callPatient(const char* docId) {
     system("cls");
-    printf("\n========== 智能排班溯源与叫号 =========="
-        "\n");
+    printf("\n========== 智能排班溯源与叫号 ==========\n");
 
-    Schedule* s = scheduleList->next;
-    int sCount = 0;
+    Schedule* docSchedules[200] = { NULL };
     char availableDates[20][15];
+    int docScheduleCount = 0;
+    int sCount = 0;
 
-    // 收集当前医生所有排班日期（去重）
-    while (s) {
-        if (strcmp(s->doctor_id, docId) == 0) {
-            int duplicate = 0;
-
-            // 判断该日期是否已经加入过数组，避免重复显示
-            for (int i = 0; i < sCount; i++) {
-                if (strcmp(availableDates[i], s->date) == 0) duplicate = 1;
-            }
-
-            // 若不是重复日期，则收集到 availableDates 中
-            if (!duplicate && sCount < 20) {
-                strcpy(availableDates[sCount], s->date);
-                sCount++;
-            }
+    for (Schedule* s = scheduleList->next; s != NULL; s = s->next) {
+        if (strcmp(s->doctor_id, docId) == 0 && docScheduleCount < 200) {
+            docSchedules[docScheduleCount++] = s;
         }
-        s = s->next;
     }
 
-    // 没有排班日期，说明当前医生近期没有排班
+    if (docScheduleCount == 0) {
+        printf("  [!] 调度台回执：您在系统近期排班表中是真空状态。\n");
+        return;
+    }
+
+    if (docScheduleCount > 1) {
+        qsort(docSchedules, (size_t)docScheduleCount, sizeof(docSchedules[0]), compareSchedulePtrForDoctorView);
+    }
+
+    printf("  [当前医生排班表 - 已按日期/班次/排班ID排序]\n");
+    printf("  %-8s | %-12s | %-8s\n", "排班ID", "出诊日期", "班次");
+    printf("  ----------------------------------------\n");
+    for (int i = 0; i < docScheduleCount; ++i) {
+        printf("  [%-4d] | %-12s | %-8s\n",
+            docSchedules[i]->schedule_id,
+            docSchedules[i]->date,
+            docSchedules[i]->shift);
+
+        if (sCount < 20 &&
+            (sCount == 0 || strcmp(availableDates[sCount - 1], docSchedules[i]->date) != 0)) {
+            strcpy(availableDates[sCount], docSchedules[i]->date);
+            sCount++;
+        }
+    }
+
     if (sCount == 0) {
         printf("  [!] 调度台回执：您在系统近期排班表中是真空状态。\n");
         return;
     }
 
-    // 选择要查看的排班日期
-    printf("  [授权排班日期选择]:\n");
+    printf("\n  [授权排班日期选择]:\n");
     for (int i = 0; i < sCount; i++) printf("   [%d] %s\n", i + 1, availableDates[i]);
     printf("   [-1] 脱离排班中心\n----------------------------------------\n  选择检索索引号: ");
 
-    // 读取用户选择的日期索引
     int dChoice = safeGetInt();
 
-    // -1 表示退出
     if (dChoice == -1) return;
 
-    // 输入越界则直接结束
     if (dChoice < 1 || dChoice > sCount) {
         printf("  [!] 输入越界：无此索引号，操作已终止。\n");
         return;
     }
 
-    // 取出目标日期
     char* targetDate = availableDates[dChoice - 1];
 
-    // 打印该日期的候诊患者列表
     printf("\n========== [%s] 候诊大厅 ==========\n", targetDate);
     printf(" %-8s | %-14s | %-12s | %-12s | %-10s\n", "系统位次", "挂号流转凭证", "患者全局ID", "档案署名", "当前候诊状态");
     printf("------------------------------------------------------------------------\n");
@@ -410,13 +431,11 @@ void callPatient(const char* docId) {
     int count = 0;
     Record* r = recordHead->next;
 
-    // 遍历所有记录，找出当前医生在该日期的挂号记录
     while (r) {
         if (strcmp(r->staffId, docId) == 0 && r->type == 1 && strstr(r->description, targetDate)) {
             Patient* p = patientHead->next;
             char pName[100] = "脱敏未知";
 
-            // 根据 patientId 找患者姓名
             while (p) {
                 if (strcmp(p->id, r->patientId) == 0) {
                     strcpy(pName, p->name);
@@ -425,30 +444,26 @@ void callPatient(const char* docId) {
                 p = p->next;
             }
 
-            // 根据挂号记录支付状态推断当前候诊状态
             char status[30];
             if (r->isPaid == 0) strcpy(status, "[ ！]未缴费");
             else if (r->isPaid == 1) strcpy(status, "[活跃]候诊");
             else strcpy(status, "[完结]已接诊");
 
-            // 从挂号描述中提取排号号次
             int seqNum = 0;
             char* seqPtr = strstr(r->description, "排号:");
             if (!seqPtr) seqPtr = strstr(r->description, "队列号:");
 
             if (seqPtr) {
-                if (strncmp(seqPtr, "排号:", strlen("排号:")) == 0) sscanf(seqPtr, "排号:%d", &seqNum);
+                if (strncmp(seqPtr, "排号:", (int)strlen("排号:")) == 0) sscanf(seqPtr, "排号:%d", &seqNum);
                 else sscanf(seqPtr, "队列号:%d", &seqNum);
             }
 
-            // 输出候诊患者信息
             printf("  %-7d | %-14s | %-12s | %-12s | %-10s\n", seqNum, r->recordId, r->patientId, pName, status);
             count++;
         }
         r = r->next;
     }
 
-    // 没有候诊患者则直接返回
     if (count == 0) {
         printf("  今日无病患来访。\n");
         return;
@@ -456,7 +471,6 @@ void callPatient(const char* docId) {
 
     printf("------------------------------------------------------------------------\n");
 
-    // 是否自动广播叫号第一位合法患者
     printf("\n  [业务指令] 是否自动广播叫号，将第一顺位合法患者请入诊室？(1.同意 0.拒绝): ");
     {
         int autoCall;
@@ -469,13 +483,11 @@ void callPatient(const char* docId) {
             r = recordHead->next;
             int found = 0;
 
-            // 再次遍历记录，找出当前日期下第一位已缴费且未接诊的挂号患者
             while (r) {
                 if (strcmp(r->staffId, docId) == 0 && r->type == 1 && r->isPaid == 1 && strstr(r->description, targetDate)) {
                     Patient* p = patientHead->next;
                     char pName[100] = "未知";
 
-                    // 查患者姓名
                     while (p) {
                         if (strcmp(p->id, r->patientId) == 0) {
                             strcpy(pName, p->name);
@@ -484,14 +496,11 @@ void callPatient(const char* docId) {
                         p = p->next;
                     }
 
-                    // 广播叫号
                     printf("\n  【走廊大屏广播】 -> \"请 %s 号患者 [%s] 到 %s 诊室就医。\"\n", r->patientId, pName, docId);
 
-                    // 标记该挂号记录为“已接诊”
                     r->isPaid = 2;
                     found = 1;
 
-                    // 锁定当前接诊患者，后续诊断/开药/开检查都默认针对该患者
                     strcpy(currentCallingPatientId, r->patientId);
                     printf("  >>> HIS 引擎已强锁死当前看诊沙盒为: %s <<<\n", pName);
                     break;
@@ -499,11 +508,11 @@ void callPatient(const char* docId) {
                 r = r->next;
             }
 
-            // 若没有找到可叫号患者，说明都已处理完
             if (!found) printf("  [提示] 您当日的预约病人已全部接诊完毕！\n");
         }
     }
 }
+
 // 医生录入诊断与辅助检查
 // 流程：
 // 1. 确定当前患者
@@ -730,8 +739,8 @@ void prescribeMedicine(const char* docId) {
             printf("  [√] 云端处方下达指令送出，价值 %s。待患者支付成功后再正式扣减库存。\n", totalText);
             break;
         }
-            }
     }
+}
 
 // 开具住院通知单
 // 功能：
@@ -777,7 +786,7 @@ void issueAdmissionNotice(const char* docId) {
         return;
     }
 
-    // 填写通知记录字段
+    // 填写通知记录字段-
     generateRecordID(r6->recordId);
     r6->type = 6;  // 6 表示住院通知/入院通知类记录
     strcpy(r6->patientId, pId);

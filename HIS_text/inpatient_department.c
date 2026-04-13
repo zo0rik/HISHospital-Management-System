@@ -11,17 +11,8 @@
 #include "drug.h"                   
 #include "patient.h"                
 
-// 外部函数：生成记录 ID
-extern void generateRecordID(char* buffer);
 // 外部全局变量：床位链表头
 extern Bed* bedHead;
-// 外部安全财务流水写入函数
-extern int appendTransactionSafe(int type, double amount, const char* description);
-// 来自 patient.c 的统一公共函数
-extern int collectHospitalDepartments(char depts[][50], int maxCount);
-extern int isKnownHospitalDepartment(const char* deptName);
-extern void buildHospitalDeptPrompt(char* promptBuffer, size_t size, const char* separator);
-extern int inputExistingPatientIdCommon(char* pId, size_t size, const char* prompt);
 
 // 保存医院内已有科室名称的数组
 static char hospitalDepts[50][50];
