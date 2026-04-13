@@ -17,6 +17,20 @@ extern int appendTransactionSafe(int type, double amount, const char* descriptio
 
 /* -------------------- patient2.c 内部辅助函数 -------------------- */
 
+/*
+ * 函数名：parseDrugRecordInfo
+ * 作用：从药品记录的 description 字段中解析出药品名称和数量。
+ * 参数：
+ *   rec          - 待解析的记录，要求 type 必须为 3；
+ *   drugName     - 输出药品名称缓冲区；
+ *   drugNameSize - 名称缓冲区大小；
+ *   qtyOut       - 输出药品数量。
+ * 返回值：
+ *   - 解析成功返回 1；
+ *   - 解析失败返回 0。
+ * 说明：
+ *   该函数依赖现有药单描述格式：药品:xxx_单价:xxx_数量:n。
+ */
 static int parseDrugRecordInfo(const Record* rec, char* drugName, size_t drugNameSize, int* qtyOut) {
     if (!rec || rec->type != 3 || !drugName || drugNameSize == 0 || !qtyOut) return 0;
     drugName[0] = '\0';
@@ -27,6 +41,15 @@ static int parseDrugRecordInfo(const Record* rec, char* drugName, size_t drugNam
     return 0;
 }
 
+/*
+ * 函数名：findDrugByName
+ * 作用：在全局药品链表中按药品名称精确查找 Drug 节点。
+ * 参数：
+ *   name - 药品名称。
+ * 返回值：
+ *   - 找到时返回 Drug 指针；
+ *   - 找不到时返回 NULL。
+ */
 static Drug* findDrugByName(const char* name) {
     for (Drug* d = drugList->next; d != NULL; d = d->next) {
         if (strcmp(d->name, name) == 0) return d;
@@ -34,6 +57,17 @@ static Drug* findDrugByName(const char* name) {
     return NULL;
 }
 
+/*
+ * 函数名：ensureDrugStockForRecord
+ * 作用：检查某条药品记录在当前库存条件下是否仍然可以支付和发药。
+ * 参数：
+ *   rec - 待检查的药品记录。
+ * 返回值：
+ *   - 库存足够返回 1；
+ *   - 药品不存在或库存不足返回 0。
+ * 说明：
+ *   如果记录本身无法解析成药品信息，函数默认返回 1，不阻断其他业务。
+ */
 static int ensureDrugStockForRecord(const Record* rec) {
     char drugName[50];
     int qty = 0;
@@ -42,6 +76,20 @@ static int ensureDrugStockForRecord(const Record* rec) {
     return drug && drug->stock >= qty;
 }
 
+/*
+ * 函数名：createDrugDispenseHistoryForRecord
+ * 作用：根据药品记录预生成一条“发药出库历史”节点，并返回关联药品和数量。
+ * 参数：
+ *   rec     - 药品记录；
+ *   drugOut - 输出药品节点指针；
+ *   qtyOut  - 输出数量。
+ * 返回值：
+ *   - 成功时返回新建的 DrugHistory 节点；
+ *   - 解析失败时返回 NULL；
+ *   - 药品不存在、库存不足或内存分配失败时返回 (DrugHistory*)-1。
+ * 说明：
+ *   此函数只做准备，不真正扣库存，真正出库由 commitDrugDispense 完成。
+ */
 static DrugHistory* createDrugDispenseHistoryForRecord(const Record* rec, Drug** drugOut, int* qtyOut) {
     char drugName[50];
     int qty = 0;
@@ -68,6 +116,18 @@ static DrugHistory* createDrugDispenseHistoryForRecord(const Record* rec, Drug**
     return hist;
 }
 
+/*
+ * 函数名：commitDrugDispense
+ * 作用：在支付成功后真正提交药品出库动作。
+ * 参数：
+ *   drug - 药品节点；
+ *   qty  - 本次出库数量；
+ *   hist - 已准备好的药品历史节点。
+ * 主要操作：
+ *   1. 扣减当前库存；
+ *   2. 更新最近出库时间；
+ *   3. 把历史记录插入 drugHistoryList。
+ */
 static void commitDrugDispense(Drug* drug, int qty, DrugHistory* hist) {
     if (!drug || !hist || qty <= 0) return;
     drug->stock -= qty;
@@ -77,12 +137,31 @@ static void commitDrugDispense(Drug* drug, int qty, DrugHistory* hist) {
     drugHistoryList->next = hist;
 }
 
+/*
+ * 函数名：isInpatientArrearsRecord
+ * 作用：判断一条记录是否属于“住院欠费补交单”。
+ * 参数：
+ *   rec - 待判断记录。
+ * 返回值：
+ *   - 是住院补交单返回 1；
+ *   - 否则返回 0。
+ * 说明：
+ *   该判断依赖记录类型 type==5 且描述中包含固定标签。
+ */
 static int isInpatientArrearsRecord(const Record* rec) {
     return rec &&
         rec->type == 5 &&
         strstr(rec->description, "[住院欠费补交单]") != NULL;
 }
 
+/*
+ * 函数名：appendSimpleRecord
+ * 作用：快速生成一条简单业务记录并头插到 record 链表。
+ * 参数：
+ *   type、patientId、staffId、cost、isPaid、description - 新记录所需基础字段。
+ * 说明：
+ *   该函数用于系统内部自动补写辅助记录，例如补缴完成记录等。
+ */
 static void appendSimpleRecord(int type, const char* patientId, const char* staffId,
     double cost, int isPaid, const char* description) {
     Record* rec = (Record*)malloc(sizeof(Record));
@@ -102,11 +181,30 @@ static void appendSimpleRecord(int type, const char* patientId, const char* staf
     recordHead->next = rec;
 }
 
+/*
+ * 函数名：checkAndAutoDischarge
+ * 作用：预留“支付后自动检查是否满足出院条件”的扩展接口。
+ * 参数：
+ *   rec              - 本次刚处理完成的记录；
+ *   currentPatientId - 当前患者ID。
+ * 说明：
+ *   当前实现为空，仅用 (void) 消除未使用警告，后续可在此扩展自动出院逻辑。
+ */
 static void checkAndAutoDischarge(Record* rec, const char* currentPatientId) {
     (void)rec;
     (void)currentPatientId;
 }
 
+/*
+ * 函数名：determineTransactionTypeForRecord
+ * 作用：根据记录类型映射到对应的财务流水类型。
+ * 参数：
+ *   rec - 业务记录。
+ * 返回值：
+ *   对应的交易类型宏，如门诊收入、药品收入、检查收入、床位收入等。
+ * 说明：
+ *   该映射结果用于支付成功后写入 transactionList。
+ */
 static int determineTransactionTypeForRecord(const Record* rec) {
     if (!rec) return TRANS_OUTPATIENT_INCOME;
     if (rec->type == 3) return TRANS_DRUG_INCOME;
@@ -115,6 +213,23 @@ static int determineTransactionTypeForRecord(const Record* rec) {
     return TRANS_OUTPATIENT_INCOME;
 }
 
+/*
+ * 函数名：settleSingleRecord
+ * 作用：结算单条待支付记录，是财务中心单项支付和聚合支付的核心处理函数。
+ * 参数：
+ *   p                - 当前患者节点；
+ *   currentPatientId - 当前患者ID；
+ *   rec              - 待结算记录。
+ * 主要逻辑：
+ *   1. 校验余额是否充足；
+ *   2. 若是药品单，先检查库存并准备出库历史；
+ *   3. 若是住院欠费补交单，则把普通余额转入住院押金；
+ *   4. 若是普通账单，则写交易流水、扣余额并标记为已支付；
+ *   5. 若是药品单且支付成功，再真正提交出库。
+ * 返回值：
+ *   - 结算成功返回 1；
+ *   - 任一步失败返回 0。
+ */
 static int settleSingleRecord(Patient* p, const char* currentPatientId, Record* rec) {
     if (!p || !currentPatientId || !rec || rec->isPaid != 0) return 0;
     if (p->balance < rec->cost) return 0;
@@ -159,6 +274,19 @@ static int settleSingleRecord(Patient* p, const char* currentPatientId, Record* 
 
 /* -------------------- 对外公开函数：财务、档案、菜单 -------------------- */
 
+/*
+ * 函数名：financeCenter
+ * 作用：患者端财务中心，负责账户充值与未支付账单清算。
+ * 参数：
+ *   currentPatientId - 当前登录患者ID。
+ * 主要功能：
+ *   1. 展示普通余额、住院押金和住院状态；
+ *   2. 支持自助充值；
+ *   3. 支持一键聚合支付所有账单；
+ *   4. 支持按流水号单独支付某一笔账单；
+ *   5. 对药品类记录在支付前再次检查库存；
+ *   6. 对住院欠费补交单执行专门的押金补缴处理。
+ */
 void financeCenter(const char* currentPatientId) {
     while (1) {
         system("cls");
@@ -402,6 +530,21 @@ void financeCenter(const char* currentPatientId) {
     }
 }
 
+/*
+ * 函数名：medicalRecords
+ * 作用：患者端个人医疗档案查询中心。
+ * 参数：
+ *   currentPatientId - 当前登录患者ID。
+ * 主要功能：
+ *   1. 查询门诊挂号记录；
+ *   2. 查询诊疗与医嘱记录；
+ *   3. 查询药品记录；
+ *   4. 查询检查记录；
+ *   5. 聚合展示住院账单、押金、补缴与退款记录；
+ *   6. 汇总展示终身财务流水。
+ * 说明：
+ *   该函数只负责读取并展示链表中的历史数据，不修改业务状态。
+ */
 void medicalRecords(const char* currentPatientId) {
     while (1) {
         system("cls");
@@ -551,6 +694,17 @@ void medicalRecords(const char* currentPatientId) {
     }
 }
 
+/*
+ * 函数名：changePatientPassword
+ * 作用：允许当前登录患者修改自己的登录密码。
+ * 参数：
+ *   currentId - 当前登录患者ID。
+ * 主要流程：
+ *   1. 校验原密码；
+ *   2. 输入新密码；
+ *   3. 再次确认新密码；
+ *   4. 两次一致时更新患者节点中的 password 字段。
+ */
 void changePatientPassword(const char* currentId) {
     Patient* p = findPatientById(currentId);
     if (!p) return;
@@ -587,6 +741,19 @@ void changePatientPassword(const char* currentId) {
     system("pause");
 }
 
+/*
+ * 函数名：userTerminal
+ * 作用：患者端主菜单，是 patient 模块对外的统一入口。
+ * 参数：
+ *   currentId - 当前登录患者ID。
+ * 菜单功能：
+ *   1. 门诊预约挂号；
+ *   2. 财务与费用中心；
+ *   3. 个人医疗档案查询；
+ *   4. 修改登录密码。
+ * 说明：
+ *   函数通过循环持续响应患者操作，直到用户选择返回系统主菜单。
+ */
 void userTerminal(const char* currentId) {
     while (1) {
         system("cls");

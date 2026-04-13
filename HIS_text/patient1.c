@@ -15,6 +15,15 @@
 /* -------------------- patient1.c 内部辅助函数 -------------------- */
 
 // 获取当前年份
+/*
+ * 函数名：getCurrentYearValue
+ * 作用：获取当前系统年份，用于患者ID等业务编号的生成年份部分。
+ * 返回值：
+ *   - 成功获取本地时间时，返回当前年份，例如 2026。
+ *   - 若 localtime 调用失败，则返回默认值 2026，避免编号生成中断。
+ * 说明：
+ *   这是 patient1.c 内部使用的辅助函数，不对模块外公开。
+ */
 static int getCurrentYearValue(void) {
     time_t now = time(NULL);
     struct tm* tm_info = localtime(&now);
@@ -22,6 +31,19 @@ static int getCurrentYearValue(void) {
 }
 
 // 获取班次排序优先级：上午/早班 -> 下午/晚班 -> 休息
+/*
+ * 函数名：getShiftPriorityForSchedule
+ * 作用：把班次字符串转换成可比较的优先级数值，供排班排序使用。
+ * 参数：
+ *   shift - 班次名称，支持“上午/早班/下午/晚班/休息”。
+ * 返回值：
+ *   - 上午/早班：0
+ *   - 下午/晚班：1
+ *   - 休息：2
+ *   - 其他未知值或空指针：9
+ * 说明：
+ *   数值越小，排序时越靠前。
+ */
 static int getShiftPriorityForSchedule(const char* shift) {
     if (!shift) return 9;
     if (strcmp(shift, "上午") == 0 || strcmp(shift, "早班") == 0) return 0;
@@ -31,6 +53,18 @@ static int getShiftPriorityForSchedule(const char* shift) {
 }
 
 // 排班排序：先按日期，再按班次，最后按排班ID
+/*
+ * 函数名：compareSchedulePtrByDateShiftId
+ * 作用：作为 qsort 的比较函数，对排班指针数组进行统一排序。
+ * 排序规则：
+ *   1. 先按日期升序；
+ *   2. 同一天按班次优先级排序；
+ *   3. 日期和班次都相同时，按排班ID升序。
+ * 参数：
+ *   lhs、rhs - 指向 Schedule* 元素的指针。
+ * 返回值：
+ *   符合 qsort 约定的比较结果。
+ */
 static int compareSchedulePtrByDateShiftId(const void* lhs, const void* rhs) {
     const Schedule* a = *(const Schedule* const*)lhs;
     const Schedule* b = *(const Schedule* const*)rhs;
@@ -42,6 +76,17 @@ static int compareSchedulePtrByDateShiftId(const void* lhs, const void* rhs) {
 }
 
 // 按医生ID查找医生
+/*
+ * 函数名：findStaffByIdLocal
+ * 作用：在全局医生链表中按医生ID查找对应的 Staff 节点。
+ * 参数：
+ *   id - 目标医生工号。
+ * 返回值：
+ *   - 找到则返回对应 Staff 指针；
+ *   - 找不到返回 NULL。
+ * 说明：
+ *   仅供 patient1.c 内部使用，主要用于挂号检索和推荐逻辑。
+ */
 static Staff* findStaffByIdLocal(const char* id) {
     for (Staff* d = staffHead->next; d != NULL; d = d->next) {
         if (strcmp(d->id, id) == 0) return d;
@@ -50,6 +95,15 @@ static Staff* findStaffByIdLocal(const char* id) {
 }
 
 // 按排班ID查找排班
+/*
+ * 函数名：findScheduleByIdLocal
+ * 作用：在全局排班链表中按排班ID查找具体排班节点。
+ * 参数：
+ *   scheduleId - 排班唯一编号。
+ * 返回值：
+ *   - 找到时返回 Schedule 指针；
+ *   - 未找到时返回 NULL。
+ */
 static Schedule* findScheduleByIdLocal(int scheduleId) {
     for (Schedule* s = scheduleList->next; s != NULL; s = s->next) {
         if (s->schedule_id == scheduleId) return s;
@@ -58,6 +112,18 @@ static Schedule* findScheduleByIdLocal(int scheduleId) {
 }
 
 // 统计某位医生在指定日期的挂号数量
+/*
+ * 函数名：countDoctorAppointmentsOnDate
+ * 作用：统计某位医生在指定日期已有多少条挂号记录。
+ * 参数：
+ *   doctorId - 医生ID；
+ *   date     - 目标日期字符串，格式为 YYYY-MM-DD。
+ * 返回值：
+ *   符合条件的挂号记录数量。
+ * 说明：
+ *   当前统计依据是记录类型为 1，且 description 中包含该日期。
+ *   该结果用于判断医生是否达到单日 50 个号的上限。
+ */
 static int countDoctorAppointmentsOnDate(const char* doctorId, const char* date) {
     int count = 0;
     for (Record* rec = recordHead->next; rec != NULL; rec = rec->next) {
@@ -71,6 +137,17 @@ static int countDoctorAppointmentsOnDate(const char* doctorId, const char* date)
 }
 
 // 判断某个排班ID是否已经加入推荐列表
+/*
+ * 函数名：isScheduleIdAlreadyCollected
+ * 作用：判断某个排班ID是否已经被加入推荐结果数组，防止重复推荐。
+ * 参数：
+ *   arr        - 推荐结果数组；
+ *   count      - 当前数组中有效元素数量；
+ *   scheduleId - 待检查的排班ID。
+ * 返回值：
+ *   - 已存在返回 1；
+ *   - 不存在返回 0。
+ */
 static int isScheduleIdAlreadyCollected(Schedule* const* arr, int count, int scheduleId) {
     for (int i = 0; i < count; ++i) {
         if (arr[i] && arr[i]->schedule_id == scheduleId) return 1;
@@ -79,6 +156,24 @@ static int isScheduleIdAlreadyCollected(Schedule* const* arr, int count, int sch
 }
 
 // 收集智能推荐的排班
+/*
+ * 函数名：collectRecommendedSchedules
+ * 作用：当目标医生当天号源已满时，收集可供患者选择的推荐排班。
+ * 推荐规则：
+ *   1. 排除休息排班；
+ *   2. 只保留未来一周内的排班；
+ *   3. 排除当前患者原本选择的排班；
+ *   4. 排除医生当日已满 50 号的排班；
+ *   5. 优先收集同一医生的其他日期排班，或同一天同科室其他医生的排班。
+ * 参数：
+ *   targetSch - 原目标排班；
+ *   targetDoc - 原目标排班对应医生；
+ *   today、nextWeek - 推荐日期范围；
+ *   out      - 输出数组；
+ *   maxOut   - 输出数组最大容量。
+ * 返回值：
+ *   实际收集到的推荐排班数量。
+ */
 static int collectRecommendedSchedules(const Schedule* targetSch, const Staff* targetDoc,
     const char* today, const char* nextWeek, Schedule** out, int maxOut) {
     int count = 0;
@@ -129,6 +224,17 @@ static int collectRecommendedSchedules(const Schedule* targetSch, const Staff* t
 }
 
 // 提取ID最后4位数字
+/*
+ * 函数名：extractTrailingSequence
+ * 作用：从编号字符串末尾提取最后四位数字序号。
+ * 参数：
+ *   id - 如 P20260001、REG20265000 这类编号字符串。
+ * 返回值：
+ *   - 提取成功返回末尾四位对应的整数；
+ *   - 长度不足或格式不符时返回 -1。
+ * 说明：
+ *   主要用于生成新患者ID和新挂号记录ID时确定当前最大流水号。
+ */
 static int extractTrailingSequence(const char* id) {
     int len = (int)strlen(id);
     int seq = -1;
@@ -140,6 +246,16 @@ static int extractTrailingSequence(const char* id) {
 /* -------------------- 对外公开函数：基础与挂号 -------------------- */
 
 // 生成患者ID：P + 年份 + 四位序号
+/*
+ * 函数名：generatePatientID
+ * 作用：按照系统规则为新患者生成唯一患者ID。
+ * 编号规则：
+ *   P + 当前年份 + 四位递增序号，例如 P20260001。
+ * 参数：
+ *   idBuffer - 输出缓冲区，用于接收新生成的患者ID。
+ * 说明：
+ *   函数会遍历 patientHead 链表，找到当前最大尾号后再加 1。
+ */
 void generatePatientID(char* idBuffer) {
     int maxId = 999;
     int currentIdNum;
@@ -154,6 +270,17 @@ void generatePatientID(char* idBuffer) {
 }
 
 // 按患者ID查找患者
+/*
+ * 函数名：findPatientById
+ * 作用：在患者链表中根据患者ID精确查找患者节点。
+ * 参数：
+ *   pid - 患者ID。
+ * 返回值：
+ *   - 找到则返回对应 Patient 指针；
+ *   - 未找到则返回 NULL。
+ * 说明：
+ *   该函数是 patient 模块的重要基础接口，多个模块都会复用。
+ */
 Patient* findPatientById(const char* pid) {
     for (Patient* p = patientHead->next; p != NULL; p = p->next) {
         if (strcmp(p->id, pid) == 0) return p;
@@ -162,6 +289,17 @@ Patient* findPatientById(const char* pid) {
 }
 
 // 收集系统中所有不重复的科室名称
+/*
+ * 函数名：collectHospitalDepartments
+ * 作用：扫描医生链表，收集当前系统中所有不重复的科室名称。
+ * 参数：
+ *   depts    - 由调用者提供的二维字符数组，用于保存科室名；
+ *   maxCount - 最多允许收集的科室数量。
+ * 返回值：
+ *   实际收集到的不重复科室数量。
+ * 说明：
+ *   此函数常用于生成科室提示列表和校验用户输入的科室名称。
+ */
 int collectHospitalDepartments(char depts[][50], int maxCount) {
     int dCount = 0;
     if (!depts || maxCount <= 0) return 0;
@@ -186,6 +324,15 @@ int collectHospitalDepartments(char depts[][50], int maxCount) {
 }
 
 // 判断科室名称是否存在
+/*
+ * 函数名：isKnownHospitalDepartment
+ * 作用：判断用户输入的科室名称是否存在于当前医院系统中。
+ * 参数：
+ *   deptName - 待校验的科室名。
+ * 返回值：
+ *   - 存在返回 1；
+ *   - 不存在或参数无效返回 0。
+ */
 int isKnownHospitalDepartment(const char* deptName) {
     char depts[50][50];
     int dCount = 0;
@@ -199,6 +346,16 @@ int isKnownHospitalDepartment(const char* deptName) {
 }
 
 // 生成科室提示字符串
+/*
+ * 函数名：buildHospitalDeptPrompt
+ * 作用：把系统中已有的科室名称拼接成一条提示字符串。
+ * 参数：
+ *   promptBuffer - 输出缓冲区；
+ *   size         - 缓冲区大小；
+ *   separator    - 科室之间的分隔符，若为 NULL 默认使用 "/"。
+ * 说明：
+ *   该函数不直接打印，而是由调用方决定如何展示拼接后的提示文本。
+ */
 void buildHospitalDeptPrompt(char* promptBuffer, size_t size, const char* separator) {
     char depts[50][50];
     int dCount = 0;
@@ -220,6 +377,19 @@ void buildHospitalDeptPrompt(char* promptBuffer, size_t size, const char* separa
 }
 
 // 统一输入并校验患者ID
+/*
+ * 函数名：inputExistingPatientIdCommon
+ * 作用：统一读取患者ID并校验该患者是否真实存在。
+ * 参数：
+ *   pId    - 输出缓冲区；
+ *   size   - 缓冲区大小；
+ *   prompt - 自定义提示语，传 NULL 时使用默认提示。
+ * 返回值：
+ *   - 输入了有效患者ID返回 1；
+ *   - 输入 -1 取消返回 0。
+ * 说明：
+ *   该函数把“读取 + 存在性校验”封装到一起，供门诊和住院端复用。
+ */
 int inputExistingPatientIdCommon(char* pId, size_t size, const char* prompt) {
     while (1) {
         Patient* targetPat;
@@ -233,6 +403,18 @@ int inputExistingPatientIdCommon(char* pId, size_t size, const char* prompt) {
 }
 
 // 注册患者
+/*
+ * 函数名：registerPatient
+ * 作用：完成患者的首次注册建档。
+ * 主要流程：
+ *   1. 选择普通门诊或急诊绿色通道；
+ *   2. 录入姓名、密码、性别；
+ *   3. 普通门诊额外录入年龄和过敏史；
+ *   4. 生成患者ID并初始化余额、押金、住院状态；
+ *   5. 将新患者节点挂到患者链表尾部。
+ * 说明：
+ *   本函数只负责在内存中建立患者档案，最终持久化由系统统一保存。
+ */
 void registerPatient(void) {
     printf("\n========== 账户注册与建档 ==========\n");
     printf("请选择就诊类型 (1.普通门诊 2.急诊绿色通道 -1.取消返回): ");
@@ -330,6 +512,22 @@ void registerPatient(void) {
 }
 
 // 患者预约挂号
+/*
+ * 函数名：bookAppointment
+ * 作用：提供患者端“预约门诊挂号”功能。
+ * 参数：
+ *   currentPatientId - 当前登录患者的ID，用于挂号约束判断和记录归属。
+ * 主要流程：
+ *   1. 计算今天到未来一周的日期范围；
+ *   2. 支持按科室或按医生检索排班；
+ *   3. 对命中的排班按日期、班次、排班ID排序展示；
+ *   4. 校验患者输入的排班ID是否有效；
+ *   5. 检查全院总量、患者单日次数、同日同科室、同医生重复挂号等限制；
+ *   6. 若目标医生满 50 个号，给出智能推荐排班；
+ *   7. 通过后生成一条待支付挂号记录。
+ * 说明：
+ *   函数只创建挂号单，不在此处扣费；实际支付由财务中心完成。
+ */
 void bookAppointment(const char* currentPatientId) {
     char today[11];
     char nextWeek[11];
