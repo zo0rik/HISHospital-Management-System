@@ -10,6 +10,37 @@
 Drug* drugList;
 DrugHistory* drugHistoryList;
 
+// 根据ID查找药品，找到返回药品指针，没找到返回NULL
+Drug* findDrugById(int id) {
+    if (id <= 0) {
+        return NULL; // ID不合法
+    }
+
+    // 从头结点开始遍历链表
+    Drug* p = drugList->next;
+    while (p != NULL) {
+        if (p->id == id) {
+            return p; // 找到，返回指针
+        }
+        p = p->next;
+    }
+
+    return NULL; // 没找到
+}
+int findDrugsByNameFuzzy(char* key, Drug** matched, int maxCount) {
+    int count = 0;
+    Drug* p = drugList->next;
+
+    while (p != NULL && count < maxCount) {
+        // 模糊匹配：名字包含关键字就算匹配
+        if (strstr(p->name, key) != NULL) {
+            matched[count++] = p;
+        }
+        p = p->next;
+    }
+    return count;
+}
+
 static int isDrugIdExists(int id) {
     Drug* p = drugList->next;
     while (p) {
