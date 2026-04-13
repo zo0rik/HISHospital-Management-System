@@ -143,6 +143,80 @@ Patient* findPatientById(const char* pid) {
     return NULL;
 }
 
+// 收集当前系统中所有不重复的科室名称。
+// depts 由调用方提供，maxCount 表示最多收集多少个科室。
+// 返回实际收集到的科室数量。
+int collectHospitalDepartments(char depts[][50], int maxCount) {
+    int dCount = 0;
+    if (!depts || maxCount <= 0) return 0;
+
+    for (Staff* stf = staffHead->next; stf != NULL; stf = stf->next) {
+        int exists = 0;
+        if (strlen(stf->department) == 0) continue;
+
+        for (int i = 0; i < dCount; ++i) {
+            if (strcmp(depts[i], stf->department) == 0) {
+                exists = 1;
+                break;
+            }
+        }
+
+        if (!exists && dCount < maxCount) {
+            strcpy(depts[dCount], stf->department);
+            dCount++;
+        }
+    }
+    return dCount;
+}
+
+// 判断某个科室名称是否存在于当前系统中。
+int isKnownHospitalDepartment(const char* deptName) {
+    char depts[50][50];
+    int dCount = 0;
+    if (!deptName || strlen(deptName) == 0) return 0;
+
+    dCount = collectHospitalDepartments(depts, 50);
+    for (int i = 0; i < dCount; ++i) {
+        if (strcmp(depts[i], deptName) == 0) return 1;
+    }
+    return 0;
+}
+
+// 按指定分隔符拼接当前系统中的动态科室提示字符串。
+void buildHospitalDeptPrompt(char* promptBuffer, size_t size, const char* separator) {
+    char depts[50][50];
+    int dCount = 0;
+    size_t used = 0;
+
+    if (!promptBuffer || size == 0) return;
+    promptBuffer[0] = '\0';
+    if (!separator) separator = "/";
+
+    dCount = collectHospitalDepartments(depts, 50);
+    for (int i = 0; i < dCount; ++i) {
+        int written = snprintf(promptBuffer + used, size - used, "%s%s", (i == 0) ? "" : separator, depts[i]);
+        if (written < 0 || (size_t)written >= size - used) {
+            promptBuffer[size - 1] = '\0';
+            return;
+        }
+        used += (size_t)written;
+    }
+}
+
+// 统一读取并校验患者 ID 是否存在。
+// 返回 1 表示拿到了有效患者 ID；返回 0 表示用户输入 -1 取消。
+int inputExistingPatientIdCommon(char* pId, size_t size, const char* prompt) {
+    while (1) {
+        Patient* targetPat;
+        printf("%s", prompt ? prompt : "请输入患者ID: ");
+        safeGetString(pId, (int)size);
+        if (strcmp(pId, "-1") == 0) return 0;
+        targetPat = findPatientById(pId);
+        if (targetPat) return 1;
+        printf("  [!] 患者ID不存在，请重新输入。\n");
+    }
+}
+
 // 判断某条记录是否是“住院欠费补交单”。
 // 条件：
 // 1. 记录存在
@@ -430,35 +504,14 @@ void bookAppointment(const char* currentPatientId) {
         /*
          * ========== 方式一：按科室搜索 ==========
          *
-         * 这里会先从 staff 链表中收集所有已存在的科室，
-         * 然后展示给用户，再让用户输入科室名。
+         * 这里会先从 staff 链表中收集所有已存在的科室
+         *
          */
         if (choice == 1) {
             /* depts 用来保存系统中所有不重复的科室名称 */
             char depts[20][50];
             /* dCount 表示当前收集到的科室数量 */
-            int dCount = 0;
-            /*
-             * 遍历所有医生，提取其 department 字段，
-             * 并去重后保存到 depts 中。
-             */
-            for (Staff* stf = staffHead->next; stf != NULL; stf = stf->next) {
-                int exists = 0;
-
-                /* 判断该科室是否已经收集过 */
-                for (int i = 0; i < dCount; i++) {
-                    if (strcmp(depts[i], stf->department) == 0) {
-                        exists = 1;
-                        break;
-                    }
-                }
-
-                /* 如果没有重复，且科室名非空，则加入科室数组 */
-                if (!exists && strlen(stf->department) > 0) {
-                    strcpy(depts[dCount], stf->department);
-                    dCount++;
-                }
-            }
+            int dCount = collectHospitalDepartments(depts, 20);
 
             /* 打印当前系统中已有的门诊科室 */
             printf("\n  [系统当前已开设的门诊科室]: ");
@@ -476,17 +529,7 @@ void bookAppointment(const char* currentPatientId) {
                     continue;
                 }
 
-                int isValidDept = 0;
-
-                /* 判断 keyword 是否在已有科室列表中 */
-                for (int i = 0; i < dCount; i++) {
-                    if (strcmp(depts[i], keyword) == 0) {
-                        isValidDept = 1;
-                        break;
-                    }
-                }
-
-                if (isValidDept) break;
+                if (isKnownHospitalDepartment(keyword)) break;
                 else printf("  [!] 输入的科室不存在，请从上方列表中选择并重新输入！");
             }
 
@@ -504,7 +547,7 @@ void bookAppointment(const char* currentPatientId) {
         else if (choice == 2) {
             printf("  请输入医生精确姓名或纯数字工号 (如:李四 / 1001, 输入-1返回): ");
             safeGetString(keyword, 50);
-
+                                                                                                                           
             if (strcmp(keyword, "-1") == 0) continue;
 
             if (strlen(keyword) == 0) {
@@ -514,7 +557,6 @@ void bookAppointment(const char* currentPatientId) {
             }
         }
 
-      
         else {
             printf("  [!] 无效的菜单选项，请正确输入菜单中提供的数字编号！\n");
             system("pause");
@@ -599,7 +641,7 @@ void bookAppointment(const char* currentPatientId) {
                     s->schedule_id, s->date, s->shift, docDisp,
                     matchedDoc->department, matchedDoc->level);
 
-                /* 把命中的排班 ID 记下来，便于后面校验 */
+              
                 if (matchedCount < 200) {
                     matchedSchIds[matchedCount++] = s->schedule_id;
                 }
@@ -652,7 +694,7 @@ void bookAppointment(const char* currentPatientId) {
             }
         }
         if (!targetSch) {
-            printf("  [!] 参数越界：排班ID不属于有效集合。\n");
+            printf("  [!] 参数越界：排班ID不属于有效ID。\n");
             system("pause");
             continue;
         }
@@ -1410,6 +1452,10 @@ void medicalRecords(const char* currentPatientId) {
                     else if (strstr(rec->description, "[补缴]")) strcpy(typeName, "补缴");
                     else if (strstr(rec->description, "[待补交]")) strcpy(typeName, "待补交");
                     else strcpy(typeName, "住院账务");
+                }
+                else if (isInpatientArrearsRecord(rec)) {
+                    isInpatientDetail = 1;
+                    strcpy(typeName, "待补交");
                 }
                 else if (rec->type == 8 && strstr(rec->description, "[住院明细][退回]")) {
                     isInpatientDetail = 1;

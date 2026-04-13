@@ -112,7 +112,7 @@ int main() {
                 printf("  [?] 请输入管理员账号: ");
                 safeGetString(acc, 50);
                 if (strcmp(acc, "-1") == 0) break;
-                if (strlen(acc) == 0) { printf("  [!] 管理员账号不能为空！\n"); continue; }
+                if (strlen(acc) == 0) { printf("  [!] 管理员账号不能为空！\n"); system("pause"); continue; }
 
                 printf("  [?] 请输入登录密码: ");
                 safeGetString(pwd, 50);
@@ -125,6 +125,7 @@ int main() {
                 }
                 else {
                     printf("  [!] 拦截：管理员账号不存在或密码错误，请重新尝试！\n");
+                    system("pause");
                 }
             }
         }
@@ -153,6 +154,7 @@ int main() {
                 }
                 else {
                     printf("  [!] 警告：工号不存在或密码错误！\n");
+                    system("pause");
                 }
             }
         }
@@ -175,7 +177,7 @@ int main() {
                     safeGetString(acc, 50);
                     if (strcmp(acc, "-1") == 0) break; /* 【修改】 */
                     /* 【新增】空输入校验 */
-                    if (strlen(acc) == 0) { printf("  [!] 请输入用户ID，不允许为空！\n"); continue; }
+                    if (strlen(acc) == 0) { printf("  [!] 请输入用户ID，不允许为空！\n"); system("pause"); continue; }
 
                     printf("  [?] 请输入服务密码: "); safeGetString(pwd, 50);
 
