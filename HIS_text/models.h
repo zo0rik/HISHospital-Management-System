@@ -20,14 +20,14 @@ typedef struct Patient {
     struct Patient* next;
 } Patient, * PatientList;
 
-// 【修改点】：统一使用 Staff 结构体管理所有医生与职工
+// 统一使用 Staff 结构体管理所有医生与职工
 typedef struct Staff {
     char id[20];
     char password[50];
     char name[100];
     char department[100];
     char level[100]; // 对应医生的“职称”
-    char sex[10];    // 【新增】性别字段
+    char sex[10];    // 性别字段
     struct Staff* next;
 } Staff, * StaffList;
 
