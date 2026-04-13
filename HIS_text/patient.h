@@ -26,4 +26,4 @@ void medicalRecords(const char* currentPatientId);
 void changePatientPassword(const char* currentId);
 void userTerminal(const char* currentId);
 
-#endif /* PATIENT_H */
+#endif 
