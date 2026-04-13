@@ -71,11 +71,11 @@ void changePassword(void) {
     printf("请输入新密码 (至少6位，仅限字母或数字): ");
     safeGetPassword(new1, 20);
     if (strcmp(new1, "-1") == 0) return;
-	if (strcmp(new1, old) == 0) {
+    if(strcmp(new1,old) == 0){
         printf("  [!] 新密码不能与旧密码相同！\n");
         system("pause");
         return;
-    }
+	}
     printf("请确认新密码: ");
     safeGetString(new2, 20);
     if (strcmp(new1, new2) != 0) {

@@ -10,6 +10,7 @@ extern char currentCallingPatientId[20];
 void generateRecordID(char* buffer);
 void callPatient(const char* docId);
 void diagnoseAndTest(const char* docId);
+int createAuxiliaryExamOrders(const char* docId, const char* patientId, int inpatientMode);
 void prescribeMedicine(const char* docId);
 void issueAdmissionNotice(const char* docId);
 

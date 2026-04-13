@@ -599,28 +599,29 @@ void admitPatient(const char* docId) {
     system("pause");
 }
 
-void dailyDeductionSimulation() {
-    int count = 0;
-    printf("\n========== 执行批量床位核销日结算 (模拟08:00) ==========\n");
+void viewLowDepositInpatients(void) {
+    int found = 0;
+    char depBuf[32];
+
+    printf("\n========== 在院病人住院押金预警列表 (低于300元) ==========\n");
+    printf("%-15s %-10s %-12s %-12s\n", "患者ID", "床位", "姓名", "押金余额");
+    printf("--------------------------------------------------------------\n");
 
     for (Bed* b = bedHead->next; b != NULL; b = b->next) {
-        if (b->isOccupied) {
-            for (Patient* p = patientHead->next; p != NULL; p = p->next) {
-                if (strcmp(p->id, b->patientId) == 0) {
-                    if (p->inpatientDeposit < 1000) {
-                        printf("  [预警] 检测到在院实体 %s 住院押金余额偏低 (当前: %.2f)！\n",
-                            p->name, p->inpatientDeposit);
-                    }
-                    printf("  -> 实体 %s (挂载床位:%s) 日度消耗计提: %.2f 元。\n", p->name, b->bedId, b->price);
-                    count++;
-                    break;
-                }
+        if (!b->isOccupied) continue;
+        for (Patient* p = patientHead->next; p != NULL; p = p->next) {
+            if (strcmp(p->id, b->patientId) == 0 && p->isInpatient && p->inpatientDeposit < 300.0) {
+                formatMoney(p->inpatientDeposit, depBuf, sizeof(depBuf));
+                printf("%-15s %-10s %-12s %-12s\n", p->id, b->bedId, p->name, depBuf);
+                found = 1;
+                break;
             }
-            b->isRoundsDone = 0;
         }
     }
-    printf("--------------------------------------------------\n");
-    printf("批处理作业完毕。累计扫描并计算 %d 个活跃在院单元，病床日内查房状态已复位。\n", count);
+
+    if (!found) {
+        printf("当前无住院押金低于300元的在院病人。\n");
+    }
 }
 
 void wardRounds(const char* docId) {
@@ -711,6 +712,7 @@ void wardRounds(const char* docId) {
             printf("\n========== 针对患者实体 [%s] 的查房干预面板 ==========\n", pId);
             printf("  [1] 录入基础观察医嘱\n");
             printf("  [2] 调用内部药房系统配发治疗耗材\n");
+            printf("  [3] 开立辅助检查并直接从住院押金扣费\n");
             printf("  [-1] 结束当前查房会话\n");
             printf("---------------------------------------\n");
             printf("下达操作指令: ");
@@ -718,7 +720,7 @@ void wardRounds(const char* docId) {
             int choice;
             while (1) {
                 choice = safeGetInt();
-                if (choice == -1 || (choice >= 1 && choice <= 2)) break;
+                if (choice == -1 || (choice >= 1 && choice <= 3)) break;
                 printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n下达操作指令: ");
             }
             if (choice == -1) break;
@@ -752,6 +754,14 @@ void wardRounds(const char* docId) {
                 extern void prescribeMedicine(const char* docId);
                 prescribeMedicine(docId);
 
+                strcpy(currentCallingPatientId, "");
+                targetBed->isRoundsDone = 1;
+                system("pause");
+            }
+            else if (choice == 3) {
+                extern char currentCallingPatientId[20];
+                strcpy(currentCallingPatientId, pId);
+                createAuxiliaryExamOrders(docId, pId, 1);
                 strcpy(currentCallingPatientId, "");
                 targetBed->isRoundsDone = 1;
                 system("pause");
@@ -934,8 +944,8 @@ void inpatientMenu(const char* docId) {
         printf("==================================================\n");
         printf("  [1] 查看全院病房实时图谱\n");
         printf("  [2] 办理患者入院 (核算押金/床位分配)\n");
-        printf("  [3] 执行每日早8点查床扣费\n");
-        printf("  [4] 日常查房与下达医嘱记录\n");
+        printf("  [3] 查看在院病人中住院押金低于300元名单\n");
+        printf("  [4] 日常查房/医嘱/药房/辅助检查\n");
         printf("  [5] 办理患者出院 (特惠与统账流转)\n");
         printf("  [-1] 返回上级医生大厅\n");
         printf("--------------------------------------------------\n");
@@ -957,7 +967,7 @@ void inpatientMenu(const char* docId) {
             system("pause");
             break;
         case 3:
-            dailyDeductionSimulation();
+            viewLowDepositInpatients();
             system("pause");
             break;
         case 4:

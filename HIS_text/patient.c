@@ -579,11 +579,15 @@ void financeCenter(const char* currentPatientId) {
         if (!p) return;
 
         printf("\n========== 个人财务结算中心 ==========\n");
-        printf("  [当前账户可用余额]:      %.2f 元\n", p->balance);
-        printf("  [当前住院押金余额]:      %.2f 元\n", p->inpatientDeposit);
+        char balanceText[32], depositText[32], arrearsText[32];
+        formatMoney(p->balance, balanceText, sizeof(balanceText));
+        formatMoney(p->inpatientDeposit, depositText, sizeof(depositText));
+        printf("  [当前账户可用余额]:      %s\n", balanceText);
+        printf("  [当前住院押金余额]:      %s\n", depositText);
         printf("  [当前住院状态]:          %s\n", p->isInpatient ? "住院中" : "非住院");
         if (p->inpatientDeposit < 0) {
-            printf("  [当前待补交金额]:        %.2f 元\n", -p->inpatientDeposit);
+            formatMoney(-p->inpatientDeposit, arrearsText, sizeof(arrearsText));
+            printf("  [当前待补交金额]:        %s\n", arrearsText);
         }
         printf("--------------------------------------\n");
         printf("  [1] 在线网银充值 (预存备用金)\n");
@@ -596,7 +600,7 @@ void financeCenter(const char* currentPatientId) {
 
         if (choice == 1) {
             printf("\n  请输入需充值的金额 (输入-1取消): ");
-            double money = safeGetDouble();
+            double money = safeGetMoneyInRange(0.01, 10000.0);
             if (money == -1.0) continue;
 
             if (money > 0) {
@@ -619,7 +623,9 @@ void financeCenter(const char* currentPatientId) {
 
                 appendTransaction(TRANS_RECHARGE, money, "终端自助充值(不计收入)");
 
-                printf("  [完成] 充值业务受理成功，金额: %.2f 元。\n", money);
+                char moneyText[32];
+                formatMoney(money, moneyText, sizeof(moneyText));
+                printf("  [完成] 充值业务受理成功，金额: %s。\n", moneyText);
                 system("pause");
             }
             else if (money != 0) {
@@ -663,7 +669,10 @@ void financeCenter(const char* currentPatientId) {
                 }
 
                 printf("----------------------------------------------------------------------\n");
-                printf("  [资金比对] 待清算总额: %.2f 元 | 普通余额: %.2f 元\n\n", totalUnpaidCost, p->balance);
+                char unpaidText[32], balanceText2[32];
+                formatMoney(totalUnpaidCost, unpaidText, sizeof(unpaidText));
+                formatMoney(p->balance, balanceText2, sizeof(balanceText2));
+                printf("  [资金比对] 待清算总额: %s | 普通余额: %s\n\n", unpaidText, balanceText2);
                 printf("  1. 一键聚合支付\n");
                 printf("  2. 指定流水号单项核销\n");
                 printf(" -1. 返回上一级\n");
@@ -674,7 +683,9 @@ void financeCenter(const char* currentPatientId) {
 
                 if (payChoice == 1) {
                     if (p->balance < totalUnpaidCost) {
-                        printf("  [拒绝执行] 账户流动资金不足。(缺口: %.2f 元)\n", totalUnpaidCost - p->balance);
+                        char gapText[32];
+                        formatMoney(totalUnpaidCost - p->balance, gapText, sizeof(gapText));
+                        printf("  [拒绝执行] 账户流动资金不足。(缺口: %s)\n", gapText);
                         system("pause");
                     }
                     else {
