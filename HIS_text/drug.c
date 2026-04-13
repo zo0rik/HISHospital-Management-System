@@ -264,7 +264,6 @@ static void drugOut() {
 
                 if (quantity > p->stock) {
                     printf("  [!] 库存不足，无法出库。\n");
-                    system("pause");
                     return;
                 }
                 p->stock -= quantity;
@@ -309,7 +308,6 @@ static void drugOut() {
 
             if (quantity > tmp[0]->stock) {
                 printf("  [!] 库存不足，无法出库。\n");
-				system("pause");
                 return;
             }
             tmp[0]->stock -= quantity;
@@ -339,7 +337,6 @@ static void drugOut() {
             if (quantity <= 0) return;
             if (quantity > selectedDrug->stock) {
                 printf("  [!] 库存不足，无法出库。\n");
-				system("pause");
                 return;
 			}
             selectedDrug->stock -= quantity;
