@@ -79,6 +79,7 @@ void loadAllDataFromTxt() {
             token = strtok(NULL, ","); if (token) copyField(s_temp.department, sizeof(s_temp.department), token);
             token = strtok(NULL, ","); if (token) copyField(s_temp.level, sizeof(s_temp.level), token);
             token = strtok(NULL, ","); if (token) copyField(s_temp.sex, sizeof(s_temp.sex), token);
+			token = strtok(NULL, ","); if (token) s_temp.age = atoi(token);
 
             Staff* s_node = (Staff*)malloc(sizeof(Staff));
             *s_node = s_temp;
@@ -183,8 +184,8 @@ void saveAllDataToTxt() {
     if (fp) {
         Staff* s = staffHead->next;
         while (s) {
-            fprintf(fp, "%s,%s,%s,%s,%s,%s\n",
-                s->id, s->password, s->name, s->department, s->level, s->sex);
+            fprintf(fp, "%s,%s,%s,%s,%s,%s,%d\n",
+                s->id, s->password, s->name, s->department, s->level, s->sex, s->age);
             s = s->next;
         }
         fclose(fp);
