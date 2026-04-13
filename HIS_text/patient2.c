@@ -408,7 +408,7 @@ void medicalRecords(const char* currentPatientId) {
         printf("\n========== 个人医疗时序档案检索平台 ==========\n");
         printf("  [1] 调取门诊与排号记录表\n");
         printf("  [2] 调取临床诊疗与医嘱报告\n");
-        printf("  [3] 调取门诊处方扣费清单\n");
+        printf("  [3] 调取药品扣费清单\n");
         printf("  [4] 调取辅助生化与影像开单记录\n");
         printf("  [5] 调取住院与押金账单记录\n");
         printf("  [6] 汇总终身财务进出流水总账\n");
