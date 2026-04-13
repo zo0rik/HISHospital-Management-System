@@ -14,12 +14,14 @@
 
 /* -------------------- patient1.c 内部辅助函数 -------------------- */
 
+// 获取当前年份
 static int getCurrentYearValue(void) {
     time_t now = time(NULL);
     struct tm* tm_info = localtime(&now);
     return tm_info ? (tm_info->tm_year + 1900) : 2026;
 }
 
+// 获取班次排序优先级：上午/早班 -> 下午/晚班 -> 休息
 static int getShiftPriorityForSchedule(const char* shift) {
     if (!shift) return 9;
     if (strcmp(shift, "上午") == 0 || strcmp(shift, "早班") == 0) return 0;
@@ -28,6 +30,7 @@ static int getShiftPriorityForSchedule(const char* shift) {
     return 9;
 }
 
+// 排班排序：先按日期，再按班次，最后按排班ID
 static int compareSchedulePtrByDateShiftId(const void* lhs, const void* rhs) {
     const Schedule* a = *(const Schedule* const*)lhs;
     const Schedule* b = *(const Schedule* const*)rhs;
@@ -38,6 +41,7 @@ static int compareSchedulePtrByDateShiftId(const void* lhs, const void* rhs) {
     return a->schedule_id - b->schedule_id;
 }
 
+// 按医生ID查找医生
 static Staff* findStaffByIdLocal(const char* id) {
     for (Staff* d = staffHead->next; d != NULL; d = d->next) {
         if (strcmp(d->id, id) == 0) return d;
@@ -45,6 +49,7 @@ static Staff* findStaffByIdLocal(const char* id) {
     return NULL;
 }
 
+// 按排班ID查找排班
 static Schedule* findScheduleByIdLocal(int scheduleId) {
     for (Schedule* s = scheduleList->next; s != NULL; s = s->next) {
         if (s->schedule_id == scheduleId) return s;
@@ -52,6 +57,7 @@ static Schedule* findScheduleByIdLocal(int scheduleId) {
     return NULL;
 }
 
+// 统计某位医生在指定日期的挂号数量
 static int countDoctorAppointmentsOnDate(const char* doctorId, const char* date) {
     int count = 0;
     for (Record* rec = recordHead->next; rec != NULL; rec = rec->next) {
@@ -64,6 +70,7 @@ static int countDoctorAppointmentsOnDate(const char* doctorId, const char* date)
     return count;
 }
 
+// 判断某个排班ID是否已经加入推荐列表
 static int isScheduleIdAlreadyCollected(Schedule* const* arr, int count, int scheduleId) {
     for (int i = 0; i < count; ++i) {
         if (arr[i] && arr[i]->schedule_id == scheduleId) return 1;
@@ -71,6 +78,7 @@ static int isScheduleIdAlreadyCollected(Schedule* const* arr, int count, int sch
     return 0;
 }
 
+// 收集智能推荐的排班
 static int collectRecommendedSchedules(const Schedule* targetSch, const Staff* targetDoc,
     const char* today, const char* nextWeek, Schedule** out, int maxOut) {
     int count = 0;
@@ -80,15 +88,24 @@ static int collectRecommendedSchedules(const Schedule* targetSch, const Staff* t
         int sameDoctorOtherDate = 0;
         int sameDateSameDept = 0;
 
+        // 跳过休息排班
         if (strcmp(altS->shift, "休息") == 0) continue;
+
+        // 只保留未来一周内的排班
         if (strcmp(altS->date, today) < 0 || strcmp(altS->date, nextWeek) > 0) continue;
+
+        // 跳过当前目标排班本身
         if (altS->schedule_id == targetSch->schedule_id) continue;
+
+        // 跳过已经满号的排班
         if (countDoctorAppointmentsOnDate(altS->doctor_id, altS->date) >= 50) continue;
 
+        // 同一医生的其他日期
         sameDoctorOtherDate =
             strcmp(altS->doctor_id, targetDoc->id) == 0 &&
             strcmp(altS->date, targetSch->date) != 0;
 
+        // 同一天同科室的其他医生
         if (strcmp(altS->date, targetSch->date) == 0 &&
             strcmp(altS->doctor_id, targetDoc->id) != 0) {
             Staff* altD = findStaffByIdLocal(altS->doctor_id);
@@ -104,12 +121,14 @@ static int collectRecommendedSchedules(const Schedule* targetSch, const Staff* t
         if (count >= maxOut) break;
     }
 
+    // 推荐结果排序
     if (count > 1) {
         qsort(out, (size_t)count, sizeof(out[0]), compareSchedulePtrByDateShiftId);
     }
     return count;
 }
 
+// 提取ID最后4位数字
 static int extractTrailingSequence(const char* id) {
     int len = (int)strlen(id);
     int seq = -1;
@@ -120,6 +139,7 @@ static int extractTrailingSequence(const char* id) {
 
 /* -------------------- 对外公开函数：基础与挂号 -------------------- */
 
+// 生成患者ID：P + 年份 + 四位序号
 void generatePatientID(char* idBuffer) {
     int maxId = 999;
     int currentIdNum;
@@ -133,6 +153,7 @@ void generatePatientID(char* idBuffer) {
     sprintf(idBuffer, "P%d%04d", currentYear, maxId + 1);
 }
 
+// 按患者ID查找患者
 Patient* findPatientById(const char* pid) {
     for (Patient* p = patientHead->next; p != NULL; p = p->next) {
         if (strcmp(p->id, pid) == 0) return p;
@@ -140,6 +161,7 @@ Patient* findPatientById(const char* pid) {
     return NULL;
 }
 
+// 收集系统中所有不重复的科室名称
 int collectHospitalDepartments(char depts[][50], int maxCount) {
     int dCount = 0;
     if (!depts || maxCount <= 0) return 0;
@@ -163,6 +185,7 @@ int collectHospitalDepartments(char depts[][50], int maxCount) {
     return dCount;
 }
 
+// 判断科室名称是否存在
 int isKnownHospitalDepartment(const char* deptName) {
     char depts[50][50];
     int dCount = 0;
@@ -175,6 +198,7 @@ int isKnownHospitalDepartment(const char* deptName) {
     return 0;
 }
 
+// 生成科室提示字符串
 void buildHospitalDeptPrompt(char* promptBuffer, size_t size, const char* separator) {
     char depts[50][50];
     int dCount = 0;
@@ -195,6 +219,7 @@ void buildHospitalDeptPrompt(char* promptBuffer, size_t size, const char* separa
     }
 }
 
+// 统一输入并校验患者ID
 int inputExistingPatientIdCommon(char* pId, size_t size, const char* prompt) {
     while (1) {
         Patient* targetPat;
@@ -207,6 +232,7 @@ int inputExistingPatientIdCommon(char* pId, size_t size, const char* prompt) {
     }
 }
 
+// 注册患者
 void registerPatient(void) {
     printf("\n========== 账户注册与建档 ==========\n");
     printf("请选择就诊类型 (1.普通门诊 2.急诊绿色通道 -1.取消返回): ");
@@ -227,6 +253,7 @@ void registerPatient(void) {
     newPatient->next = NULL;
     newPatient->isEmergency = (type == 2) ? 1 : 0;
 
+    // 输入姓名
     while (1) {
         printf("请输入真实姓名 (输入-1取消): ");
         safeGetString(newPatient->name, 100);
@@ -238,6 +265,7 @@ void registerPatient(void) {
         printf("  [!] 输入不能为空，请重新输入！\n");
     }
 
+    // 输入密码
     printf("请设置登录密码 (至少6位，仅限数字或字母组合, 输入-1取消): ");
     safeGetPassword(newPatient->password, 50);
     if (strcmp(newPatient->password, "-1") == 0) {
@@ -245,6 +273,7 @@ void registerPatient(void) {
         return;
     }
 
+    // 输入性别
     printf("请输入生理性别 (男/女, 输入-1取消): ");
     safeGetGender(newPatient->gender, 10);
     if (strcmp(newPatient->gender, "-1") == 0) {
@@ -252,6 +281,7 @@ void registerPatient(void) {
         return;
     }
 
+    // 普通门诊需补充年龄和过敏史
     if (!newPatient->isEmergency) {
         printf("请输入周岁年龄 (1-200, 输入-1取消): ");
         while (1) {
@@ -277,15 +307,18 @@ void registerPatient(void) {
         if (strlen(newPatient->allergy) == 0) strcpy(newPatient->allergy, "无");
     }
     else {
+        // 急诊信息可简化
         newPatient->age = -1;
         strcpy(newPatient->allergy, "急诊未知");
     }
 
+    // 初始化患者信息
     generatePatientID(newPatient->id);
     newPatient->balance = 0.0;
     newPatient->inpatientDeposit = 0.0;
     newPatient->isInpatient = 0;
 
+    // 插入患者链表尾部
     Patient* temp = patientHead;
     while (temp->next) temp = temp->next;
     temp->next = newPatient;
@@ -296,11 +329,14 @@ void registerPatient(void) {
     printf("  ==========================================\n");
 }
 
+// 患者预约挂号
 void bookAppointment(const char* currentPatientId) {
     char today[11];
     char nextWeek[11];
     time_t t = time(NULL);
     struct tm* tm_info = localtime(&t);
+
+    // 计算今天和未来一周结束日期
     strftime(today, sizeof(today), "%Y-%m-%d", tm_info);
     t += 7 * 24 * 60 * 60;
     tm_info = localtime(&t);
@@ -321,6 +357,7 @@ void bookAppointment(const char* currentPatientId) {
         choice = safeGetInt();
         if (choice == -1) return;
 
+        // 按科室搜索
         if (choice == 1) {
             char depts[20][50];
             int dCount = collectHospitalDepartments(depts, 20);
@@ -344,6 +381,7 @@ void bookAppointment(const char* currentPatientId) {
 
             if (strcmp(keyword, "-1") == 0) continue;
         }
+        // 按医生搜索
         else if (choice == 2) {
             printf("  请输入医生精确姓名或纯数字工号 (如:李四 / 1001, 输入-1返回): ");
             safeGetString(keyword, sizeof(keyword));
@@ -365,11 +403,13 @@ void bookAppointment(const char* currentPatientId) {
         int matchedCount = 0;
         int maxRegId = 4999;
 
+        // 找当前最大的挂号记录序号
         for (Record* r_temp = recordHead->next; r_temp != NULL; r_temp = r_temp->next) {
             int curReg = extractTrailingSequence(r_temp->recordId);
             if (curReg > maxRegId) maxRegId = curReg;
         }
 
+        // 筛选未来一周内符合条件的排班
         for (Schedule* s = scheduleList->next; s != NULL; s = s->next) {
             Staff* matchedDoc = NULL;
             int match = 0;
@@ -391,6 +431,7 @@ void bookAppointment(const char* currentPatientId) {
             }
         }
 
+        // 排序显示
         if (matchedCount > 1) {
             qsort(matchedSchedules, (size_t)matchedCount, sizeof(matchedSchedules[0]), compareSchedulePtrByDateShiftId);
         }
@@ -415,6 +456,7 @@ void bookAppointment(const char* currentPatientId) {
                 matchedDoc->level);
         }
 
+        // 没有匹配排班
         if (matchedCount == 0) {
             printf("\n  [!] 数据流反馈：未搜索到满足当前条件的排班资源。\n");
             system("pause");
@@ -422,25 +464,29 @@ void bookAppointment(const char* currentPatientId) {
         }
 
         printf("  ---------------------------------------------------------------------------\n");
-        printf("  请输入要确认选择的【排班ID】 (输入-1重新搜索): ");
 
-        int targetSchId = safeGetInt();
-        if (targetSchId == -1) continue;
-
-        {
+        int targetSchId;
+        while (1) {
             int idInResult = 0;
+
+            printf("  请输入要确认选择的【排班ID】 (输入-1重新搜索): ");
+            targetSchId = safeGetInt();
+
+            if (targetSchId == -1) break;
+
             for (int i = 0; i < matchedCount; ++i) {
                 if (matchedSchedules[i] && matchedSchedules[i]->schedule_id == targetSchId) {
                     idInResult = 1;
                     break;
                 }
             }
-            if (!idInResult) {
-                printf("  [!] 当前科室/医生无此排班，请重新输入！\n");
-                system("pause");
-                continue;
-            }
+
+            if (idInResult) break;
+
+            printf("  [!] 当前科室/医生无此排班，请重新输入！\n");
         }
+
+        if (targetSchId == -1) continue;
 
         {
             char recommendSourceSuffix[64] = "";
@@ -449,11 +495,11 @@ void bookAppointment(const char* currentPatientId) {
                 Schedule* targetSch = findScheduleByIdLocal(targetSchId);
                 Staff* targetDoc = NULL;
                 char staffIdStr[22];
-                int patientDailyActive = 0;
-                int patientDeptDailyActive = 0;
-                int sameDocSameDay = 0;
-                int docDailyCount = 0;
-                int hospitalDailyCount = 0;
+                int patientDailyActive = 0;      // 患者当天挂号数
+                int patientDeptDailyActive = 0;  // 患者当天同科室挂号数
+                int sameDocSameDay = 0;          // 患者当天是否挂过同一医生
+                int docDailyCount = 0;           // 医生当天挂号数
+                int hospitalDailyCount = 0;      // 全院当天挂号数
 
                 if (!targetSch) {
                     printf("  [!] 参数越界：排班ID不属于有效ID。\n");
@@ -470,6 +516,7 @@ void bookAppointment(const char* currentPatientId) {
 
                 snprintf(staffIdStr, sizeof(staffIdStr), "%s", targetDoc->id);
 
+                // 统计当天挂号相关数据
                 for (Record* rec = recordHead->next; rec != NULL; rec = rec->next) {
                     if (rec->type == 1 && strstr(rec->description, targetSch->date) != NULL) {
                         hospitalDailyCount++;
@@ -492,6 +539,7 @@ void bookAppointment(const char* currentPatientId) {
                     }
                 }
 
+                // 各种挂号约束判断
                 if (hospitalDailyCount >= 1000) {
                     printf("\n  [系统过载] 全院日门诊量已达设定阈值。\n");
                     system("pause");
@@ -516,6 +564,7 @@ void bookAppointment(const char* currentPatientId) {
                     break;
                 }
 
+                // 医生当天满50个号后触发智能推荐
                 if (docDailyCount >= 50) {
                     Schedule* recommendedSchedules[200] = { NULL };
                     int recCount = collectRecommendedSchedules(targetSch, targetDoc, today, nextWeek, recommendedSchedules, 200);
@@ -597,11 +646,12 @@ void bookAppointment(const char* currentPatientId) {
                 }
 
                 {
-                    int seqNum = docDailyCount + 1;
+                    int seqNum = docDailyCount + 1;  // 当前排号
                     double regFee = 15.0;
                     Record* newRecord = NULL;
                     Record* temp = NULL;
 
+                    // 根据医生职称计算挂号费
                     if (strcmp(targetDoc->level, "主任医师") == 0) regFee = 50.0;
                     else if (strcmp(targetDoc->level, "副主任医师") == 0) regFee = 30.0;
                     else if (strcmp(targetDoc->level, "主治医师") == 0) regFee = 15.0;
@@ -612,6 +662,7 @@ void bookAppointment(const char* currentPatientId) {
                         return;
                     }
 
+                    // 生成挂号记录
                     sprintf(newRecord->recordId, "REG%d%04d", getCurrentYearValue(), maxRegId + 1);
                     newRecord->type = 1;
                     strcpy(newRecord->patientId, currentPatientId);
@@ -629,6 +680,7 @@ void bookAppointment(const char* currentPatientId) {
                     getCurrentTimeStr(newRecord->createTime, 30);
                     newRecord->next = NULL;
 
+                    // 插入记录链表尾部
                     temp = recordHead;
                     while (temp->next) temp = temp->next;
                     temp->next = newRecord;

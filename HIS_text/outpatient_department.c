@@ -135,7 +135,6 @@ int createAuxiliaryExamOrders(const char* docId, const char* patientId, int inpa
 
             printf("\n1. 血常规 (25.00元)\n2. 生化 (260.00元)\n-1. 返回上一级\n请选择: ");
 
-            // 二级菜单统一使用 safeGetInt，保留 -1 返回
             while (1) {
                 bloodChoice = safeGetInt();
                 if (bloodChoice == -1 || (bloodChoice >= 1 && bloodChoice <= 2)) break;
@@ -143,7 +142,6 @@ int createAuxiliaryExamOrders(const char* docId, const char* patientId, int inpa
             }
             if (bloodChoice == -1) continue;
 
-            // 根据抽血子项目设置名称、说明和单价
             if (bloodChoice == 1) {
                 strcpy(examName, "抽血-血常规");
                 strcpy(examDetail, "血常规");
@@ -157,73 +155,99 @@ int createAuxiliaryExamOrders(const char* docId, const char* patientId, int inpa
             quantity = 1;
         }
         else {
-            // CT / 核磁共振 / 彩超：都需要选择检查部位
-            int selected[15] = { 0 };  // 保存医生选择的部位编号
-            int partCount;             // 部位数量
-            int cancelPartSelection = 0;
+            int partCount;
 
             // 根据类型设置项目名和单价
-            if (examType == 2) { strcpy(examName, "CT"); unitPrice = 260.0; }
-            else if (examType == 3) { strcpy(examName, "核磁共振"); unitPrice = 400.0; }
-            else if (examType == 4) { strcpy(examName, "彩超"); unitPrice = 150.0; }
-
-            // 打印可选部位清单
-            printExamBodyParts();
-
-            // 输入检查部位数量
-            printf("请输入检查部位数量(1-15): ");
-            while (1) {
-                partCount = safeGetInt();
-                if (partCount == -1) break;
-                if (partCount >= 1 && partCount <= 15) break;
-                printf("  [!] 检查部位数量必须在 1~15 之间，请重新输入 (输入-1返回): ");
+            if (examType == 2) {
+                strcpy(examName, "CT");
+                unitPrice = 260.0;
             }
-            if (partCount == -1) continue;
+            else if (examType == 3) {
+                strcpy(examName, "核磁共振");
+                unitPrice = 400.0;
+            }
+            else if (examType == 4) {
+                strcpy(examName, "彩超");
+                unitPrice = 150.0;
+            }
 
-            // 逐个输入部位编号，并做重复校验
-            for (int i = 0; i < partCount; ++i) {
+            // 这一层循环专门负责“部位数量 + 部位编号”的完整录入
+            // 如果中途按 -1，就作废本次部位选择，并重新输入部位数量
+            while (1) {
+                int selected[15] = { 0 };
+                int cancelPartSelection = 0;
+
+                examDetail[0] = '\0';
+
+                // 打印可选部位清单
+                printExamBodyParts();
+
+                // 输入检查部位数量
+                printf("请输入检查部位数量(1-15，输入-1返回上一级): ");
                 while (1) {
-                    int duplicated = 0;
+                    partCount = safeGetInt();
+                    if (partCount == -1) break;
+                    if (partCount >= 1 && partCount <= 15) break;
+                    printf("  [!] 检查部位数量必须在 1~15 之间，请重新输入 (输入-1返回): ");
+                }
 
-                    printf("请输入第%d个部位编号: ", i + 1);
+                // 在“输入部位数量”这一步按 -1：返回上一级检查类型菜单
+                if (partCount == -1) break;
 
-                    // 限制部位编号必须在 1~15
-                    selected[i] = safeGetInt();
-                    if (selected[i] == -1) {
-                        cancelPartSelection = 1;
-                        break;
-                    }
-                    if (selected[i] < 1 || selected[i] > 15) {
-                        printf("  [!] 部位编号必须在 1~15 之间，请重新输入 (输入-1返回): ");
-                        continue;
-                    }
+                // 逐个输入部位编号，并做范围与重复校验
+                for (int i = 0; i < partCount; ++i) {
+                    while (1) {
+                        int duplicated = 0;
+                        int currentPart;
 
-                    // 检查是否重复选择了同一个部位
-                    for (int j = 0; j < i; ++j) {
-                        if (selected[j] == selected[i]) {
-                            duplicated = 1;
+                        printf("请输入第%d个部位编号 (输入-1作废本次部位选择并重新输入数量): ", i + 1);
+                        currentPart = safeGetInt();
+
+                        // 中途按 -1：整次部位选择作废，回到“重新输入部位数量”
+                        if (currentPart == -1) {
+                            cancelPartSelection = 1;
                             break;
                         }
+
+                        if (currentPart < 1 || currentPart > 15) {
+                            printf("  [!] 部位编号必须在 1~15 之间，请重新输入。\n");
+                            continue;
+                        }
+
+                        // 检查是否重复
+                        for (int j = 0; j < i; ++j) {
+                            if (selected[j] == currentPart) {
+                                duplicated = 1;
+                                break;
+                            }
+                        }
+
+                        if (duplicated) {
+                            printf("  [!] 部位编号不能重复，请重新输入。\n");
+                            continue;
+                        }
+
+                        selected[i] = currentPart;
+                        break;
                     }
 
-                    // 若重复则提示并重新输入当前这个部位编号
-                    if (duplicated) {
-                        printf("  [!] 部位编号不能重复，请重新输入。\n");
-                        continue;
-                    }
-
-                    // 当前部位编号合法且不重复，跳出内层循环
-                    break;
+                    if (cancelPartSelection) break;
                 }
+
+                // 如果是在输入部位编号过程中按了 -1，则本次作废并重新输入部位数量
+                if (cancelPartSelection) {
+                    printf("  [!] 本次部位选择已作废，请重新输入检查部位数量。\n");
+                    continue;
+                }
+
+                // 正常完成选择后，拼接部位字符串
+                joinSelectedParts(selected, partCount, examDetail, sizeof(examDetail));
+                quantity = partCount;
+                break;
             }
 
-            if (cancelPartSelection) continue;
-
-            // 把选择的多个部位拼接成中文字符串，如“头部、胸部、膝关节”
-            joinSelectedParts(selected, partCount, examDetail, sizeof(examDetail));
-
-            // 对影像类检查，总价 = 单价 × 部位数
-            quantity = partCount;
+            // 如果是在“输入部位数量”阶段按 -1，则返回一级检查类型菜单
+            if (partCount == -1) continue;
         }
 
         // 计算总价
@@ -242,14 +266,13 @@ int createAuxiliaryExamOrders(const char* docId, const char* patientId, int inpa
 
         // 生成唯一记录 ID，并填写基础字段
         generateRecordID(r4->recordId);
-        r4->type = 4;  // 4 表示辅助检查
+        r4->type = 4;
         strcpy(r4->patientId, pId);
         strcpy(r4->staffId, docId);
         r4->cost = totalCost;
 
         // 住院模式：直接从住院押金中扣费
         if (inpatientMode) {
-            // 查找患者对象，并确认其当前确实处于住院状态
             Patient* ip = findPatientById(pId);
             if (!ip || !ip->isInpatient) {
                 free(r4);
@@ -257,13 +280,9 @@ int createAuxiliaryExamOrders(const char* docId, const char* patientId, int inpa
                 return 0;
             }
 
-            // 住院押金直接扣减检查费用
             ip->inpatientDeposit -= totalCost;
-
-            // 住院模式下，这笔检查默认视为已支付
             r4->isPaid = 1;
 
-            // 记录描述中写清：检查类型、部位、单价、数量、总金额、支付状态
             snprintf(r4->description, sizeof(r4->description),
                 "[住院明细][检查] 检查类型:%.20s_检查部位:%.120s_单价:%.20s_数量:%d_总金额:%.20s_状态:%.24s",
                 examName,
@@ -273,11 +292,8 @@ int createAuxiliaryExamOrders(const char* docId, const char* patientId, int inpa
                 totalMoney,
                 "已从住院押金扣除");
 
-            // 若扣完后押金为负，则同步更新住院欠费补交单
-            // 这样后续患者端费用中心可以看到待补交账单
             syncInpatientArrearsBill(ip, docId);
 
-            // 打印开单成功提示
             printf("  [√] 住院检查单已生成：类型=%s，部位=%s，单价=%s，数量/部位数=%d，总金额=%s。\n",
                 examName,
                 (strlen(examDetail) > 0 ? examDetail : "无"),
@@ -285,10 +301,8 @@ int createAuxiliaryExamOrders(const char* docId, const char* patientId, int inpa
                 quantity,
                 totalMoney);
 
-            // 显示扣费后的当前押金余额
             printf("  [住院押金] 已直接扣费，当前押金余额：%.2f元\n", ip->inpatientDeposit);
 
-            // 若押金小于 0，说明已欠费，额外给出提醒
             if (ip->inpatientDeposit < 0) {
                 printf("  [资金预警] 当前已转为欠费状态，系统已同步更新待补交账单。\n");
             }
@@ -297,7 +311,6 @@ int createAuxiliaryExamOrders(const char* docId, const char* patientId, int inpa
             // 门诊模式：只生成待支付检查单，不立即扣费
             r4->isPaid = 0;
 
-            // 描述中记录检查类型、部位、单价、数量、总金额及“未支付”状态
             snprintf(r4->description, sizeof(r4->description),
                 "检查类型:%.20s_检查部位:%.120s_单价:%.20s_数量:%d_总金额:%.20s_状态:%.12s",
                 examName,
@@ -318,8 +331,7 @@ int createAuxiliaryExamOrders(const char* docId, const char* patientId, int inpa
         // 记录创建时间
         getCurrentTimeStr(r4->createTime, sizeof(r4->createTime));
 
-        // 头插法插入全局记录链表
-        // 新记录会排在最前面，方便后续快速访问最近生成的记录
+        // 头插法插入记录链表
         r4->next = recordHead->next;
         recordHead->next = r4;
 
@@ -335,7 +347,6 @@ int createAuxiliaryExamOrders(const char* docId, const char* patientId, int inpa
 
     return 1;
 }
-
 // 生成 Record 的唯一 ID
 // 当前实现规则是：R2026XXXX
 // 其中 XXXX 从现有记录中取最大值后 +1
@@ -502,7 +513,7 @@ void callPatient(const char* docId) {
                     found = 1;
 
                     strcpy(currentCallingPatientId, r->patientId);
-                    printf("  >>> HIS 引擎已强锁死当前看诊沙盒为: %s <<<\n", pName);
+                    printf("  >>> HIS 引擎已强锁死当前看诊病人为: %s <<<\n", pName);
                     break;
                 }
                 r = r->next;
