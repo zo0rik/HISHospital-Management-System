@@ -15,8 +15,6 @@
 extern void generateRecordID(char* buffer);
 extern int appendTransactionSafe(int type, double amount, const char* description);
 
-/* -------------------- patient2.c 内部辅助函数 -------------------- */
-
 /*
  * 函数名：parseDrugRecordInfo
  * 作用：从药品记录的 description 字段中解析出药品名称和数量。

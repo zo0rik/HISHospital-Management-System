@@ -12,6 +12,7 @@ void callPatient(const char* docId);
 void diagnoseAndTest(const char* docId);
 int createAuxiliaryExamOrders(const char* docId, const char* patientId, int inpatientMode);
 void prescribeMedicine(const char* docId);
+void prescribeMedicineWithMode(const char* docId, int inpatientMode);
 void issueAdmissionNotice(const char* docId);
 
 #endif

@@ -1,0 +1,40 @@
+{
+  "patients": 128,
+  "doctors": 35,
+  "departments": [
+    "儿科",
+    "内科",
+    "外科",
+    "妇科",
+    "骨科"
+  ],
+  "drugs": 120,
+  "drug_histories": 274,
+  "schedules": 280,
+  "beds": 100,
+  "occupied_beds": 58,
+  "records": 618,
+  "transactions": 323,
+  "record_type_counts": {
+    "1": 240,
+    "6": 76,
+    "2": 85,
+    "5": 89,
+    "3": 61,
+    "4": 51,
+    "7": 10,
+    "8": 6
+  },
+  "pending_notices": [
+    "P20260059",
+    "P20260061",
+    "P20260063",
+    "P20260065",
+    "P20260060",
+    "P20260062",
+    "P20260064",
+    "P20260066"
+  ],
+  "low_deposit_count": 15,
+  "full_doctor_d1001_0414_count": 50
+}

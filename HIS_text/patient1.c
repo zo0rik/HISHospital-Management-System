@@ -12,17 +12,10 @@
 #include "drug.h"
 #include "inpatient_department.h"
 
-/* -------------------- patient1.c 内部辅助函数 -------------------- */
-
 // 获取当前年份
 /*
  * 函数名：getCurrentYearValue
  * 作用：获取当前系统年份，用于患者ID等业务编号的生成年份部分。
- * 返回值：
- *   - 成功获取本地时间时，返回当前年份，例如 2026。
- *   - 若 localtime 调用失败，则返回默认值 2026，避免编号生成中断。
- * 说明：
- *   这是 patient1.c 内部使用的辅助函数，不对模块外公开。
  */
 static int getCurrentYearValue(void) {
     time_t now = time(NULL);
@@ -34,15 +27,6 @@ static int getCurrentYearValue(void) {
 /*
  * 函数名：getShiftPriorityForSchedule
  * 作用：把班次字符串转换成可比较的优先级数值，供排班排序使用。
- * 参数：
- *   shift - 班次名称，支持“上午/早班/下午/晚班/休息”。
- * 返回值：
- *   - 上午/早班：0
- *   - 下午/晚班：1
- *   - 休息：2
- *   - 其他未知值或空指针：9
- * 说明：
- *   数值越小，排序时越靠前。
  */
 static int getShiftPriorityForSchedule(const char* shift) {
     if (!shift) return 9;
@@ -60,10 +44,6 @@ static int getShiftPriorityForSchedule(const char* shift) {
  *   1. 先按日期升序；
  *   2. 同一天按班次优先级排序；
  *   3. 日期和班次都相同时，按排班ID升序。
- * 参数：
- *   lhs、rhs - 指向 Schedule* 元素的指针。
- * 返回值：
- *   符合 qsort 约定的比较结果。
  */
 static int compareSchedulePtrByDateShiftId(const void* lhs, const void* rhs) {
     const Schedule* a = *(const Schedule* const*)lhs;
@@ -76,17 +56,6 @@ static int compareSchedulePtrByDateShiftId(const void* lhs, const void* rhs) {
 }
 
 // 按医生ID查找医生
-/*
- * 函数名：findStaffByIdLocal
- * 作用：在全局医生链表中按医生ID查找对应的 Staff 节点。
- * 参数：
- *   id - 目标医生工号。
- * 返回值：
- *   - 找到则返回对应 Staff 指针；
- *   - 找不到返回 NULL。
- * 说明：
- *   仅供 patient1.c 内部使用，主要用于挂号检索和推荐逻辑。
- */
 static Staff* findStaffByIdLocal(const char* id) {
     for (Staff* d = staffHead->next; d != NULL; d = d->next) {
         if (strcmp(d->id, id) == 0) return d;
@@ -98,11 +67,6 @@ static Staff* findStaffByIdLocal(const char* id) {
 /*
  * 函数名：findScheduleByIdLocal
  * 作用：在全局排班链表中按排班ID查找具体排班节点。
- * 参数：
- *   scheduleId - 排班唯一编号。
- * 返回值：
- *   - 找到时返回 Schedule 指针；
- *   - 未找到时返回 NULL。
  */
 static Schedule* findScheduleByIdLocal(int scheduleId) {
     for (Schedule* s = scheduleList->next; s != NULL; s = s->next) {
@@ -242,8 +206,6 @@ static int extractTrailingSequence(const char* id) {
     if (sscanf(id + len - 4, "%4d", &seq) == 1) return seq;
     return -1;
 }
-
-/* -------------------- 对外公开函数：基础与挂号 -------------------- */
 
 // 生成患者ID：P + 年份 + 四位序号
 /*

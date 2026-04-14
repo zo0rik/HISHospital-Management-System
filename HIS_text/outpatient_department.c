@@ -27,8 +27,8 @@ static const char* examBodyParts[15] = {
 
 static int getShiftPriorityForDoctorView(const char* shift) {
     if (!shift) return 9;
-    if (strcmp(shift, "上午") == 0 ) return 0;
-    if (strcmp(shift, "下午") == 0 ) return 1;
+    if (strcmp(shift, "上午") == 0) return 0;
+    if (strcmp(shift, "下午") == 0) return 1;
     if (strcmp(shift, "休息") == 0) return 2;
     return 9;
 }
@@ -598,6 +598,39 @@ void diagnoseAndTest(const char* docId) {
     createAuxiliaryExamOrders(docId, pId, 0);
 }
 
+static int commitDirectInpatientDrugDispense(Drug* drug, int qty) {
+    DrugHistory* hist;  // 用于记录本次发药的出库历史节点
+
+    // 基本合法性校验：
+    // 1. 药品指针不能为空
+    // 2. 发药数量必须大于 0
+    // 3. 当前库存必须足够
+    // 4. 药品历史链表头必须已初始化
+    if (!drug || qty <= 0 || drug->stock < qty || !drugHistoryList) return 0;
+
+    // 为本次出库记录分配内存
+    hist = (DrugHistory*)malloc(sizeof(DrugHistory));
+    if (!hist) return 0;  // 分配失败则直接返回失败
+
+    // 填充本次药品出库记录
+    hist->drug_id = drug->id;                         // 记录药品 ID
+    hist->type = 2;                                   // 2 表示出库/发药
+    hist->quantity = qty;                             // 记录本次发药数量
+    getCurrentTimeStr(hist->time, sizeof(hist->time)); // 记录当前发药时间
+
+    // 头插法挂到药品历史链表中
+    hist->next = drugHistoryList->next;
+    drugHistoryList->next = hist;
+
+    // 扣减药品库存
+    drug->stock -= qty;
+
+    // 更新药品最近一次出库时间
+    strncpy(drug->last_out, hist->time, sizeof(drug->last_out) - 1);
+    drug->last_out[sizeof(drug->last_out) - 1] = '\0';  // 手动补 '\0'，避免字符串越界
+
+    return 1;  // 发药成功
+}
 // 医生开药
 // 流程：
 // 1. 确定当前患者
@@ -605,8 +638,8 @@ void diagnoseAndTest(const char* docId) {
 // 3. 输出检索结果
 // 4. 选择药品
 // 5. 输入数量
-// 6. 生成待支付药品记录
-void prescribeMedicine(const char* docId) {
+// 6. 门诊模式生成待支付药品记录；住院模式直接从押金扣费并扣库存
+void prescribeMedicineWithMode(const char* docId, int inpatientMode) {
     char pId[20];
 
     // 若已有当前叫号患者，则自动挂载为处方对象
@@ -643,7 +676,6 @@ void prescribeMedicine(const char* docId) {
 
         // 若模糊匹配不到，再尝试把输入当作药品 ID 精确查找
         if (mCount == 0) {
-            int id = 0;
             char* endptr = NULL;
             long tmp = strtol(key, &endptr, 10);
 
@@ -664,7 +696,7 @@ void prescribeMedicine(const char* docId) {
             formatMoney(matched[i]->price, priceText, sizeof(priceText));
 
             // 左侧“映射”只是当前结果表中的序号，不是系统药品 ID
-            printf("  [%-3d] | %-8d | %-30.20s | %-10s | %-8d\n", i + 1, matched[i]->id, matched[i]->name, priceText, matched[i]->stock);
+            printf("  [%-3d] | %-8d | %-30s | %-10s | %-8d\n", i + 1, matched[i]->id, matched[i]->name, priceText, matched[i]->stock);
         }
 
         // 没查到则提示后继续下一轮检索
@@ -735,22 +767,58 @@ void prescribeMedicine(const char* docId) {
             strcpy(r3->patientId, pId);
             strcpy(r3->staffId, docId);
             r3->cost = totalCost;
-            r3->isPaid = 0;  // 初始状态：待支付
 
-            // 描述中保存药名、单价、数量、总价
-            snprintf(r3->description, sizeof(r3->description), "药品:%s_单价:%s_数量:%d_总价:%s", selectedMed->name, priceText, qty, totalText);
+            if (inpatientMode) {
+                Patient* ip = findPatientById(pId);
+                if (!ip || !ip->isInpatient) {
+                    free(r3);
+                    printf("  [!] 当前患者并非有效住院病人，无法走住院押金扣费流程。\n");
+                    break;
+                }
+
+                if (!commitDirectInpatientDrugDispense(selectedMed, qty)) {
+                    free(r3);
+                    printf("  [!] 药房出库提交失败，本次住院用药未生效。\n");
+                    break;
+                }
+
+                ip->inpatientDeposit -= totalCost;
+                r3->isPaid = 1;
+                snprintf(r3->description, sizeof(r3->description),
+                    "[住院明细][药品] 药品:%s_单价:%s_数量:%d_总价:%s_状态:%s",
+                    selectedMed->name, priceText, qty, totalText, "已从住院押金扣除");
+
+                syncInpatientArrearsBill(ip, docId);
+
+                printf("  [√] 住院用药已发出：药品=%s，单价=%s，数量=%d，总金额=%s。\n",
+                    selectedMed->name, priceText, qty, totalText);
+                printf("  [住院押金] 已直接扣费，当前押金余额：%.2f元\n", ip->inpatientDeposit);
+                if (ip->inpatientDeposit < 0) {
+                    printf("  [资金预警] 当前已转为欠费状态，系统已同步更新待补交账单。\n");
+                }
+            }
+            else {
+                r3->isPaid = 0;  // 初始状态：待支付
+
+                // 描述中保存药名、单价、数量、总价
+                snprintf(r3->description, sizeof(r3->description), "药品:%s_单价:%s_数量:%d_总价:%s", selectedMed->name, priceText, qty, totalText);
+
+                // 注意：这里只是创建待支付药单，不在此处扣库存
+                // 真正扣库存应当在患者支付成功后再执行
+                printf("  [√] 云端处方下达指令送出，价值 %s。待患者支付成功后再正式扣减库存。\n", totalText);
+            }
 
             // 记录创建时间并插入全局记录链表
             getCurrentTimeStr(r3->createTime, sizeof(r3->createTime));
             r3->next = recordHead->next;
             recordHead->next = r3;
-
-            // 注意：这里只是创建待支付药单，不在此处扣库存
-            // 真正扣库存应当在患者支付成功后再执行
-            printf("  [√] 云端处方下达指令送出，价值 %s。待患者支付成功后再正式扣减库存。\n", totalText);
             break;
         }
     }
+}
+
+void prescribeMedicine(const char* docId) {
+    prescribeMedicineWithMode(docId, 0);
 }
 
 // 开具住院通知单

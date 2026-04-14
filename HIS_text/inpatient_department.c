@@ -596,7 +596,7 @@ void admitPatient(const char* docId) {
     if (actualDeduct < 0.0) actualDeduct = 0.0;
     arrearsAmount = (double)finalDeposit - actualDeduct;
 
-printf("  系统通过风控模型核算，需缴纳初始住院统筹押金: %d 元。\n", finalDeposit);
+    printf("  系统通过风控模型核算，需缴纳初始住院统筹押金: %d 元。\n", finalDeposit);
 
     if (actualDeduct > 0.0) {
         // 创建已实收的住院押金明细记录
@@ -608,7 +608,7 @@ printf("  系统通过风控模型核算，需缴纳初始住院统筹押金: %d
             finalBed->wardType, finalBed->bedId, adminTime, days, actualDeduct, finalDeposit);
         depositDetail = createInpatientDetailRecordNode(5, pId, docId, actualDeduct, 1, detailDesc);
         if (!depositDetail) {
-printf("  [异常] 住院明细记录创建失败，本次入院未提交。\n");
+            printf("  [异常] 住院明细记录创建失败，本次入院未提交。\n");
             system("pause");
             return;
         }
@@ -825,8 +825,7 @@ void wardRounds(const char* docId) {
                 extern char currentCallingPatientId[20];
                 strcpy(currentCallingPatientId, pId);
 
-                extern void prescribeMedicine(const char* docId);
-                prescribeMedicine(docId);
+                prescribeMedicineWithMode(docId, 1);
 
                 strcpy(currentCallingPatientId, "");
                 targetBed->isRoundsDone = 1;
